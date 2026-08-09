@@ -1,0 +1,140 @@
+"use client";
+
+import Link from "next/link";
+import { usePathname, useRouter } from "next/navigation";
+import { useState } from "react";
+
+import type { CurrentUser, UserRole } from "@/features/auth/auth.types";
+
+interface AppNavigationProps {
+  user: Pick<CurrentUser, "username" | "role"> | null;
+}
+
+interface NavigationItem {
+  href: string;
+  label: string;
+  shortLabel: string;
+  marker: string;
+  roles?: UserRole[];
+  authenticated?: boolean;
+}
+
+const NAVIGATION_ITEMS: NavigationItem[] = [
+  { href: "/dashboard", label: "Tổng quan", shortLabel: "Tổng quan", marker: "01", authenticated: true },
+  { href: "/courses", label: "Khóa học", shortLabel: "Khóa học", marker: "02" },
+  { href: "/profile", label: "Hồ sơ", shortLabel: "Hồ sơ", marker: "03", authenticated: true },
+  { href: "/moderation", label: "Kiểm duyệt", shortLabel: "Duyệt", marker: "04", roles: ["moderator", "admin"] },
+  { href: "/admin/users", label: "Quản trị", shortLabel: "Quản trị", marker: "05", roles: ["admin"] },
+  { href: "/admin/system", label: "Hệ thống", shortLabel: "Hệ thống", marker: "06", roles: ["admin"] },
+];
+
+function canSeeItem(item: NavigationItem, user: AppNavigationProps["user"]) {
+  if (item.authenticated && !user) return false;
+  if (item.roles && (!user || !item.roles.includes(user.role))) return false;
+  return true;
+}
+
+function isActivePath(pathname: string, href: string) {
+  return pathname === href || pathname.startsWith(`${href}/`);
+}
+
+export function AppNavigation({ user }: AppNavigationProps) {
+  const pathname = usePathname();
+  const router = useRouter();
+  const [isSigningOut, setIsSigningOut] = useState(false);
+  const [signOutError, setSignOutError] = useState("");
+  const visibleItems = NAVIGATION_ITEMS.filter((item) => canSeeItem(item, user));
+
+  async function handleSignOut() {
+    setIsSigningOut(true);
+    setSignOutError("");
+
+    try {
+      const response = await fetch("/api/auth/logout", { method: "POST" });
+      if (!response.ok) throw new Error("Không thể đăng xuất.");
+      router.replace("/login");
+      router.refresh();
+    } catch {
+      setSignOutError("Đăng xuất chưa thành công. Vui lòng thử lại.");
+      setIsSigningOut(false);
+    }
+  }
+
+  return (
+    <>
+      <aside className="fixed inset-y-0 left-0 z-40 hidden w-64 flex-col border-r border-slate-200 bg-white px-4 py-6 lg:flex">
+        <Link href="/" className="flex items-center gap-3 rounded-xl px-2 py-2 text-slate-950">
+          <span className="flex size-10 items-center justify-center rounded-xl bg-indigo-600 font-mono text-sm font-bold text-white">Py</span>
+          <span>
+            <span className="block font-bold tracking-tight">Python Learning</span>
+            <span className="block text-xs text-slate-500">Học theo lộ trình</span>
+          </span>
+        </Link>
+
+        <nav aria-label="Điều hướng chính" className="mt-8 flex flex-1 flex-col gap-1">
+          {visibleItems.map((item) => {
+            const active = isActivePath(pathname, item.href);
+            return (
+              <Link
+                key={item.href}
+                href={item.href}
+                aria-current={active ? "page" : undefined}
+                className={`flex min-h-11 items-center gap-3 rounded-xl px-3 text-sm font-semibold transition-colors ${
+                  active ? "bg-indigo-50 text-indigo-700" : "text-slate-600 hover:bg-slate-100 hover:text-slate-950"
+                }`}
+              >
+                <span aria-hidden="true" className="font-mono text-xs text-slate-400">{item.marker}</span>
+                {item.label}
+              </Link>
+            );
+          })}
+        </nav>
+
+        <div className="border-t border-slate-200 pt-4">
+          {user ? (
+            <>
+              <p className="truncate px-2 text-sm font-semibold text-slate-900">{user.username}</p>
+              <p className="mt-1 px-2 text-xs capitalize text-slate-500">{user.role}</p>
+              <button
+                type="button"
+                onClick={handleSignOut}
+                disabled={isSigningOut}
+                className="mt-3 min-h-10 w-full rounded-lg border border-slate-300 px-3 text-sm font-semibold text-slate-700 hover:bg-slate-50 disabled:cursor-wait disabled:opacity-60"
+              >
+                {isSigningOut ? "Đang đăng xuất…" : "Đăng xuất"}
+              </button>
+              {signOutError && <p role="alert" className="mt-2 text-xs text-red-600">{signOutError}</p>}
+            </>
+          ) : (
+            <div className="grid grid-cols-2 gap-2">
+              <Link href="/login" className="flex min-h-10 items-center justify-center rounded-lg border border-slate-300 text-sm font-semibold text-slate-700">Đăng nhập</Link>
+              <Link href="/register" className="flex min-h-10 items-center justify-center rounded-lg bg-indigo-600 text-sm font-semibold text-white">Đăng ký</Link>
+            </div>
+          )}
+        </div>
+      </aside>
+
+      <div className="fixed inset-x-0 top-0 z-30 flex h-14 items-center justify-between border-b border-slate-200 bg-white/95 px-4 backdrop-blur lg:hidden">
+        <Link href="/" className="font-bold tracking-tight text-slate-950">Python Learning</Link>
+        {user ? <span className="max-w-32 truncate text-sm text-slate-600">{user.username}</span> : <Link href="/login" className="text-sm font-semibold text-indigo-700">Đăng nhập</Link>}
+      </div>
+
+      <nav aria-label="Điều hướng di động" className="fixed inset-x-0 bottom-0 z-40 flex min-h-16 items-stretch overflow-x-auto border-t border-slate-200 bg-white px-2 pb-[env(safe-area-inset-bottom)] lg:hidden">
+        {visibleItems.map((item) => {
+          const active = isActivePath(pathname, item.href);
+          return (
+            <Link
+              key={item.href}
+              href={item.href}
+              aria-current={active ? "page" : undefined}
+              className={`flex min-w-20 flex-1 flex-col items-center justify-center gap-1 px-2 py-2 text-xs font-semibold ${active ? "text-indigo-700" : "text-slate-500"}`}
+            >
+              <span aria-hidden="true" className="font-mono text-[10px]">{item.marker}</span>
+              {item.shortLabel}
+            </Link>
+          );
+        })}
+      </nav>
+    </>
+  );
+}

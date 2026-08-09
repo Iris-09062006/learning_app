@@ -1,0 +1,158 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --background: #f7f8fc;
+  --surface: #ffffff;
+  --surface-subtle: #f0f2f8;
+  --surface-elevated: #ffffff;
+
+  --text-primary: #172033;
+  --text-secondary: #596579;
+  --text-muted: #8a94a6;
+  --text-inverse: #ffffff;
+
+  --border: #e2e7f0;
+  --border-strong: #cbd3e1;
+
+  --primary: #6d5dfb;
+  --primary-hover: #5c4ce5;
+  --primary-active: #4e40c7;
+  --primary-soft: #efedff;
+
+  --ai: #18a9c9;
+  --ai-hover: #118da9;
+  --ai-soft: #e6f8fc;
+
+  --success: #22a559;
+  --success-soft: #e9f8ef;
+
+  --warning: #d98b0b;
+  --warning-soft: #fff5dd;
+
+  --danger: #dc4554;
+  --danger-soft: #fdecef;
+
+  --info: #3778d4;
+  --info-soft: #eaf2ff;
+
+  --code-background: #151a2b;
+  --code-surface: #1d2337;
+  --code-text: #e7ebf6;
+  --code-muted: #8993ad;
+}
+
+.dark {
+  --background: #0d1020;
+  --surface: #15192b;
+  --surface-subtle: #1b2034;
+  --surface-elevated: #20263b;
+
+  --text-primary: #f4f6fb;
+  --text-secondary: #b8c0d4;
+  --text-muted: #8791a9;
+  --text-inverse: #101426;
+
+  --border: #2a3148;
+  --border-strong: #3b455f;
+
+  --primary: #8d80ff;
+  --primary-hover: #9d92ff;
+  --primary-active: #7162eb;
+  --primary-soft: #272249;
+
+  --ai: #45c7e2;
+  --ai-hover: #61d2e9;
+  --ai-soft: #17343e;
+
+  --success: #4ecb7b;
+  --success-soft: #183b2a;
+
+  --warning: #f2b84b;
+  --warning-soft: #3d3016;
+
+  --danger: #f2737e;
+  --danger-soft: #432128;
+
+  --info: #6aa5f5;
+  --info-soft: #1c3150;
+
+  --code-background: #090c15;
+  --code-surface: #111626;
+  --code-text: #eef2ff;
+  --code-muted: #8791aa;
+}
+
+* {
+  border-color: var(--border);
+}
+
+html {
+  color-scheme: light;
+}
+
+html.dark {
+  color-scheme: dark;
+}
+
+body {
+  min-height: 100vh;
+  background: var(--background);
+  color: var(--text-primary);
+  font-family: Inter, ui-sans-serif, system-ui, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+  transition:
+    background-color 0.25s ease,
+    color 0.25s ease;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+::selection {
+  background: var(--primary-soft);
+  color: var(--text-primary);
+}
+
+/* Tinh tế scrollbar cho desktop */
+@media (min-width: 1024px) {
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: var(--border-strong) transparent;
+  }
+  *::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+  *::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  *::-webkit-scrollbar-thumb {
+    background-color: var(--border-strong);
+    border-radius: 9999px;
+  }
+  *::-webkit-scrollbar-thumb:hover {
+    background-color: var(--text-muted);
+  }
+}
+
+:focus-visible {
+  outline: 3px solid var(--primary);
+  outline-offset: 3px;
+  border-radius: 4px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    scroll-behavior: auto !important;
+    transition-duration: 0.01ms !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+  }
+}
