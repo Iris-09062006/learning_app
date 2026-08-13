@@ -26,7 +26,24 @@ import {
   listCourseImportSources,
   materializeCourseImportSource,
   removeStagedCourseImportSource,
+  uploadSourceObject,
 } from "./content-pipeline-repository";
+
+describe("source object upload", () => {
+  beforeEach(() => { vi.clearAllMocks(); });
+
+  it("distinguishes a deterministic object conflict from an ambiguous storage error", async () => {
+    const upload = vi.fn()
+      .mockResolvedValueOnce({ error: { statusCode: 409, message: "The resource already exists" } })
+      .mockResolvedValueOnce({ error: { statusCode: 503, message: "Unavailable" } });
+    mocks.createServerSupabaseClient.mockResolvedValue({
+      storage: { from: vi.fn().mockReturnValue({ upload }) },
+    });
+    const file = new File(["source"], "source.md", { type: "text/markdown" });
+    await expect(uploadSourceObject("admin/key/source.md", file)).rejects.toThrow("STORAGE_OBJECT_EXISTS");
+    await expect(uploadSourceObject("admin/key/source.md", file)).rejects.toThrow("STORAGE_ERROR");
+  });
+});
 
 function maybeSingleQuery(data: unknown) {
   return {

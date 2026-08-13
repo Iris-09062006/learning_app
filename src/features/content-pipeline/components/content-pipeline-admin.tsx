@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { FormEvent, useCallback, useEffect, useMemo, useState } from "react";
+import { FormEvent, useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import type {
   CourseImportDraft,
@@ -11,8 +11,30 @@ import type {
   ReviewCourseDraftBatchResult,
 } from "@/features/content-pipeline/types";
 
-interface ApiEnvelope<T> { success: boolean; data: T; message?: string; error?: { message?: string } }
+interface ApiEnvelope<T> { success: boolean; data: T; message?: string; error?: { message?: string; sourceDocumentId?: number } }
+interface PipelineRequestError extends Error { sourceDocumentId?: number }
 interface PendingGeneration { sourceDocumentId: number; sourceFilename: string }
+type StagedSourceStatus = "pending" | "ingesting" | "extracted" | "failed";
+interface StagedSourceAttempt {
+  clientKey: string;
+  idempotencyKey: string;
+  kind: "manual_url" | "file";
+  label: string;
+  url?: string;
+  sourceDocumentId?: number;
+  status: StagedSourceStatus;
+  error?: string;
+  attached?: boolean;
+}
+interface PipelineCheckpointV2 {
+  version: 2;
+  topic: string;
+  selectedCandidateKeys: string[];
+  attempts: StagedSourceAttempt[];
+  initializationKey: string;
+  jobId: number | null;
+  pendingAction: "ingestion" | "initialization" | "outline" | null;
+}
 
 const CHECKPOINT_KEY = "learningapp.course-outline-generation";
 
@@ -23,21 +45,26 @@ export async function requestPipelineApi<T>(url: string, init?: RequestInit): Pr
     if ([502, 503, 504].includes(response.status)) {
       throw new Error("Dịch vụ tạm thời quá tải hoặc hết thời gian chờ. Vui lòng thử lại.");
     }
-    throw new Error(payload?.error?.message ?? payload?.message ?? "Không thể xử lý yêu cầu.");
+    const error = new Error(payload?.error?.message ?? payload?.message ?? "Không thể xử lý yêu cầu.") as PipelineRequestError;
+    if (Number.isSafeInteger(payload?.error?.sourceDocumentId)) error.sourceDocumentId = payload?.error?.sourceDocumentId;
+    throw error;
   }
   return payload.data;
 }
 
-function readCheckpoint(): PendingGeneration | null {
+export function decodePipelineCheckpoint(value: string | null): PendingGeneration | PipelineCheckpointV2 | null {
+  if (!value) return null;
   try {
-    const value = sessionStorage.getItem(CHECKPOINT_KEY);
-    if (!value) return null;
-    const parsed = JSON.parse(value) as PendingGeneration;
-    return Number.isSafeInteger(parsed.sourceDocumentId) && parsed.sourceFilename ? parsed : null;
+    const parsed = JSON.parse(value) as PendingGeneration | PipelineCheckpointV2;
+    if ("version" in parsed && parsed.version === 2 && Array.isArray(parsed.attempts)
+      && typeof parsed.initializationKey === "string") return parsed;
+    return "sourceDocumentId" in parsed && Number.isSafeInteger(parsed.sourceDocumentId) && parsed.sourceFilename ? parsed : null;
   } catch { return null; }
 }
 
-function storeCheckpoint(value: PendingGeneration | null) {
+function readCheckpoint() { return decodePipelineCheckpoint(sessionStorage.getItem(CHECKPOINT_KEY)); }
+
+function storeCheckpoint(value: PendingGeneration | PipelineCheckpointV2 | null) {
   if (value) sessionStorage.setItem(CHECKPOINT_KEY, JSON.stringify(value));
   else sessionStorage.removeItem(CHECKPOINT_KEY);
 }
@@ -70,6 +97,12 @@ export function ContentPipelineAdmin() {
   const [selectedJobId, setSelectedJobId] = useState<number | null>(null);
   const [selectedOutlineLessonId, setSelectedOutlineLessonId] = useState<number | null>(null);
   const [pendingGeneration, setPendingGeneration] = useState<PendingGeneration | null>(null);
+  const [sourceAttempts, setSourceAttempts] = useState<StagedSourceAttempt[]>([]);
+  const [initializationKey, setInitializationKey] = useState(() => crypto.randomUUID());
+  const [sourceReviewJobId, setSourceReviewJobId] = useState<number | null>(null);
+  const [pendingSourceAction, setPendingSourceAction] = useState<PipelineCheckpointV2["pendingAction"]>(null);
+  const [checkpointLoaded, setCheckpointLoaded] = useState(false);
+  const checkpointHydrated = useRef(false);
   const [published, setPublished] = useState<ReviewCourseDraftBatchResult | null>(null);
   const [reviewComment, setReviewComment] = useState("");
   const [busy, setBusy] = useState(false);
@@ -80,6 +113,12 @@ export function ContentPipelineAdmin() {
     () => imports.find((item) => item.jobId === selectedJobId) ?? null,
     [imports, selectedJobId]
   );
+  const reviewedSourceCount = useMemo(() => {
+    const sourceIds = new Set(sourceAttempts.flatMap((attempt) => attempt.sourceDocumentId ? [attempt.sourceDocumentId] : []));
+    const reviewedJob = imports.find((item) => item.jobId === sourceReviewJobId) ?? selectedImport;
+    const serverOnlyCount = reviewedJob?.sources.filter((source) => !sourceIds.has(source.sourceDocumentId)).length ?? 0;
+    return sourceAttempts.length + serverOnlyCount;
+  }, [imports, selectedImport, sourceAttempts, sourceReviewJobId]);
   const selectedOutlineLesson = selectedImport?.lessons.find((lesson) => lesson.id === selectedOutlineLessonId) ?? null;
   const selectedContent = selectedOutlineLesson?.contentDraft ?? null;
   const refresh = useCallback(async () => {
@@ -87,12 +126,31 @@ export function ContentPipelineAdmin() {
     setImports(importData.items);
     setSelectedJobId((current) => current && importData.items.some((item) => item.jobId === current)
       ? current : importData.items[0]?.jobId ?? null);
-    const checkpoint = readCheckpoint();
-    if (checkpoint && importData.items.some((item) => item.sourceDocumentId === checkpoint.sourceDocumentId)) {
-      storeCheckpoint(null); setPendingGeneration(null);
-    } else setPendingGeneration(checkpoint);
+    if (!checkpointHydrated.current) {
+      const checkpoint = readCheckpoint();
+      if (checkpoint && "version" in checkpoint) {
+        setSourceAttempts(checkpoint.attempts); setInitializationKey(checkpoint.initializationKey);
+        setSourceReviewJobId(checkpoint.jobId); setPendingSourceAction(checkpoint.pendingAction);
+        if (checkpoint.jobId && importData.items.some((item) => item.jobId === checkpoint.jobId)) setSelectedJobId(checkpoint.jobId);
+      } else if (checkpoint && importData.items.some((item) => item.sourceDocumentId === checkpoint.sourceDocumentId)) {
+        storeCheckpoint(null); setPendingGeneration(null);
+      } else setPendingGeneration(checkpoint);
+      checkpointHydrated.current = true;
+      setCheckpointLoaded(true);
+    }
     setMessage(importData.items.length ? "Đã tải hàng chờ Course import." : "Không có Course import đang chờ xử lý.");
   }, []);
+
+  useEffect(() => {
+    if (!checkpointLoaded) return;
+    if (!sourceAttempts.length && !sourceReviewJobId) {
+      const current = decodePipelineCheckpoint(sessionStorage.getItem(CHECKPOINT_KEY));
+      if (current && "version" in current) storeCheckpoint(null);
+      return;
+    }
+    storeCheckpoint({ version: 2, topic: "", selectedCandidateKeys: [], attempts: sourceAttempts,
+      initializationKey, jobId: sourceReviewJobId, pendingAction: pendingSourceAction });
+  }, [sourceAttempts, initializationKey, sourceReviewJobId, pendingSourceAction, checkpointLoaded]);
 
   useEffect(() => {
     refresh().catch((cause: unknown) => {
@@ -138,6 +196,126 @@ export function ContentPipelineAdmin() {
     setBusy(true); setError(null); setMessage("Đang thử sinh lại Course outline...");
     try { await runOutlineGeneration(pendingGeneration); setMessage("Course outline đã được tạo lại."); }
     catch (cause) { setError(cause instanceof Error ? cause.message : "Không thể thử lại."); }
+    finally { setBusy(false); }
+  }
+
+  function updateAttempt(clientKey: string, changes: Partial<StagedSourceAttempt>) {
+    setSourceAttempts((current) => current.map((attempt) => attempt.clientKey === clientKey ? { ...attempt, ...changes } : attempt));
+  }
+
+  async function ingestManualUrl(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault(); setBusy(true); setError(null); setPendingSourceAction("ingestion");
+    if (reviewedSourceCount >= 8) { setError("Mỗi Course chỉ được tối đa 8 nguồn."); setBusy(false); setPendingSourceAction(null); return; }
+    const form = event.currentTarget;
+    const url = (form.elements.namedItem("manualUrl") as HTMLInputElement).value.trim();
+    const attempt: StagedSourceAttempt = { clientKey: crypto.randomUUID(), idempotencyKey: crypto.randomUUID(), kind: "manual_url", label: url, url, status: "ingesting" };
+    setSourceAttempts((current) => current.length >= 8 ? current : [...current, attempt]);
+    try {
+      const result = await requestPipelineApi<{ sourceDocumentId: number; status: "extracted"; chunkCount: number }>("/api/admin/content-sources/url", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ url, discovery: "manual_url", idempotencyKey: attempt.idempotencyKey }),
+      });
+      updateAttempt(attempt.clientKey, { sourceDocumentId: result.sourceDocumentId, status: "extracted" });
+      form.reset(); setMessage(`Nguồn URL đã sẵn sàng (${result.chunkCount} chunks).`);
+    } catch (cause) {
+      const requestError = cause as PipelineRequestError;
+      updateAttempt(attempt.clientKey, { sourceDocumentId: requestError.sourceDocumentId, status: "failed", error: cause instanceof Error ? cause.message : "Không thể ingest URL." });
+    } finally { setBusy(false); setPendingSourceAction(null); }
+  }
+
+  async function ingestOptionalFile(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault(); setBusy(true); setError(null); setPendingSourceAction("ingestion");
+    if (reviewedSourceCount >= 8) { setError("Mỗi Course chỉ được tối đa 8 nguồn."); setBusy(false); setPendingSourceAction(null); return; }
+    const form = event.currentTarget;
+    const file = (form.elements.namedItem("optionalSource") as HTMLInputElement).files?.[0];
+    if (!file) { setError("Hãy chọn một tài liệu nguồn."); setBusy(false); setPendingSourceAction(null); return; }
+    const attempt: StagedSourceAttempt = { clientKey: crypto.randomUUID(), idempotencyKey: crypto.randomUUID(), kind: "file", label: file.name, status: "ingesting" };
+    setSourceAttempts((current) => current.length >= 8 ? current : [...current, attempt]);
+    try {
+      const formData = new FormData(); formData.set("file", file); formData.set("idempotencyKey", attempt.idempotencyKey);
+      const staged = await requestPipelineApi<{ sourceDocumentId?: number; id?: number }>("/api/admin/content-sources", { method: "POST", body: formData });
+      const sourceDocumentId = staged.sourceDocumentId ?? staged.id;
+      if (!sourceDocumentId) throw new Error("Nguồn staged không hợp lệ.");
+      updateAttempt(attempt.clientKey, { sourceDocumentId });
+      const result = await requestPipelineApi<{ chunkCount: number }>(`/api/admin/content-sources/${sourceDocumentId}/extract`, { method: "POST" });
+      updateAttempt(attempt.clientKey, { sourceDocumentId, status: "extracted" });
+      form.reset(); setMessage(`Tài liệu đã sẵn sàng (${result.chunkCount} chunks).`);
+    } catch (cause) {
+      updateAttempt(attempt.clientKey, { status: "failed", error: cause instanceof Error ? cause.message : "Không thể ingest tài liệu." });
+    } finally { setBusy(false); setPendingSourceAction(null); }
+  }
+
+  async function retrySourceAttempt(attempt: StagedSourceAttempt) {
+    setBusy(true); setError(null); setPendingSourceAction("ingestion"); updateAttempt(attempt.clientKey, { status: "ingesting", error: undefined });
+    try {
+      if (attempt.sourceDocumentId) {
+        await requestPipelineApi(`/api/admin/content-sources/${attempt.sourceDocumentId}/extract`, { method: "POST" });
+        updateAttempt(attempt.clientKey, { status: "extracted" });
+      } else if (attempt.kind === "manual_url" && attempt.url) {
+        const result = await requestPipelineApi<{ sourceDocumentId: number }>("/api/admin/content-sources/url", {
+          method: "POST", headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ url: attempt.url, discovery: "manual_url", idempotencyKey: attempt.idempotencyKey }),
+        });
+        updateAttempt(attempt.clientKey, { sourceDocumentId: result.sourceDocumentId, status: "extracted" });
+      } else throw new Error("Hãy chọn lại file để thử lại nguồn này.");
+    } catch (cause) { updateAttempt(attempt.clientKey, { status: "failed", error: cause instanceof Error ? cause.message : "Không thể thử lại." }); }
+    finally { setBusy(false); setPendingSourceAction(null); }
+  }
+
+  async function removeSourceAttempt(attempt: StagedSourceAttempt) {
+    setBusy(true); setError(null);
+    try {
+      if (attempt.sourceDocumentId) await requestPipelineApi(`/api/admin/content-sources/${attempt.sourceDocumentId}`, { method: "DELETE" });
+      setSourceAttempts((current) => current.filter((item) => item.clientKey !== attempt.clientKey));
+    } catch (cause) { setError(cause instanceof Error ? cause.message : "Không thể xóa nguồn staged."); }
+    finally { setBusy(false); }
+  }
+
+  async function initializeOrAttachSources() {
+    const usable = sourceAttempts.filter((attempt) => attempt.status === "extracted" && attempt.sourceDocumentId && !attempt.attached);
+    if (!usable.length) return;
+    setBusy(true); setError(null); setPendingSourceAction("initialization");
+    try {
+      let jobId = sourceReviewJobId;
+      if (!jobId) {
+        const result = await requestPipelineApi<{ jobId: number }>("/api/admin/course-imports", {
+          method: "POST", headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ initializationKey, sources: usable.map((attempt) => ({ sourceDocumentId: attempt.sourceDocumentId })) }),
+        });
+        jobId = result.jobId; setSourceReviewJobId(jobId);
+      } else {
+        for (const attempt of usable) {
+          await requestPipelineApi(`/api/admin/course-drafts/${jobId}/sources`, {
+            method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ sourceDocumentId: attempt.sourceDocumentId }),
+          });
+        }
+      }
+      setSourceAttempts((current) => current.map((attempt) => usable.some((item) => item.clientKey === attempt.clientKey) ? { ...attempt, attached: true } : attempt));
+      await refresh(); setSelectedJobId(jobId); setMessage("Các nguồn usable đã được gắn vào một Course import.");
+    } catch (cause) { setError(cause instanceof Error ? cause.message : "Không thể khởi tạo hoặc gắn nguồn."); }
+    finally { setBusy(false); setPendingSourceAction(null); }
+  }
+
+  async function generateReviewedSourceOutline() {
+    const jobId = sourceReviewJobId ?? selectedImport?.jobId;
+    if (!jobId) return;
+    setBusy(true); setError(null); setPendingSourceAction("outline");
+    try {
+      await requestPipelineApi(`/api/admin/course-drafts/${jobId}/outline`, { method: "POST" });
+      await refresh(); setSelectedJobId(jobId); setMessage("Course outline mới đã sẵn sàng để review.");
+    } catch (cause) { setError(cause instanceof Error ? cause.message : "Không thể tạo outline."); }
+    finally { setBusy(false); setPendingSourceAction(null); }
+  }
+
+  async function detachReviewedSource(sourceDocumentId: number) {
+    if (!selectedImport) return;
+    setBusy(true); setError(null);
+    try {
+      await requestPipelineApi(`/api/admin/course-drafts/${selectedImport.jobId}/sources/${sourceDocumentId}`, { method: "DELETE" });
+      setSourceAttempts((current) => current.map((attempt) => attempt.sourceDocumentId === sourceDocumentId
+        ? { ...attempt, attached: false } : attempt));
+      await refresh(); setMessage("Nguồn đã được tháo; outline hiện tại cần được tạo lại.");
+    } catch (cause) { setError(cause instanceof Error ? cause.message : "Không thể tháo nguồn."); }
     finally { setBusy(false); }
   }
 
@@ -272,6 +450,40 @@ export function ContentPipelineAdmin() {
       </div> : null}
     </section>
 
+    <section className="rounded-2xl border border-blue-200 bg-blue-50 p-6" aria-labelledby="source-review-title">
+      <h2 id="source-review-title" className="text-xl font-semibold text-slate-950">Nguồn cho Course đa nguồn</h2>
+      <p className="mt-2 text-sm text-slate-700">Thêm URL công khai và/hoặc tài liệu tùy chọn. Chỉ nguồn trích xuất thành công mới có thể trở thành evidence.</p>
+      <div className="mt-5 grid gap-4 md:grid-cols-2">
+        <form className="rounded-lg border border-blue-200 bg-white p-4" onSubmit={ingestManualUrl}>
+          <label className="text-sm font-medium text-slate-800">URL thủ công
+            <input className="mt-2 block w-full rounded-lg border border-slate-300 p-2" name="manualUrl" type="url" required disabled={busy || reviewedSourceCount >= 8} />
+          </label>
+          <button className="mt-3 rounded bg-blue-700 px-4 py-2 text-sm font-semibold text-white disabled:opacity-50" type="submit" disabled={busy || reviewedSourceCount >= 8}>Ingest URL</button>
+        </form>
+        <form className="rounded-lg border border-blue-200 bg-white p-4" onSubmit={ingestOptionalFile}>
+          <label className="text-sm font-medium text-slate-800">Tài liệu tùy chọn
+            <input className="mt-2 block w-full rounded-lg border border-slate-300 p-2" name="optionalSource" type="file" accept=".pdf,.txt,.md,.docx" required disabled={busy || reviewedSourceCount >= 8} />
+          </label>
+          <button className="mt-3 rounded bg-blue-700 px-4 py-2 text-sm font-semibold text-white disabled:opacity-50" type="submit" disabled={busy || reviewedSourceCount >= 8}>Ingest file</button>
+        </form>
+      </div>
+      <p className="mt-3 text-sm font-medium text-slate-700">{reviewedSourceCount}/8 nguồn đã chọn · {sourceAttempts.filter((attempt) => attempt.status === "extracted").length} usable</p>
+      {sourceAttempts.length ? <ul className="mt-3 space-y-2" aria-label="Trạng thái nguồn">{sourceAttempts.map((attempt) => <li className="rounded-lg border border-slate-200 bg-white p-3 text-sm" key={attempt.clientKey}>
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div><p className="font-semibold text-slate-900">{attempt.label}</p><p className="text-slate-600">{attempt.kind === "manual_url" ? "URL thủ công" : "File upload"} · {attempt.status}{attempt.attached ? " · attached" : " · staged"}</p>
+            {attempt.error ? <p role="alert" className="mt-1 text-red-700">{attempt.error}</p> : null}</div>
+          <div className="flex gap-2">{attempt.status === "failed" ? <button className="rounded border px-2 py-1 font-semibold" type="button" onClick={() => retrySourceAttempt(attempt)} disabled={busy}>Retry</button> : null}
+            {!attempt.attached ? <button className="rounded border border-red-400 px-2 py-1 font-semibold text-red-700" type="button" onClick={() => removeSourceAttempt(attempt)} disabled={busy || attempt.status === "ingesting"}>Remove</button> : null}</div>
+        </div>
+      </li>)}</ul> : <p className="mt-3 text-sm text-slate-600">Chưa có nguồn staged.</p>}
+      <div className="mt-4 flex flex-wrap gap-3">
+        <button className="rounded bg-emerald-700 px-4 py-2 text-sm font-semibold text-white disabled:opacity-50" type="button" onClick={initializeOrAttachSources}
+          disabled={busy || !sourceAttempts.some((attempt) => attempt.status === "extracted" && !attempt.attached)}> {sourceReviewJobId ? "Attach nguồn usable" : "Khởi tạo Course import"}</button>
+        <button className="rounded border border-blue-600 bg-white px-4 py-2 text-sm font-semibold text-blue-800 disabled:opacity-50" type="button" onClick={generateReviewedSourceOutline}
+          disabled={busy || !sourceReviewJobId || !sourceAttempts.some((attempt) => attempt.attached)}>Tạo outline từ evidence đã review</button>
+      </div>
+    </section>
+
     <div aria-live="polite" className="text-sm text-slate-700">{message}</div>
     {error ? <div role="alert" className="rounded-lg border border-red-300 bg-red-50 p-3 text-sm text-red-800">{error}</div> : null}
     {published ? <div className="rounded-lg border border-emerald-300 bg-emerald-50 p-4 text-sm text-emerald-900">Course đã xuất bản. <Link className="font-semibold underline" href={`/courses/${published.courseId}`}>Mở Course</Link></div> : null}
@@ -281,7 +493,7 @@ export function ContentPipelineAdmin() {
         <h2 id="review-title" className="font-semibold text-slate-950">Course import queue</h2>
         {imports.length === 0 ? <p className="mt-3 text-sm text-slate-500">Hàng chờ trống.</p> : <ul className="mt-3 space-y-2">{imports.map((item) => <li key={item.jobId}>
           <button className={`w-full rounded-lg border p-3 text-left text-sm ${selectedJobId === item.jobId ? "border-blue-500 bg-blue-50" : "border-slate-200"}`}
-            type="button" onClick={() => { setSelectedJobId(item.jobId); setSelectedOutlineLessonId(null); }}>
+            type="button" onClick={() => { setSelectedJobId(item.jobId); setSourceReviewJobId(item.jobId); setSelectedOutlineLessonId(null); }}>
             <span className="block font-semibold text-slate-900">{item.title}</span>
             <span className="text-slate-600">{item.status} · {item.lessons.length} Lessons</span>
           </button>
@@ -294,11 +506,17 @@ export function ContentPipelineAdmin() {
           <div className="rounded-lg border border-slate-200 bg-slate-50 p-3 text-sm">
             <p className="font-semibold text-slate-900">Nguồn evidence ({selectedImport.sources.length})</p>
             <ul className="mt-2 space-y-1">{selectedImport.sources.map((source) => <li key={source.sourceDocumentId}>
-              {source.title}{source.domain ? ` · ${source.domain}` : ""} · {source.chunkCount} chunks
+              <span>{source.title}{source.domain ? ` · ${source.domain}` : ""} · {source.ingestionMethod} · {source.status} · {source.chunkCount} chunks</span>
+              {source.authorityScore !== null ? <span> · authority {source.authorityScore.toFixed(2)}</span> : null}
+              {source.relevanceScore !== null ? <span> · relevance {source.relevanceScore.toFixed(2)}</span> : null}
+              {["uploaded", "processing", "outline_review", "failed"].includes(selectedImport.status) && selectedImport.approvedOutlineRevision === null
+                ? <button className="ml-2 font-semibold text-red-700 underline disabled:opacity-50" type="button" onClick={() => detachReviewedSource(source.sourceDocumentId)} disabled={busy || selectedImport.sources.length <= 1}>Detach</button> : null}
             </li>)}</ul>
           </div>
           {selectedImport.outlineStale ? <div role="alert" className="rounded-lg border border-amber-300 bg-amber-50 p-3 text-sm text-amber-950">
             Evidence đã thay đổi. Hãy tạo outline revision mới trước khi Continue.
+            <button className="ml-2 font-semibold underline" type="button" onClick={generateReviewedSourceOutline} disabled={busy}>Tạo outline thay thế</button>
+            {!canEditOutline ? <button className="ml-2 rounded border px-2 py-1 font-semibold opacity-60" type="button" disabled>Continue: sinh Lesson contents</button> : null}
           </div> : null}
           <label className="block text-sm font-medium">Course title
             <input className="mt-1 w-full rounded-lg border border-slate-300 p-2" value={selectedImport.title} disabled={!canEditOutline}

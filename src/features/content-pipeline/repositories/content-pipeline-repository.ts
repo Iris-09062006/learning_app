@@ -149,6 +149,15 @@ function parseCourseImportMutation(data: unknown): CourseImportMutationResult {
   return result;
 }
 
+function throwCourseImportMutationError(error: { message?: string } | null): never {
+  const message = error?.message ?? "";
+  const known = ["IDEMPOTENCY_CONFLICT", "SOURCE_INVALID", "PROVENANCE_INVALID", "SOURCE_COUNT_INVALID",
+    "SOURCE_NOT_FOUND", "SOURCE_NOT_USABLE", "SOURCE_ALREADY_ATTACHED", "SOURCE_LIMIT_REACHED",
+    "JOB_NOT_FOUND", "JOB_SOURCE_LOCKED", "LAST_SOURCE_REQUIRED", "SOURCE_HAS_HISTORY"]
+    .find((code) => message.includes(code));
+  throw new Error(known ?? "DATABASE_ERROR");
+}
+
 export async function createSourceDocument(input: {
   uploadedBy: string;
   originalFilename: string;
@@ -199,7 +208,7 @@ export async function materializeCourseImportSource(input: {
     p_discovered_from_source_document_id: input.discoveredFromSourceDocumentId ?? null,
     p_fetched_at: input.fetchedAt ?? null,
   });
-  if (error) throw new Error("DATABASE_ERROR");
+  if (error) throwCourseImportMutationError(error);
   return parseCourseImportMutation(data);
 }
 
@@ -212,7 +221,7 @@ export async function initializeCourseImportFromSources(input: {
     p_initialization_key: input.initializationKey,
     p_sources: input.sources,
   });
-  if (error) throw new Error("DATABASE_ERROR");
+  if (error) throwCourseImportMutationError(error);
   const result = parseCourseImportMutation(data);
   if (!Number.isSafeInteger(result.jobId) || !result.sourceDocumentIds?.length
     || result.sourceDocumentIds[0] !== result.sourceDocumentId) throw new Error("DATABASE_ERROR");
@@ -230,7 +239,7 @@ export async function attachCourseImportSource(input: {
     p_source_document_id: input.sourceDocumentId,
     p_relevance_score: input.relevanceScore ?? null,
   });
-  if (error) throw new Error("DATABASE_ERROR");
+  if (error) throwCourseImportMutationError(error);
   const result = parseCourseImportMutation(data);
   if (result.jobId !== input.jobId || result.sourceDocumentId !== input.sourceDocumentId
     || result.attached !== true || !Number.isSafeInteger(result.sourceOrder)) throw new Error("DATABASE_ERROR");
@@ -246,7 +255,7 @@ export async function detachCourseImportSource(input: {
     p_job_id: input.jobId,
     p_source_document_id: input.sourceDocumentId,
   });
-  if (error) throw new Error("DATABASE_ERROR");
+  if (error) throwCourseImportMutationError(error);
   const result = parseCourseImportMutation(data);
   if (result.jobId !== input.jobId || result.sourceDocumentId !== input.sourceDocumentId
     || !result.sourceDocumentIds?.length || result.sourceDocumentIds[0] !== result.anchorSourceDocumentId) {
@@ -262,7 +271,7 @@ export async function removeStagedCourseImportSource(
   const { data, error } = await supabase.rpc("remove_staged_course_import_source", {
     p_source_document_id: sourceDocumentId,
   });
-  if (error) throw new Error("DATABASE_ERROR");
+  if (error) throwCourseImportMutationError(error);
   const result = parseCourseImportMutation(data);
   if (result.sourceDocumentId !== sourceDocumentId || result.removed !== true
     || !result.storageBucket || !result.storagePath) throw new Error("DATABASE_ERROR");
@@ -275,7 +284,37 @@ export async function uploadSourceObject(path: string, file: File): Promise<void
     contentType: file.type,
     upsert: false,
   });
-  if (error) throw new Error("STORAGE_ERROR");
+  if (error) {
+    const storageError = error as { message?: string; statusCode?: number | string };
+    if (Number(storageError.statusCode) === 409 || /already exists|duplicate/i.test(storageError.message ?? "")) {
+      throw new Error("STORAGE_OBJECT_EXISTS");
+    }
+    throw new Error("STORAGE_ERROR");
+  }
+}
+
+export async function getSourceDocumentByStoragePath(path: string): Promise<(SourceDocumentRow & SourceDocumentRecord) | null> {
+  const supabase = await client();
+  const { data, error } = await supabase.from("source_documents").select("*").eq("storage_path", path).maybeSingle();
+  if (error) throw new Error("DATABASE_ERROR");
+  if (!data) return null;
+  return Object.assign(data as SourceDocumentRow, mapSource(data as SourceDocumentRow));
+}
+
+export async function getSourceDocumentChunkCount(sourceDocumentId: number): Promise<number> {
+  const supabase = await client();
+  const { count, error } = await supabase.from("document_chunks")
+    .select("id", { count: "exact", head: true }).eq("source_document_id", sourceDocumentId);
+  if (error) throw new Error("DATABASE_ERROR");
+  return count ?? 0;
+}
+
+export async function getCourseImportJobIdForSource(sourceDocumentId: number): Promise<number | null> {
+  const supabase = await client();
+  const { data, error } = await supabase.from("course_import_job_sources")
+    .select("job_id").eq("source_document_id", sourceDocumentId).maybeSingle();
+  if (error) throw new Error("DATABASE_ERROR");
+  return data && Number.isSafeInteger(data.job_id) ? data.job_id : null;
 }
 
 export async function removeSourceObject(path: string): Promise<void> {

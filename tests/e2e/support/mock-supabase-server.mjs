@@ -44,6 +44,13 @@ const multiSourceCourseImportFixture = {
   ],
 };
 
+const phase3SourceReviewFixture = {
+  stagedFileId: 22,
+  laterUrlId: 23,
+  jobId: 31,
+  initializationKey: "33333333-3333-4333-8333-333333333333",
+};
+
 let state;
 
 function resetState() {
@@ -460,6 +467,9 @@ const server = createServer(async (request, response) => {
     if (url.pathname === "/__e2e/health") return sendJson(response, 200, { ok: true });
     if (url.pathname === "/__e2e/fixtures/multi-source-course-import") {
       return sendJson(response, 200, structuredClone(multiSourceCourseImportFixture));
+    }
+    if (url.pathname === "/__e2e/fixtures/phase3-source-review") {
+      return sendJson(response, 200, structuredClone(phase3SourceReviewFixture));
     }
     if (url.pathname === "/__e2e/reset" && request.method === "POST") {
       resetState();

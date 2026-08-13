@@ -8,11 +8,14 @@ export function contentPipelineErrorResponse(error: unknown) {
       : error.code === "FORBIDDEN" ? 403
         : error.code === "NOT_FOUND" ? 404
           : error.code === "INVALID_STATE" ? 409
+            : error.code === "PAYLOAD_TOO_LARGE" ? 413
+              : error.code === "UNSUPPORTED_MEDIA_TYPE" ? 415
+                : error.code === "EXTRACTION_ERROR" ? 422
             : error.code === "RATE_LIMITED" ? 429
             : error.code === "VALIDATION_ERROR" ? 400
               : 500;
     return NextResponse.json(
-      { success: false, error: { code: error.code, message: error.message } },
+      { success: false, error: { code: error.code, message: error.message, ...(error.details ?? {}) } },
       { status, headers: { "Cache-Control": "no-store" } }
     );
   }

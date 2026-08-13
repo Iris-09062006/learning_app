@@ -203,6 +203,100 @@ test("reviews an outline, generates Lesson contents, and atomically publishes a 
   await expectNoSeriousA11yViolations(page);
 });
 
+test("recovers a partial-failure manual URL and file source-review flow without duplicates", async ({ page }) => {
+  type Stage = "empty" | "processing" | "outline" | "stale" | "content" | "published";
+  let stage: Stage = "empty";
+  const fixtureResponse = await page.request.get("http://127.0.0.1:54321/__e2e/fixtures/phase3-source-review");
+  expect(fixtureResponse.ok()).toBeTruthy();
+  const fixture = await fixtureResponse.json() as { stagedFileId: number; laterUrlId: number; jobId: number };
+  let attachedIds = [fixture.stagedFileId];
+  let revision = 0;
+  const source = (id: number, type: "file" | "web_page") => ({
+    sourceDocumentId: id, sourceOrder: attachedIds.indexOf(id), sourceType: type,
+    ingestionMethod: type === "file" ? "uploaded" : "manual_url",
+    title: type === "file" ? "guide.md" : "Manual reference", filename: type === "file" ? "guide.md" : "snapshot.md",
+    sourceUrl: type === "file" ? null : "https://manual.example/reference",
+    canonicalUrl: type === "file" ? null : "https://manual.example/reference",
+    domain: type === "file" ? null : "manual.example", authorityScore: null, relevanceScore: null,
+    status: "ready_for_review", errorCode: null, chunkCount: 1,
+  });
+  const job = () => ({
+    jobId: 31, sourceDocumentId: attachedIds[0], sourceFilename: "guide.md",
+    sources: attachedIds.map((id) => source(id, id === fixture.stagedFileId ? "file" : "web_page")),
+    outlineStale: stage === "stale", status: stage === "outline" ? "outline_review"
+      : stage === "content" ? "content_review" : "processing",
+    errorCode: null, outlineRevision: revision, approvedOutlineRevision: stage === "content" ? revision : null,
+    title: revision ? "Course nguồn review" : "Course import đang chuẩn bị",
+    description: revision ? "Course từ evidence bất biến." : "Đang chuẩn bị evidence.",
+    learningObjectives: revision ? ["Hiểu evidence"] : [],
+    lessons: revision ? [
+      { id: 71, clientKey: "lesson-a", lessonOrder: 1, title: "Evidence cơ bản", summary: "A",
+        learningObjectives: ["Hiểu A"], sourceChunkIndexes: [0],
+        sourceRefs: [{ sourceDocumentId: 22, chunkIndex: 0 }], contentDraft: stage === "content" ? {
+          id: 81, outlineLessonId: 71, revision: 1, title: "Evidence cơ bản", summary: "Nội dung",
+          estimatedMinutes: 10, sections: [{ heading: "Mở đầu", bodyMarkdown: "Nội dung", citationChunkIndexes: [0] }],
+          status: "ready", provider: "e2e", model: "e2e", citations: [{ sectionIndex: 0, chunkIndex: 0, quote: "Evidence" }],
+        } : null },
+      { id: 72, clientKey: "lesson-b", lessonOrder: 2, title: "Evidence nâng cao", summary: "B",
+        learningObjectives: ["Hiểu B"], sourceChunkIndexes: [0],
+        sourceRefs: [{ sourceDocumentId: 22, chunkIndex: 0 }], contentDraft: stage === "content" ? {
+          id: 82, outlineLessonId: 72, revision: 1, title: "Evidence nâng cao", summary: "Nội dung",
+          estimatedMinutes: 10, sections: [{ heading: "Mở đầu", bodyMarkdown: "Nội dung", citationChunkIndexes: [0] }],
+          status: "ready", provider: "e2e", model: "e2e", citations: [{ sectionIndex: 0, chunkIndex: 0, quote: "Evidence" }],
+        } : null },
+    ] : [],
+    publishedCourseId: null, createdAt: "2026-08-13T00:00:00.000Z", updatedAt: "2026-08-13T00:00:00.000Z",
+  });
+
+  await page.route("**/api/admin/**", async (route) => {
+    const request = route.request(); const pathname = new URL(request.url()).pathname;
+    const respond = (data: unknown, status = 200) => route.fulfill({ status, contentType: "application/json", body: JSON.stringify({ success: true, data }) });
+    if (pathname === "/api/admin/course-drafts") return respond({ items: stage === "empty" || stage === "published" ? [] : [job()] });
+    if (pathname === "/api/admin/content-sources/url") {
+      const body = request.postDataJSON() as { url: string };
+      return body.url.includes("failed")
+        ? route.fulfill({ status: 422, contentType: "application/json", body: JSON.stringify({ success: false, error: { code: "EXTRACTION_ERROR", message: "Trang không có nội dung đọc được." } }) })
+        : respond({ sourceDocumentId: 23, status: "extracted", chunkCount: 1, attached: false }, 201);
+    }
+    if (pathname === "/api/admin/content-sources" && request.method() === "POST") return respond({ sourceDocumentId: 22, status: "uploaded", attached: false }, 201);
+    if (pathname === "/api/admin/content-sources/22/extract") return respond({ documentId: 22, status: "extracted", chunkCount: 1 });
+    if (pathname === "/api/admin/course-imports") { stage = "processing"; return respond({ jobId: 31, sourceDocumentId: 22, sourceDocumentIds: [22] }, 201); }
+    if (pathname === "/api/admin/course-drafts/31/sources" && request.method() === "POST") { attachedIds = [22, 23]; return respond({ jobId: 31, sourceDocumentId: 23, attached: true }, 201); }
+    if (pathname === "/api/admin/course-drafts/31/sources/23" && request.method() === "DELETE") { attachedIds = [22]; stage = "stale"; return respond({ jobId: 31, sourceDocumentId: 23, outlineStale: true, sourceDocumentIds: [22] }); }
+    if (pathname === "/api/admin/course-drafts/31/outline" && request.method() === "POST") { revision += 1; stage = "outline"; return respond({ jobId: 31, sourceDocumentId: 22, sourceDocumentIds: attachedIds, outlineRevision: revision, status: "outline_review" }, 201); }
+    if (pathname === "/api/admin/course-drafts/31/lessons/generate") { stage = "content"; return respond({ jobId: 31, status: "content_review" }, 201); }
+    if (pathname === "/api/admin/course-drafts/31/reviews") { stage = "published"; return respond({ jobId: 31, sourceDocumentId: 22, sourceDocumentIds: [22], courseId: 41, status: "published", lessonIds: [51, 52] }); }
+    return route.fallback();
+  });
+
+  await loginAs(page, "admin"); await page.goto("/admin/content");
+  await page.getByLabel("URL thủ công").fill("https://failed.example/article");
+  await page.getByRole("button", { name: "Ingest URL" }).click();
+  await expect(page.getByText("Trang không có nội dung đọc được.")).toBeVisible();
+  await page.getByLabel("Tài liệu tùy chọn").setInputFiles({ name: "guide.md", mimeType: "text/markdown", buffer: Buffer.from("Evidence") });
+  await page.getByRole("button", { name: "Ingest file" }).click();
+  await expect(page.getByText(/Tài liệu đã sẵn sàng/u)).toBeVisible();
+  await page.getByRole("button", { name: "Remove" }).first().click();
+  await page.reload();
+  await expect(page.getByText("guide.md").first()).toBeVisible();
+  await page.getByRole("button", { name: "Khởi tạo Course import" }).click();
+  await page.getByLabel("URL thủ công").fill("https://manual.example/reference");
+  await page.getByRole("button", { name: "Ingest URL" }).click();
+  await page.getByRole("button", { name: "Attach nguồn usable" }).click();
+  await page.getByRole("button", { name: "Tạo outline từ evidence đã review" }).click();
+  await expect(page.getByRole("textbox", { name: "Course title" })).toHaveValue("Course nguồn review");
+  const manualSource = page.getByText(/Manual reference.*manual\.example/u).locator("..");
+  await manualSource.getByRole("button", { name: "Detach" }).click();
+  await expect(page.getByText(/Evidence đã thay đổi/u)).toBeVisible();
+  await expect(page.getByRole("button", { name: "Continue: sinh Lesson contents" })).toBeDisabled();
+  await page.getByRole("button", { name: "Tạo outline thay thế" }).click();
+  await page.getByRole("button", { name: "Continue: sinh Lesson contents" }).click();
+  await page.getByRole("button", { name: "Publish Course" }).click();
+  await expect(page.getByRole("link", { name: "Mở Course" })).toHaveAttribute("href", "/courses/41");
+  expect(revision).toBe(2); expect(attachedIds).toEqual([22]);
+  await expectNoSeriousA11yViolations(page);
+});
+
 test("reviews and publishes a multi-source Course with distinct colliding chunk refs", async ({ page }) => {
   let stage: "outline" | "content" | "published" = "outline";
   let revision = 1;

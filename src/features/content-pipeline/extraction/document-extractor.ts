@@ -27,7 +27,7 @@ export class DocumentExtractionError extends Error {
   }
 }
 
-function normalizeText(value: string): string {
+export function normalizeDocumentText(value: string): string {
   return value
     .replace(/\r\n?/g, "\n")
     .replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F\u007F]/g, "")
@@ -108,7 +108,7 @@ export async function extractDocumentText(
     );
   }
 
-  const normalized = normalizeText(extracted);
+  const normalized = normalizeDocumentText(extracted);
   if (!normalized) {
     throw new DocumentExtractionError(
       "EMPTY_DOCUMENT",

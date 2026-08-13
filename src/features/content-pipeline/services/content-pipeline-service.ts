@@ -7,6 +7,11 @@ import {
   createContentTarget,
   createContentCurriculum,
   createSourceDocument,
+  materializeCourseImportSource,
+  initializeCourseImportFromSources,
+  attachCourseImportSource,
+  detachCourseImportSource,
+  removeStagedCourseImportSource,
   downloadSourceObject,
   getCourseGenerationContext,
   getCourseImport,
@@ -15,6 +20,9 @@ import {
   getGenerationContext,
   getLessonDraft,
   getSourceDocument,
+  getSourceDocumentByStoragePath,
+  getSourceDocumentChunkCount,
+  getCourseImportJobIdForSource,
   listLessonDrafts,
   listCourseImports,
   listContentChapters,
@@ -56,6 +64,7 @@ import { createServerSupabaseClient } from "@/lib/supabase/server";
 import { checkRateLimit } from "@/lib/rate-limiter";
 
 const MAX_FILE_BYTES = 10 * 1024 * 1024;
+const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
 export class ContentPipelineError extends Error {
   constructor(
@@ -67,10 +76,13 @@ export class ContentPipelineError extends Error {
       | "INVALID_STATE"
       | "STORAGE_ERROR"
       | "EXTRACTION_ERROR"
+      | "PAYLOAD_TOO_LARGE"
+      | "UNSUPPORTED_MEDIA_TYPE"
       | "AI_PROVIDER_ERROR"
       | "RATE_LIMITED"
       | "DATABASE_ERROR",
-    message: string
+    message: string,
+    public readonly details?: Record<string, unknown>
   ) {
     super(message);
     this.name = "ContentPipelineError";
@@ -129,11 +141,213 @@ export async function uploadContentSource(file: File) {
   }
 }
 
+function asUuid(value: unknown, field: string) {
+  if (typeof value !== "string" || !UUID_PATTERN.test(value)) {
+    throw new ContentPipelineError("VALIDATION_ERROR", `${field} must be a UUID.`);
+  }
+  return value.toLowerCase();
+}
+
+function asOptionalScore(value: unknown, field: string) {
+  if (value === undefined || value === null) return null;
+  if (typeof value !== "number" || !Number.isFinite(value) || value < 0 || value > 1) {
+    throw new ContentPipelineError("VALIDATION_ERROR", `${field} must be between 0 and 1.`);
+  }
+  return value;
+}
+
+function mapMutationError(error: unknown): never {
+  const diagnostic = error instanceof Error ? error.message : "";
+  if (/CONFLICT|INVALID|ATTACHED|LOCKED|LAST_SOURCE|SOURCE_LIMIT|NOT_USABLE|NOT_EXTRACTED|EMPTY/i.test(diagnostic)) {
+    throw new ContentPipelineError("INVALID_STATE", "The source set cannot be changed in its current state.");
+  }
+  if (/NOT_FOUND/i.test(diagnostic)) throw new ContentPipelineError("NOT_FOUND", "The requested source or Course import was not found.");
+  throw new ContentPipelineError("DATABASE_ERROR", "Unable to persist the source-set change.");
+}
+
+async function uploadDeterministicObject(path: string, file: File) {
+  try {
+    await uploadSourceObject(path, file);
+    return null;
+  } catch (error) {
+    if (!(error instanceof Error) || error.message !== "STORAGE_OBJECT_EXISTS") throw error;
+    for (let attempt = 0; attempt < 20; attempt += 1) {
+      const existing = await getSourceDocumentByStoragePath(path);
+      if (existing) return existing;
+      await new Promise((resolve) => setTimeout(resolve, 50));
+    }
+    await removeSourceObject(path);
+    await uploadSourceObject(path, file);
+    return null;
+  }
+}
+
+export async function uploadStagedContentSource(file: File, idempotencyKeyValue: unknown) {
+  const adminId = await requireAdmin();
+  const idempotencyKey = asUuid(idempotencyKeyValue, "idempotencyKey");
+  if (!file.name || file.size < 1 || file.size > MAX_FILE_BYTES) throw new ContentPipelineError("VALIDATION_ERROR", "File must be between 1 byte and 10 MiB.");
+  if (!SUPPORTED_SOURCE_MIME_TYPES.includes(file.type as SupportedSourceMimeType)) throw new ContentPipelineError("VALIDATION_ERROR", "Unsupported document type.");
+  const storagePath = `${adminId}/${idempotencyKey}/${sanitizeFilename(file.name)}`;
+  const existing = await getSourceDocumentByStoragePath(storagePath);
+  if (existing) {
+    const jobId = await getCourseImportJobIdForSource(existing.id);
+    return { sourceDocumentId: existing.id, status: existing.status, jobId, attached: jobId !== null };
+  }
+  let objectUploaded = false;
+  try {
+    const concurrent = await uploadDeterministicObject(storagePath, file);
+    if (concurrent) {
+      const jobId = await getCourseImportJobIdForSource(concurrent.id);
+      return { sourceDocumentId: concurrent.id, status: concurrent.status, jobId, attached: jobId !== null };
+    }
+    objectUploaded = true;
+    return await materializeCourseImportSource({
+      originalFilename: file.name, storagePath, mimeType: file.type as SupportedSourceMimeType,
+      sizeBytes: file.size, sourceType: "file", ingestionMethod: "uploaded", title: file.name,
+    });
+  } catch (error) {
+    if (error instanceof ContentPipelineError) throw error;
+    if (error instanceof Error && /CONFLICT|INVALID/.test(error.message)) mapMutationError(error);
+    if (objectUploaded) await removeSourceObject(storagePath).catch(() => undefined);
+    throw new ContentPipelineError("STORAGE_ERROR", "Unable to stage the source document.");
+  }
+}
+
+export async function ingestUrlSource(body: unknown) {
+  const adminId = await requireAdmin();
+  if (!body || typeof body !== "object" || Array.isArray(body)) throw new ContentPipelineError("VALIDATION_ERROR", "Request body is invalid.");
+  const input = body as Record<string, unknown>;
+  const allowed = new Set(["url", "discovery", "title", "idempotencyKey", "authorityScore"]);
+  if (Object.keys(input).some((key) => !allowed.has(key))) throw new ContentPipelineError("VALIDATION_ERROR", "Request body contains unknown fields.");
+  if (typeof input.url !== "string" || input.url.length > 2_048) throw new ContentPipelineError("VALIDATION_ERROR", "A valid URL is required.");
+  if (input.discovery !== "manual_url" && input.discovery !== "discovered") throw new ContentPipelineError("VALIDATION_ERROR", "discovery is invalid.");
+  if (input.title !== undefined && (typeof input.title !== "string" || input.title.length > 300)) throw new ContentPipelineError("VALIDATION_ERROR", "title is invalid.");
+  const idempotencyKey = asUuid(input.idempotencyKey, "idempotencyKey");
+  const authorityScore = asOptionalScore(input.authorityScore, "authorityScore");
+  try {
+    const { validateWebUrl } = await import("@/features/content-pipeline/extraction/web-page-fetcher");
+    validateWebUrl(input.url);
+  } catch {
+    throw new ContentPipelineError("EXTRACTION_ERROR", "The URL is not a safe public HTTP(S) destination.");
+  }
+  const storagePath = `${adminId}/${idempotencyKey}/snapshot.md`;
+  const existing = await getSourceDocumentByStoragePath(storagePath);
+  if (existing) {
+    if (existing.status === "extracted" || existing.status === "ready_for_review") {
+      const [chunkCount, jobId] = await Promise.all([
+        getSourceDocumentChunkCount(existing.id), getCourseImportJobIdForSource(existing.id),
+      ]);
+      return { sourceDocumentId: existing.id, status: existing.status, chunkCount, attached: jobId !== null, jobId, reused: true };
+    }
+    const extraction = await extractContentSource(existing.id);
+    return { sourceDocumentId: existing.id, status: extraction.status, chunkCount: extraction.chunkCount, attached: false, reused: true };
+  }
+  const capacity = await checkRateLimit("content-source:url", adminId);
+  if (!capacity.allowed) throw new ContentPipelineError("RATE_LIMITED", `Rate limit exceeded. Retry after ${capacity.retryAfterSeconds} seconds.`);
+
+  let materializedId: number | null = null;
+  let objectUploaded = false;
+  try {
+    const [{ fetchWebPage }, { extractWebPage }, { serializeWebSnapshot }] = await Promise.all([
+      import("@/features/content-pipeline/extraction/web-page-fetcher"),
+      import("@/features/content-pipeline/extraction/web-page-extractor"),
+      import("@/features/content-pipeline/extraction/web-snapshot"),
+    ]);
+    const fetched = await fetchWebPage(input.url);
+    const extracted = extractWebPage({ body: fetched.body, contentType: fetched.contentType, charset: fetched.charset, url: fetched.canonicalUrl });
+    const title = (typeof input.title === "string" && input.title.trim()) || extracted.title;
+    const snapshot = serializeWebSnapshot({ ...extracted, title, canonicalUrl: fetched.canonicalUrl, fetchedAt: fetched.fetchedAt });
+    const file = new File([snapshot], "snapshot.md", { type: "text/markdown" });
+    const concurrent = await uploadDeterministicObject(storagePath, file);
+    if (concurrent) {
+      materializedId = concurrent.id;
+      const extraction = await extractContentSource(materializedId);
+      return { sourceDocumentId: materializedId, status: extraction.status, chunkCount: extraction.chunkCount, attached: false, reused: true };
+    }
+    objectUploaded = true;
+    const materialized = await materializeCourseImportSource({
+      originalFilename: `${sanitizeFilename(title)}.md`, storagePath, mimeType: "text/markdown",
+      sizeBytes: file.size, sourceType: "web_page", ingestionMethod: input.discovery,
+      sourceUrl: input.url, canonicalUrl: fetched.canonicalUrl, title,
+      domain: new URL(fetched.canonicalUrl).hostname, authorityScore, fetchedAt: fetched.fetchedAt,
+    });
+    materializedId = materialized.sourceDocumentId;
+    const extraction = await extractContentSource(materializedId);
+    if (extraction.chunkCount < 1) throw new ContentPipelineError("EXTRACTION_ERROR", "The page produced no usable evidence.");
+    return { sourceDocumentId: materializedId, status: extraction.status, chunkCount: extraction.chunkCount, attached: false, reused: false };
+  } catch (error: unknown) {
+    const fetchCode = error instanceof Error && error.name === "WebPageFetchError" ? (error as Error & { code?: string }).code : undefined;
+    if (error instanceof Error && /CONFLICT|INVALID/.test(error.message)) mapMutationError(error);
+    if (!materializedId && objectUploaded) await removeSourceObject(storagePath).catch(() => undefined);
+    if (error instanceof ContentPipelineError) {
+      if (!materializedId || error.details) throw error;
+      throw new ContentPipelineError(error.code, error.message, { sourceDocumentId: materializedId });
+    }
+    throw new ContentPipelineError(fetchCode === "RESPONSE_TOO_LARGE" ? "PAYLOAD_TOO_LARGE"
+      : fetchCode === "UNSUPPORTED_CONTENT_TYPE" ? "UNSUPPORTED_MEDIA_TYPE" : "EXTRACTION_ERROR",
+      fetchCode === "RESPONSE_TOO_LARGE" ? "The retrieved page exceeds 2 MiB."
+        : fetchCode === "UNSUPPORTED_CONTENT_TYPE" ? "The URL does not return readable HTML or plain text."
+          : "The URL could not be captured as usable evidence.",
+      materializedId ? { sourceDocumentId: materializedId } : undefined);
+  }
+}
+
+export async function initializeCourseImport(body: unknown) {
+  await requireAdmin();
+  if (!body || typeof body !== "object" || Array.isArray(body)) throw new ContentPipelineError("VALIDATION_ERROR", "Request body is invalid.");
+  const input = body as { initializationKey?: unknown; sources?: unknown };
+  const initializationKey = asUuid(input.initializationKey, "initializationKey");
+  if (!Array.isArray(input.sources) || input.sources.length < 1 || input.sources.length > 8) throw new ContentPipelineError("VALIDATION_ERROR", "sources must contain 1 to 8 usable sources.");
+  const sources = input.sources.map((value, index) => {
+    if (!value || typeof value !== "object" || Array.isArray(value)) throw new ContentPipelineError("VALIDATION_ERROR", `sources[${index}] is invalid.`);
+    const source = value as Record<string, unknown>;
+    return { sourceDocumentId: asPositiveId(source.sourceDocumentId, `sources[${index}].sourceDocumentId`), relevanceScore: asOptionalScore(source.relevanceScore, `sources[${index}].relevanceScore`) };
+  });
+  if (new Set(sources.map((source) => source.sourceDocumentId)).size !== sources.length) throw new ContentPipelineError("VALIDATION_ERROR", "sources must be unique.");
+  try { return await initializeCourseImportFromSources({ initializationKey, sources }); }
+  catch (error) { mapMutationError(error); }
+}
+
+export async function attachSourceToCourseImport(jobIdValue: unknown, body: unknown) {
+  await requireAdmin();
+  const jobId = asPositiveId(jobIdValue, "jobId");
+  if (!body || typeof body !== "object" || Array.isArray(body)) throw new ContentPipelineError("VALIDATION_ERROR", "Request body is invalid.");
+  const input = body as Record<string, unknown>;
+  try { return await attachCourseImportSource({ jobId, sourceDocumentId: asPositiveId(input.sourceDocumentId, "sourceDocumentId"), relevanceScore: asOptionalScore(input.relevanceScore, "relevanceScore") }); }
+  catch (error) { mapMutationError(error); }
+}
+
+export async function detachSourceFromCourseImport(jobIdValue: unknown, sourceDocumentIdValue: unknown) {
+  await requireAdmin();
+  try { return await detachCourseImportSource({ jobId: asPositiveId(jobIdValue, "jobId"), sourceDocumentId: asPositiveId(sourceDocumentIdValue, "sourceDocumentId") }); }
+  catch (error) { mapMutationError(error); }
+}
+
+export async function removeStagedSource(sourceDocumentIdValue: unknown) {
+  await requireAdmin();
+  try {
+    const result = await removeStagedCourseImportSource(asPositiveId(sourceDocumentIdValue, "sourceDocumentId"));
+    await removeSourceObject(result.storagePath!);
+    return { sourceDocumentId: result.sourceDocumentId, removed: true as const };
+  } catch (error) { mapMutationError(error); }
+}
+
+export async function getCourseImportSourceReview(jobIdValue: unknown) {
+  await requireAdmin();
+  const jobId = asPositiveId(jobIdValue, "jobId");
+  const job = await getCourseImport(jobId);
+  if (!job) throw new ContentPipelineError("NOT_FOUND", "Course import job not found.");
+  return { jobId, status: job.status, outlineStale: job.outlineStale, sources: job.sources };
+}
+
 export async function extractContentSource(value: unknown) {
   await requireAdmin();
   const id = asPositiveId(value, "documentId");
   const document = await getSourceDocument(id);
   if (!document) throw new ContentPipelineError("NOT_FOUND", "Source document not found.");
+  if (document.status === "extracted") {
+    return { documentId: id, status: "extracted" as const, chunkCount: await getSourceDocumentChunkCount(id), characterCount: 0 };
+  }
   if (!(["uploaded", "failed"] as const).includes(document.status as "uploaded" | "failed")) throw new ContentPipelineError("INVALID_STATE", "Source document cannot be extracted in its current state.");
   await updateSourceStatus(id, "extracting");
   try {

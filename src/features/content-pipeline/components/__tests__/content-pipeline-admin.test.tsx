@@ -2,7 +2,20 @@ import { fireEvent, render, screen, waitFor, within } from "@testing-library/rea
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import type { CourseImportDraft } from "../../types";
-import { ContentPipelineAdmin, requestPipelineApi } from "../content-pipeline-admin";
+import { ContentPipelineAdmin, decodePipelineCheckpoint, requestPipelineApi } from "../content-pipeline-admin";
+
+describe("pipeline checkpoint recovery", () => {
+  it("decodes the legacy v1 checkpoint", () => {
+    expect(decodePipelineCheckpoint(JSON.stringify({ sourceDocumentId: 9, sourceFilename: "legacy.pdf" })))
+      .toEqual({ sourceDocumentId: 9, sourceFilename: "legacy.pdf" });
+  });
+
+  it("decodes checkpoint v2 with stable workflow and per-source keys", () => {
+    const checkpoint = { version: 2, topic: "", selectedCandidateKeys: [], initializationKey: "33333333-3333-4333-8333-333333333333", jobId: 31,
+      pendingAction: "outline", attempts: [{ clientKey: "a", idempotencyKey: "22222222-2222-4222-8222-222222222222", kind: "manual_url", label: "Example", url: "https://example.com", sourceDocumentId: 21, status: "extracted", attached: true }] };
+    expect(decodePipelineCheckpoint(JSON.stringify(checkpoint))).toEqual(checkpoint);
+  });
+});
 
 const contentDraft = {
   id: 81,
@@ -143,6 +156,46 @@ describe("content pipeline Admin", () => {
     expect(calls).toContain("/api/admin/content-sources/9/course-outline");
     expect(calls.some((url) => url.endsWith("/generate"))).toBe(false);
     expect(calls.some((url) => url.includes("/api/ai/exercises"))).toBe(false);
+  });
+
+  it("preserves a successful URL when another fails and initializes only usable evidence", async () => {
+    let initializedBody: unknown;
+    const removedSources: string[] = [];
+    vi.spyOn(globalThis, "fetch").mockImplementation(async (input, init) => {
+      const url = String(input);
+      if (url === "/api/admin/course-drafts") return json({ success: true, data: { items: [] } });
+      if (url === "/api/admin/content-sources/url") {
+        const body = JSON.parse(String(init?.body)) as { url: string };
+        return body.url.includes("good")
+          ? json({ success: true, data: { sourceDocumentId: 21, status: "extracted", chunkCount: 2 } }, 201)
+          : json({ success: false, error: { message: "Trang không đọc được.", sourceDocumentId: 22 } }, 422);
+      }
+      if (url === "/api/admin/content-sources/22" && init?.method === "DELETE") {
+        removedSources.push(url);
+        return json({ success: true, data: { sourceDocumentId: 22, removed: true } });
+      }
+      if (url === "/api/admin/course-imports") {
+        initializedBody = JSON.parse(String(init?.body));
+        return json({ success: true, data: { jobId: 31, sourceDocumentIds: [21] } }, 201);
+      }
+      throw new Error(`Unexpected request: ${url}`);
+    });
+    render(<ContentPipelineAdmin />);
+    const input = await screen.findByLabelText("URL thủ công");
+    fireEvent.change(input, { target: { value: "https://good.example/article" } });
+    fireEvent.click(screen.getByRole("button", { name: "Ingest URL" }));
+    expect(await screen.findByText(/Nguồn URL đã sẵn sàng/)).toBeInTheDocument();
+    fireEvent.change(input, { target: { value: "https://bad.example/article" } });
+    fireEvent.click(screen.getByRole("button", { name: "Ingest URL" }));
+    expect(await screen.findByText("Trang không đọc được.")).toBeInTheDocument();
+    expect(screen.getByText("https://good.example/article")).toBeInTheDocument();
+    const failedSource = screen.getByText("https://bad.example/article").closest("li");
+    expect(failedSource).not.toBeNull();
+    fireEvent.click(within(failedSource!).getByRole("button", { name: "Remove" }));
+    await waitFor(() => expect(removedSources).toEqual(["/api/admin/content-sources/22"]));
+    fireEvent.click(screen.getByRole("button", { name: "Khởi tạo Course import" }));
+    await waitFor(() => expect(initializedBody).toBeDefined());
+    expect(initializedBody).toMatchObject({ sources: [{ sourceDocumentId: 21 }] });
   });
 
   it("generates Lesson contents only after Continue", async () => {

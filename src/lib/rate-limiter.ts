@@ -21,6 +21,7 @@ const rules = new Map<string, RateLimitRule>([
   ["ai:explanations", { limit: 20, windowMs: WINDOW_MS }],
   ["ai:course-outline", { limit: 20, windowMs: WINDOW_MS }],
   ["ai:lesson-content", { limit: 20, windowMs: WINDOW_MS }],
+  ["content-source:url", { limit: 20, windowMs: WINDOW_MS }],
   ["ai:exercise-generation", { limit: 20, windowMs: WINDOW_MS }],
   ["moderation:mutations", { limit: 30, windowMs: WINDOW_MS }],
 ]);

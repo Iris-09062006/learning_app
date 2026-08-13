@@ -28,6 +28,19 @@ const mocks = vi.hoisted(() => ({
   reviseCourseLessonContent: vi.fn(),
   reviewCourseDraftBatch: vi.fn(),
   updateSourceStatus: vi.fn(),
+  createSourceDocument: vi.fn(),
+  materializeCourseImportSource: vi.fn(),
+  initializeCourseImportFromSources: vi.fn(),
+  attachCourseImportSource: vi.fn(),
+  detachCourseImportSource: vi.fn(),
+  removeStagedCourseImportSource: vi.fn(),
+  getSourceDocumentByStoragePath: vi.fn(),
+  getSourceDocumentChunkCount: vi.fn(),
+  getCourseImportJobIdForSource: vi.fn(),
+  uploadSourceObject: vi.fn(),
+  removeSourceObject: vi.fn(),
+  downloadSourceObject: vi.fn(),
+  replaceDocumentChunks: vi.fn(),
 }));
 
 vi.mock("@/features/content-pipeline/repositories/content-pipeline-repository", () => ({
@@ -57,6 +70,19 @@ vi.mock("@/features/content-pipeline/repositories/content-pipeline-repository", 
   reviseCourseLessonContent: mocks.reviseCourseLessonContent,
   reviewCourseDraftBatch: mocks.reviewCourseDraftBatch,
   updateSourceStatus: mocks.updateSourceStatus,
+  createSourceDocument: mocks.createSourceDocument,
+  materializeCourseImportSource: mocks.materializeCourseImportSource,
+  initializeCourseImportFromSources: mocks.initializeCourseImportFromSources,
+  attachCourseImportSource: mocks.attachCourseImportSource,
+  detachCourseImportSource: mocks.detachCourseImportSource,
+  removeStagedCourseImportSource: mocks.removeStagedCourseImportSource,
+  getSourceDocumentByStoragePath: mocks.getSourceDocumentByStoragePath,
+  getSourceDocumentChunkCount: mocks.getSourceDocumentChunkCount,
+  getCourseImportJobIdForSource: mocks.getCourseImportJobIdForSource,
+  uploadSourceObject: mocks.uploadSourceObject,
+  removeSourceObject: mocks.removeSourceObject,
+  downloadSourceObject: mocks.downloadSourceObject,
+  replaceDocumentChunks: mocks.replaceDocumentChunks,
 }));
 
 vi.mock("@/features/content-pipeline/extraction/document-extractor", () => {
@@ -83,7 +109,115 @@ import {
   getCourseDraftQueue,
   submitCourseDraftReview,
   getContentTargets,
+  uploadStagedContentSource,
+  initializeCourseImport,
+  attachSourceToCourseImport,
 } from "./content-pipeline-service";
+
+function mockActiveAdmin() {
+  mocks.createServerSupabaseClient.mockResolvedValue({
+    auth: { getUser: vi.fn().mockResolvedValue({ data: { user: { id: "11111111-1111-4111-8111-111111111111" } }, error: null }) },
+    from: vi.fn().mockReturnValue({
+      select: vi.fn().mockReturnValue({ eq: vi.fn().mockReturnValue({ maybeSingle: vi.fn().mockResolvedValue({ data: { role: "admin", is_active: true }, error: null }) }) }),
+    }),
+  });
+}
+
+describe("Phase 3 source staging and initialization", () => {
+  beforeEach(() => { vi.clearAllMocks(); mockActiveAdmin(); });
+
+  it("materializes an idempotent new-flow file without creating a job or bridge", async () => {
+    mocks.getSourceDocumentByStoragePath.mockResolvedValue(null);
+    mocks.uploadSourceObject.mockResolvedValue(undefined);
+    mocks.materializeCourseImportSource.mockResolvedValue({ sourceDocumentId: 21, status: "uploaded", jobId: null, attached: false });
+    const file = new File(["usable source"], "guide.md", { type: "text/markdown" });
+
+    await expect(uploadStagedContentSource(file, "22222222-2222-4222-8222-222222222222"))
+      .resolves.toMatchObject({ sourceDocumentId: 21, jobId: null, attached: false });
+    expect(mocks.uploadSourceObject).toHaveBeenCalledBefore(mocks.materializeCourseImportSource);
+    expect(mocks.materializeCourseImportSource).toHaveBeenCalledWith(expect.objectContaining({
+      storagePath: "11111111-1111-4111-8111-111111111111/22222222-2222-4222-8222-222222222222/guide.md",
+      sourceType: "file", ingestionMethod: "uploaded",
+    }));
+    expect(mocks.initializeCourseImportFromSources).not.toHaveBeenCalled();
+    expect(mocks.attachCourseImportSource).not.toHaveBeenCalled();
+  });
+
+  it("reuses a deterministic staged-file identity without another storage write", async () => {
+    mocks.getSourceDocumentByStoragePath.mockResolvedValue({ id: 21, status: "uploaded" });
+    mocks.getCourseImportJobIdForSource.mockResolvedValue(null);
+    const file = new File(["usable source"], "guide.md", { type: "text/markdown" });
+    await expect(uploadStagedContentSource(file, "22222222-2222-4222-8222-222222222222"))
+      .resolves.toMatchObject({ sourceDocumentId: 21, attached: false });
+    expect(mocks.uploadSourceObject).not.toHaveBeenCalled();
+  });
+
+  it("does not delete a deterministic object after an ambiguous storage failure", async () => {
+    mocks.getSourceDocumentByStoragePath.mockResolvedValue(null);
+    mocks.uploadSourceObject.mockRejectedValue(new Error("STORAGE_ERROR"));
+    const file = new File(["usable source"], "guide.md", { type: "text/markdown" });
+    await expect(uploadStagedContentSource(file, "22222222-2222-4222-8222-222222222222"))
+      .rejects.toMatchObject({ code: "STORAGE_ERROR" });
+    expect(mocks.removeSourceObject).not.toHaveBeenCalled();
+    expect(mocks.materializeCourseImportSource).not.toHaveBeenCalled();
+  });
+
+  it("adopts a concurrent deterministic upload once its database row is visible", async () => {
+    mocks.getSourceDocumentByStoragePath
+      .mockResolvedValueOnce(null)
+      .mockResolvedValueOnce({ id: 21, status: "uploaded" });
+    mocks.uploadSourceObject.mockRejectedValue(new Error("STORAGE_OBJECT_EXISTS"));
+    mocks.getCourseImportJobIdForSource.mockResolvedValue(null);
+    const file = new File(["usable source"], "guide.md", { type: "text/markdown" });
+    await expect(uploadStagedContentSource(file, "22222222-2222-4222-8222-222222222222"))
+      .resolves.toMatchObject({ sourceDocumentId: 21, attached: false });
+    expect(mocks.removeSourceObject).not.toHaveBeenCalled();
+    expect(mocks.materializeCourseImportSource).not.toHaveBeenCalled();
+  });
+
+  it("submits one ordered unique 1..8 source set to atomic initialization", async () => {
+    mocks.initializeCourseImportFromSources.mockResolvedValue({ jobId: 31, sourceDocumentId: 21, sourceDocumentIds: [21, 22] });
+    await expect(initializeCourseImport({
+      initializationKey: "33333333-3333-4333-8333-333333333333",
+      sources: [{ sourceDocumentId: 21 }, { sourceDocumentId: 22, relevanceScore: 0.8 }],
+    })).resolves.toMatchObject({ jobId: 31 });
+    expect(mocks.initializeCourseImportFromSources).toHaveBeenCalledWith({
+      initializationKey: "33333333-3333-4333-8333-333333333333",
+      sources: [{ sourceDocumentId: 21, relevanceScore: null }, { sourceDocumentId: 22, relevanceScore: 0.8 }],
+    });
+    await expect(initializeCourseImport({ initializationKey: "33333333-3333-4333-8333-333333333333", sources: [] }))
+      .rejects.toMatchObject({ code: "VALIDATION_ERROR" });
+    await expect(initializeCourseImport({ initializationKey: "33333333-3333-4333-8333-333333333333", sources: [{ sourceDocumentId: 21 }, { sourceDocumentId: 21 }] }))
+      .rejects.toMatchObject({ code: "VALIDATION_ERROR" });
+  });
+
+  it("keeps concurrent retries on one initialization identity", async () => {
+    mocks.initializeCourseImportFromSources.mockResolvedValue({ jobId: 31, sourceDocumentId: 21, sourceDocumentIds: [21] });
+    const request = {
+      initializationKey: "33333333-3333-4333-8333-333333333333",
+      sources: [{ sourceDocumentId: 21 }],
+    };
+    const [first, second] = await Promise.all([initializeCourseImport(request), initializeCourseImport(request)]);
+    expect(first.jobId).toBe(31);
+    expect(second.jobId).toBe(31);
+    expect(mocks.initializeCourseImportFromSources).toHaveBeenCalledTimes(2);
+    expect(mocks.initializeCourseImportFromSources).toHaveBeenNthCalledWith(1, {
+      initializationKey: request.initializationKey,
+      sources: [{ sourceDocumentId: 21, relevanceScore: null }],
+    });
+    expect(mocks.initializeCourseImportFromSources).toHaveBeenNthCalledWith(2, {
+      initializationKey: request.initializationKey,
+      sources: [{ sourceDocumentId: 21, relevanceScore: null }],
+    });
+  });
+
+  it("requires an existing job ID for later attachment", async () => {
+    mocks.attachCourseImportSource.mockResolvedValue({ jobId: 31, sourceDocumentId: 23, attached: true });
+    await attachSourceToCourseImport(31, { sourceDocumentId: 23 });
+    expect(mocks.attachCourseImportSource).toHaveBeenCalledWith({ jobId: 31, sourceDocumentId: 23, relevanceScore: null });
+    await expect(attachSourceToCourseImport(0, { sourceDocumentId: 23 })).rejects.toMatchObject({ code: "VALIDATION_ERROR" });
+  });
+});
 
 describe("createNewContentTarget", () => {
   beforeEach(() => {

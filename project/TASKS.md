@@ -11,9 +11,10 @@
 
 ## Active Task
 
-`TASK-068` — Topic-Based Multi-Source Course Creation: Phase 2 (`VERIFIED`). Source-qualified
-provider/DTO contracts, job-wide generation, Admin provenance, and Phase 2 browser gates only;
-Phase 3–5 remain excluded. Phase 1 remains verified at `d28f8da`. `TASK-066` remains in progress
+`TASK-069` — Topic-Based Multi-Source Course Creation: Phase 3 (`VERIFIED`). Manual URL/file
+staging, safe immutable web ingestion, source review/recovery, ordered initialization, source
+mutation/staleness, and Phase 3 browser gates only; Phase 4–5 remain excluded. Phases 1–2 remain
+verified at `d28f8da` and `95bb7ab`. `TASK-066` remains in progress
 on its prior external verification.
 
 Recently verified supporting hotfixes:
@@ -92,6 +93,7 @@ Supabase Auth Redirect URLs wildcard and a fresh confirmation email.
 
 | Task ID | Title | Status | Phase | Dependency |
 |---|---|---|---|---|
+| `TASK-069` | Topic-Based Multi-Source Course Creation: Phase 3 | VERIFIED | Course research Phase 3 | `TASK-068` |
 | `TASK-066` | Normalize Single-Chunk Lesson Citations | IN_PROGRESS | Content operations hotfix | CI and production verification |
 
 ## Active Epic
