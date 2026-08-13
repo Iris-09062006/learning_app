@@ -112,7 +112,9 @@ import {
   uploadStagedContentSource,
   initializeCourseImport,
   attachSourceToCourseImport,
+  researchCourseSources,
 } from "./content-pipeline-service";
+import { WebSearchProviderError } from "@/features/content-pipeline/providers/web-search-provider";
 
 function mockActiveAdmin() {
   mocks.createServerSupabaseClient.mockResolvedValue({
@@ -216,6 +218,79 @@ describe("Phase 3 source staging and initialization", () => {
     await attachSourceToCourseImport(31, { sourceDocumentId: 23 });
     expect(mocks.attachCourseImportSource).toHaveBeenCalledWith({ jobId: 31, sourceDocumentId: 23, relevanceScore: null });
     await expect(attachSourceToCourseImport(0, { sourceDocumentId: 23 })).rejects.toMatchObject({ code: "VALIDATION_ERROR" });
+  });
+});
+
+describe("Phase 4 stateless course research", () => {
+  beforeEach(() => { vi.clearAllMocks(); mockActiveAdmin(); });
+
+  it("plans at most three queries, returns at most 20 candidates, and makes zero repository calls", async () => {
+    const provider = { search: vi.fn().mockImplementation(async ({ query }: { query: string }) => ({
+      results: Array.from({ length: 10 }, (_, index) => ({
+        url: `https://example.com/${encodeURIComponent(query)}/${index}`,
+        title: `Python source ${index}`,
+        snippet: "Python async programming reference",
+        language: "en",
+        providerRank: index,
+      })),
+      cursor: "brave:1",
+      hasMore: true,
+    })) };
+    const checkCapacity = vi.fn().mockResolvedValue({ allowed: true as const });
+    const result = await researchCourseSources({ topic: "  Python   async programming " }, { provider, checkCapacity });
+
+    expect(result.topic).toBe("Python async programming");
+    expect(result.queries).toHaveLength(3);
+    expect(result.results).toHaveLength(20);
+    expect(result.hasMore).toBe(true);
+    expect(result.cursor).toEqual(expect.any(String));
+    expect(provider.search).toHaveBeenCalledTimes(3);
+    expect(checkCapacity).toHaveBeenCalledWith("content-research", "11111111-1111-4111-8111-111111111111");
+    for (const repositoryCall of [
+      mocks.materializeCourseImportSource, mocks.initializeCourseImportFromSources,
+      mocks.attachCourseImportSource, mocks.createSourceDocument, mocks.uploadSourceObject,
+    ]) expect(repositoryCall).not.toHaveBeenCalled();
+  });
+
+  it("uses an opaque topic-bound cursor and skips exhausted query pages", async () => {
+    const provider = { search: vi.fn()
+      .mockResolvedValueOnce({ results: [], cursor: "brave:1", hasMore: true })
+      .mockResolvedValueOnce({ results: [], cursor: null, hasMore: false })
+      .mockResolvedValueOnce({ results: [], cursor: null, hasMore: false }) };
+    const checkCapacity = vi.fn().mockResolvedValue({ allowed: true as const });
+    const first = await researchCourseSources({ topic: "Python async" }, { provider, checkCapacity });
+    expect(first.cursor).not.toContain("brave:1");
+    provider.search.mockClear().mockResolvedValue({ results: [], cursor: null, hasMore: false });
+    const second = await researchCourseSources({ topic: "Python async", cursor: first.cursor }, { provider, checkCapacity });
+    expect(provider.search).toHaveBeenCalledTimes(1);
+    expect(second.hasMore).toBe(false);
+    await expect(researchCourseSources({ topic: "Different topic", cursor: first.cursor }, { provider, checkCapacity }))
+      .rejects.toMatchObject({ code: "VALIDATION_ERROR" });
+  });
+
+  it("validates the exact request and enforces research capacity before provider access", async () => {
+    const provider = { search: vi.fn() };
+    const allowed = vi.fn().mockResolvedValue({ allowed: true as const });
+    await expect(researchCourseSources({ topic: "x" }, { provider, checkCapacity: allowed })).rejects.toMatchObject({ code: "VALIDATION_ERROR" });
+    await expect(researchCourseSources({ topic: "Python", extra: true }, { provider, checkCapacity: allowed })).rejects.toMatchObject({ code: "VALIDATION_ERROR" });
+    const denied = vi.fn().mockResolvedValue({ allowed: false as const, retryAfterSeconds: 42 });
+    await expect(researchCourseSources({ topic: "Python" }, { provider, checkCapacity: denied }))
+      .rejects.toMatchObject({ code: "RATE_LIMITED", details: { retryAfterSeconds: 42 } });
+    expect(provider.search).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    ["AUTH", "SEARCH_PROVIDER_AUTH"],
+    ["QUOTA", "SEARCH_PROVIDER_QUOTA"],
+    ["TIMEOUT", "SEARCH_PROVIDER_TIMEOUT"],
+    ["UPSTREAM", "SEARCH_PROVIDER_UNAVAILABLE"],
+    ["INVALID_RESPONSE", "SEARCH_PROVIDER_UNAVAILABLE"],
+  ] as const)("maps provider %s failures to stable recoverable %s", async (providerCode, serviceCode) => {
+    const provider = { search: vi.fn().mockRejectedValue(new WebSearchProviderError(providerCode, "raw vendor detail")) };
+    await expect(researchCourseSources({ topic: "Python async" }, {
+      provider,
+      checkCapacity: vi.fn().mockResolvedValue({ allowed: true as const }),
+    })).rejects.toMatchObject({ code: serviceCode, message: expect.not.stringContaining("raw vendor detail") });
   });
 });
 

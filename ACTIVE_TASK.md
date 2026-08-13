@@ -1,6 +1,6 @@
 # Active Task Queue
 
-- **Active task:** `TASK-069` — Topic-Based Multi-Source Course Creation: Phase 3
+- **Active task:** `TASK-070` — Topic-Based Multi-Source Course Creation: Phase 4
 - **Status:** `VERIFIED`
 - **Owner / Reviewer:** Codex
 - **Deferred design task:** `TASK-047` (`DRAFT`)
@@ -8,8 +8,8 @@
 
 ## Current objective
 
-Implement only manual URL/file source ingestion and review in
-`specs/001-topic-course-research/tasks.md`; Phase 4–5 are excluded.
+Implement only topic research and ranked discovery in
+`specs/001-topic-course-research/tasks.md`; Phase 5 is excluded.
 
 Phase 1 T001–T031 is verified. Migration, PostgreSQL concurrency/invariant checks, focused and
 full tests, legacy PDF browser E2E, lint, typecheck, and build pass. Evidence is recorded in
@@ -18,9 +18,9 @@ full tests, legacy PDF browser E2E, lint, typecheck, and build pass. Evidence is
 
 Phase 2 T032–T049 is verified. Source-qualified provider/DTO contracts, deterministic job-wide
 generation, Admin provenance/editor compatibility, and both new plus legacy browser gates pass.
-Phase 3 T050–T073 is verified. Manual URL/new-flow file staging, SSRF-safe immutable snapshots,
-source review/recovery, ordered initialization, later attach/detach, stale-outline replacement,
-and all focused/full/browser gates pass. Phase 4–5 remain excluded.
+Phase 3 T050–T073 is verified. Phase 4 T074–T091 is verified: stateless research, Brave search,
+deterministic candidate review/ranking, selected-only Phase 3 handoff, accessibility, and all
+required browser regressions pass. Phase 5 remains excluded.
 
 ## Previous active external verification
 

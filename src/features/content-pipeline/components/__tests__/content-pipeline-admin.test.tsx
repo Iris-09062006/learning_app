@@ -1,8 +1,8 @@
 import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import type { CourseImportDraft } from "../../types";
-import { ContentPipelineAdmin, decodePipelineCheckpoint, requestPipelineApi } from "../content-pipeline-admin";
+import type { CourseImportDraft, ResearchCandidate } from "../../types";
+import { ContentPipelineAdmin, decodePipelineCheckpoint, mergeResearchCandidates, requestPipelineApi } from "../content-pipeline-admin";
 
 describe("pipeline checkpoint recovery", () => {
   it("decodes the legacy v1 checkpoint", () => {
@@ -112,6 +112,22 @@ function json(data: unknown, status = 200) {
   return new Response(JSON.stringify(data), { status, headers: { "Content-Type": "application/json" } });
 }
 
+function researchCandidate(index: number, overrides: Partial<ResearchCandidate> = {}): ResearchCandidate {
+  return {
+    candidateKey: `candidate-${index}`,
+    url: `https://source${index}.example/guide`,
+    canonicalUrl: `https://source${index}.example/guide`,
+    title: `Research Source ${index}`,
+    domain: `source${index}.example`,
+    snippet: `Useful research source ${index}`,
+    language: index % 2 ? "en" : "vi",
+    discovery: "discovered",
+    authorityScore: 0.7,
+    relevanceScore: 0.8,
+    ...overrides,
+  };
+}
+
 describe("content pipeline Admin", () => {
   afterEach(() => { vi.restoreAllMocks(); sessionStorage.clear(); });
 
@@ -120,6 +136,114 @@ describe("content pipeline Admin", () => {
     await expect(requestPipelineApi("/api/admin/course-drafts")).rejects.toThrow(
       "Dịch vụ tạm thời quá tải hoặc hết thời gian chờ. Vui lòng thử lại."
     );
+  });
+
+  it("merges Research More deterministically without duplicates or displacing selected candidates", () => {
+    const current = Array.from({ length: 20 }, (_, index) => researchCandidate(index));
+    const incoming = [researchCandidate(0), ...Array.from({ length: 10 }, (_, index) => researchCandidate(20 + index))];
+    const merged = mergeResearchCandidates(current, incoming, ["candidate-19"]);
+    expect(merged).toHaveLength(20);
+    expect(merged.filter((candidate) => candidate.candidateKey === "candidate-0")).toHaveLength(1);
+    expect(merged.some((candidate) => candidate.candidateKey === "candidate-19")).toBe(true);
+  });
+
+  it("researches, selects/unselects, caps selection at eight, and ingests only explicitly selected candidates", async () => {
+    const ingestBodies: Array<Record<string, unknown>> = [];
+    vi.spyOn(globalThis, "fetch").mockImplementation(async (input, init) => {
+      const url = String(input);
+      if (url === "/api/admin/course-drafts") return json({ success: true, data: { items: [] } });
+      if (url === "/api/admin/course-research") return json({ success: true, data: {
+        topic: "Python async", queries: ["Python async hướng dẫn học tập tiếng Việt"],
+        results: Array.from({ length: 9 }, (_, index) => researchCandidate(index)), cursor: null, hasMore: false,
+      } });
+      if (url === "/api/admin/content-sources/url") {
+        const body = JSON.parse(String(init?.body)) as Record<string, unknown>;
+        ingestBodies.push(body);
+        return json({ success: true, data: { sourceDocumentId: ingestBodies.length, status: "extracted", chunkCount: 1 } }, 201);
+      }
+      throw new Error(`Unexpected request: ${url}`);
+    });
+    render(<ContentPipelineAdmin />);
+    fireEvent.change(await screen.findByLabelText("Chủ đề Course"), { target: { value: "Python async" } });
+    fireEvent.click(screen.getByRole("button", { name: "Nghiên cứu" }));
+    const heading = await screen.findByRole("heading", { name: "Ứng viên nguồn nghiên cứu" });
+    await waitFor(() => expect(heading).toHaveFocus());
+    expect(ingestBodies).toHaveLength(0);
+
+    const checkboxes = screen.getAllByRole("checkbox");
+    for (const checkbox of checkboxes.slice(0, 8)) fireEvent.click(checkbox);
+    expect(screen.getAllByText(/8\/8 nguồn đã chọn/u).length).toBeGreaterThan(0);
+    expect(checkboxes[8]).toBeDisabled();
+    fireEvent.click(checkboxes[0]);
+    expect(checkboxes[8]).toBeEnabled();
+    fireEvent.click(checkboxes[8]);
+
+    fireEvent.click(screen.getByRole("button", { name: "Xác nhận và ingest nguồn đã chọn" }));
+    await waitFor(() => expect(ingestBodies).toHaveLength(8));
+    expect(ingestBodies.every((body) => body.discovery === "discovered" && typeof body.idempotencyKey === "string")).toBe(true);
+    expect(ingestBodies.some((body) => body.url === researchCandidate(0).url)).toBe(false);
+    expect(ingestBodies.some((body) => body.url === researchCandidate(8).url)).toBe(true);
+  });
+
+  it("appends unique Research More results while preserving selection and the 20-candidate cap", async () => {
+    let round = 0;
+    vi.spyOn(globalThis, "fetch").mockImplementation(async (input) => {
+      const url = String(input);
+      if (url === "/api/admin/course-drafts") return json({ success: true, data: { items: [] } });
+      if (url === "/api/admin/course-research") {
+        round += 1;
+        return round === 1
+          ? json({ success: true, data: { topic: "Python", queries: ["Python"], results: Array.from({ length: 15 }, (_, index) => researchCandidate(index)), cursor: "opaque", hasMore: true } })
+          : json({ success: true, data: { topic: "Python", queries: ["Python"], results: Array.from({ length: 15 }, (_, index) => researchCandidate(10 + index)), cursor: null, hasMore: false } });
+      }
+      throw new Error(`Unexpected request: ${url}`);
+    });
+    render(<ContentPipelineAdmin />);
+    fireEvent.change(await screen.findByLabelText("Chủ đề Course"), { target: { value: "Python" } });
+    fireEvent.click(screen.getByRole("button", { name: "Nghiên cứu" }));
+    const selected = await screen.findByRole("checkbox", { name: /Research Source 14/u });
+    fireEvent.click(selected);
+    fireEvent.click(screen.getByRole("button", { name: "Nghiên cứu thêm" }));
+    await waitFor(() => expect(screen.getByText(/20\/20 ứng viên đang hiển thị/u)).toBeInTheDocument());
+    expect(selected).toBeChecked();
+    expect(screen.getAllByRole("checkbox")).toHaveLength(20);
+    expect(screen.getAllByText("Research Source 10")).toHaveLength(1);
+  });
+
+  it("preserves topic, candidates, selection, and manual URL/file fallbacks after provider failure", async () => {
+    let researchCalls = 0;
+    vi.spyOn(globalThis, "fetch").mockImplementation(async (input) => {
+      const url = String(input);
+      if (url === "/api/admin/course-drafts") return json({ success: true, data: { items: [] } });
+      if (url === "/api/admin/course-research") {
+        researchCalls += 1;
+        return researchCalls === 1
+          ? json({ success: true, data: { topic: "Python", queries: ["Python"], results: [researchCandidate(1)], cursor: "opaque", hasMore: true } })
+          : json({ success: false, error: { code: "SEARCH_PROVIDER_TIMEOUT", message: "provider timeout" } }, 503);
+      }
+      throw new Error(`Unexpected request: ${url}`);
+    });
+    render(<ContentPipelineAdmin />);
+    const topicInput = await screen.findByLabelText("Chủ đề Course");
+    fireEvent.change(topicInput, { target: { value: "Python" } });
+    fireEvent.click(screen.getByRole("button", { name: "Nghiên cứu" }));
+    const candidate = await screen.findByRole("checkbox", { name: /Research Source 1/u });
+    fireEvent.click(candidate);
+    const manualUrl = screen.getByLabelText("URL thủ công");
+    const optionalFile = screen.getByLabelText("Tài liệu tùy chọn");
+    fireEvent.change(manualUrl, { target: { value: "https://manual.example/guide" } });
+    fireEvent.change(optionalFile, { target: { files: [new File(["guide"], "guide.md", { type: "text/markdown" })] } });
+    fireEvent.click(screen.getByRole("button", { name: "Nghiên cứu thêm" }));
+    const alert = await screen.findByRole("alert");
+    expect(alert).toHaveFocus();
+    expect(within(alert).getByRole("button", { name: "Thử lại nghiên cứu" })).toBeEnabled();
+    expect(topicInput).toHaveValue("Python");
+    expect(candidate).toBeChecked();
+    expect(screen.getByText("Research Source 1")).toBeInTheDocument();
+    expect(manualUrl).toHaveValue("https://manual.example/guide");
+    expect(optionalFile).toHaveProperty("files.length", 1);
+    expect(screen.getByRole("button", { name: "Ingest URL" })).toBeEnabled();
+    expect(screen.getByRole("button", { name: "Ingest file" })).toBeEnabled();
   });
 
   it("renders an editable outline before any Lesson content editor", async () => {

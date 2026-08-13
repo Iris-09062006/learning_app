@@ -3,6 +3,11 @@ import "server-only";
 import { createHash, randomUUID } from "node:crypto";
 
 import { NineRouterLessonDraftProvider, type LessonDraftProvider } from "@/features/content-pipeline/providers/lesson-draft-provider";
+import { BraveWebSearchProvider } from "@/features/content-pipeline/providers/brave-web-search-provider";
+import { WebSearchProviderError, type WebSearchProvider } from "@/features/content-pipeline/providers/web-search-provider";
+import { planResearchQueries } from "@/features/content-pipeline/research/course-research";
+import { normalizeSearchResults } from "@/features/content-pipeline/research/normalize-search-results";
+import { rankSearchResults } from "@/features/content-pipeline/research/rank-search-results";
 import {
   createContentTarget,
   createContentCurriculum,
@@ -51,6 +56,7 @@ import {
   SUPPORTED_SOURCE_MIME_TYPES,
   type LessonDraftReviewDecision,
   type CourseImportDraft,
+  type CourseResearchResult,
   type CourseSourceChunk,
   type CourseSourceRef,
   type ProviderStructuredCourseOutline,
@@ -80,6 +86,10 @@ export class ContentPipelineError extends Error {
       | "UNSUPPORTED_MEDIA_TYPE"
       | "AI_PROVIDER_ERROR"
       | "RATE_LIMITED"
+      | "SEARCH_PROVIDER_AUTH"
+      | "SEARCH_PROVIDER_QUOTA"
+      | "SEARCH_PROVIDER_TIMEOUT"
+      | "SEARCH_PROVIDER_UNAVAILABLE"
       | "DATABASE_ERROR",
     message: string,
     public readonly details?: Record<string, unknown>
@@ -102,6 +112,95 @@ async function requireAiCapacity(scope: "ai:course-outline" | "ai:lesson-content
   const result = await checkRateLimit(scope, actorId);
   if (!result.allowed) {
     throw new ContentPipelineError("RATE_LIMITED", `Rate limit exceeded. Retry after ${result.retryAfterSeconds} seconds.`);
+  }
+}
+
+interface ResearchCursorPayload {
+  version: 1;
+  topicHash: string;
+  providerCursors: Array<string | null>;
+}
+
+interface CourseResearchDependencies {
+  provider?: WebSearchProvider;
+  checkCapacity?: typeof checkRateLimit;
+}
+
+function decodeResearchCursor(value: unknown, topic: string, queryCount: number): Array<string | null> {
+  if (value === undefined || value === null) return Array.from({ length: queryCount }, () => null);
+  if (typeof value !== "string" || value.length > 500) throw new ContentPipelineError("VALIDATION_ERROR", "cursor is invalid.");
+  try {
+    const payload = JSON.parse(Buffer.from(value, "base64url").toString("utf8")) as Partial<ResearchCursorPayload>;
+    const topicHash = createHash("sha256").update(topic).digest("base64url").slice(0, 16);
+    if (payload.version !== 1 || payload.topicHash !== topicHash || !Array.isArray(payload.providerCursors)
+      || payload.providerCursors.length !== queryCount
+      || payload.providerCursors.some((cursor) => cursor !== null && (typeof cursor !== "string" || cursor.length > 100))) {
+      throw new Error("invalid cursor");
+    }
+    return payload.providerCursors;
+  } catch {
+    throw new ContentPipelineError("VALIDATION_ERROR", "cursor is invalid.");
+  }
+}
+
+function encodeResearchCursor(topic: string, providerCursors: Array<string | null>): string | null {
+  if (providerCursors.every((cursor) => cursor === null)) return null;
+  const payload: ResearchCursorPayload = {
+    version: 1,
+    topicHash: createHash("sha256").update(topic).digest("base64url").slice(0, 16),
+    providerCursors,
+  };
+  return Buffer.from(JSON.stringify(payload), "utf8").toString("base64url");
+}
+
+function mapSearchProviderError(error: unknown): never {
+  if (error instanceof WebSearchProviderError) {
+    const code = error.code === "AUTH" ? "SEARCH_PROVIDER_AUTH"
+      : error.code === "QUOTA" ? "SEARCH_PROVIDER_QUOTA"
+        : error.code === "TIMEOUT" ? "SEARCH_PROVIDER_TIMEOUT"
+          : "SEARCH_PROVIDER_UNAVAILABLE";
+    throw new ContentPipelineError(code, "Web research is temporarily unavailable. Retry or use a manual URL or file.");
+  }
+  throw new ContentPipelineError("SEARCH_PROVIDER_UNAVAILABLE", "Web research is temporarily unavailable. Retry or use a manual URL or file.");
+}
+
+export async function researchCourseSources(
+  body: unknown,
+  dependencies: CourseResearchDependencies = {},
+): Promise<CourseResearchResult> {
+  const adminId = await requireAdmin();
+  if (!body || typeof body !== "object" || Array.isArray(body)) throw new ContentPipelineError("VALIDATION_ERROR", "Request body is invalid.");
+  const input = body as Record<string, unknown>;
+  if (Object.keys(input).some((key) => key !== "topic" && key !== "cursor")) {
+    throw new ContentPipelineError("VALIDATION_ERROR", "Request body contains unknown fields.");
+  }
+  let plan;
+  try {
+    plan = planResearchQueries(input.topic);
+  } catch (error) {
+    throw new ContentPipelineError("VALIDATION_ERROR", error instanceof Error ? error.message : "topic is invalid.");
+  }
+  const cursors = decodeResearchCursor(input.cursor, plan.topic, plan.queries.length);
+  const capacity = await (dependencies.checkCapacity ?? checkRateLimit)("content-research", adminId);
+  if (!capacity.allowed) {
+    throw new ContentPipelineError("RATE_LIMITED", `Rate limit exceeded. Retry after ${capacity.retryAfterSeconds} seconds.`, {
+      retryAfterSeconds: capacity.retryAfterSeconds,
+    });
+  }
+  const provider = dependencies.provider ?? new BraveWebSearchProvider();
+  try {
+    const pages = await Promise.all(plan.queries.map((query, index) => {
+      if (input.cursor !== undefined && cursors[index] === null) return Promise.resolve({ results: [], cursor: null, hasMore: false });
+      return provider.search({ ...query, count: 20, cursor: cursors[index] });
+    }));
+    const normalized = normalizeSearchResults(pages.flatMap((page) => page.results));
+    const queryStrings = plan.queries.map((query) => query.query);
+    const results = rankSearchResults(normalized, plan.topic, queryStrings).slice(0, 20);
+    const providerCursors = pages.map((page) => page.hasMore ? page.cursor : null);
+    const cursor = encodeResearchCursor(plan.topic, providerCursors);
+    return { topic: plan.topic, queries: queryStrings, results, cursor, hasMore: cursor !== null };
+  } catch (error) {
+    mapSearchProviderError(error);
   }
 }
 

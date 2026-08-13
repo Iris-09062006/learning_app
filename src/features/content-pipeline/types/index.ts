@@ -190,6 +190,47 @@ export interface CourseImportSourceSummary {
 
 export type CourseImportSource = CourseImportSourceSummary;
 
+export interface WebSearchResult {
+  url: string;
+  title: string;
+  snippet: string;
+  language: string | null;
+  providerRank: number;
+}
+
+export interface WebSearchPage {
+  results: WebSearchResult[];
+  cursor: string | null;
+  hasMore: boolean;
+}
+
+export interface ResearchQuery {
+  query: string;
+  searchLanguage: string;
+  country: string;
+}
+
+export interface ResearchCandidate {
+  candidateKey: string;
+  url: string;
+  canonicalUrl: string;
+  title: string;
+  domain: string;
+  snippet: string;
+  language: string | null;
+  discovery: "discovered";
+  authorityScore: number;
+  relevanceScore: number;
+}
+
+export interface CourseResearchResult {
+  topic: string;
+  queries: string[];
+  results: ResearchCandidate[];
+  cursor: string | null;
+  hasMore: boolean;
+}
+
 export interface CourseSourceRef {
   sourceDocumentId: number;
   chunkIndex: number;

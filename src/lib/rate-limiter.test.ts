@@ -72,6 +72,18 @@ describe("rate limiter", () => {
     expect(rpc.mock.calls[0]?.[1]?.p_identifier_hash).not.toContain("192.0.2.1");
   });
 
+  it("applies the distributed 20-per-hour research scope", async () => {
+    vi.stubEnv("NODE_ENV", "production");
+    const rpc = vi.fn().mockResolvedValue({ data: [{ allowed: true, retry_after_seconds: 0 }], error: null });
+    vi.mocked(createAdminSupabaseClient).mockReturnValue({ rpc } as never);
+    await expect(checkRateLimit("content-research", "admin-id")).resolves.toEqual({ allowed: true });
+    expect(rpc).toHaveBeenCalledWith("consume_rate_limit", expect.objectContaining({
+      p_scope: "content-research",
+      p_limit: 20,
+      p_window_seconds: 3600,
+    }));
+  });
+
   it("fails closed when the production limiter store is unavailable", async () => {
     vi.stubEnv("NODE_ENV", "production");
     vi.mocked(createAdminSupabaseClient).mockImplementation(() => {

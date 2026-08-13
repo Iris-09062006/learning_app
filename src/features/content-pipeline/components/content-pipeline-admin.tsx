@@ -7,6 +7,8 @@ import type {
   CourseImportDraft,
   CourseImportLessonDraft,
   CourseImportOutlineLesson,
+  CourseResearchResult,
+  ResearchCandidate,
   CourseSourceRef,
   ReviewCourseDraftBatchResult,
 } from "@/features/content-pipeline/types";
@@ -18,18 +20,24 @@ type StagedSourceStatus = "pending" | "ingesting" | "extracted" | "failed";
 interface StagedSourceAttempt {
   clientKey: string;
   idempotencyKey: string;
-  kind: "manual_url" | "file";
+  kind: "manual_url" | "discovered" | "file";
   label: string;
   url?: string;
   sourceDocumentId?: number;
   status: StagedSourceStatus;
   error?: string;
   attached?: boolean;
+  candidateKey?: string;
+  authorityScore?: number;
+  relevanceScore?: number;
 }
 interface PipelineCheckpointV2 {
   version: 2;
   topic: string;
   selectedCandidateKeys: string[];
+  candidates?: ResearchCandidate[];
+  researchCursor?: string | null;
+  researchHasMore?: boolean;
   attempts: StagedSourceAttempt[];
   initializationKey: string;
   jobId: number | null;
@@ -56,7 +64,7 @@ export function decodePipelineCheckpoint(value: string | null): PendingGeneratio
   if (!value) return null;
   try {
     const parsed = JSON.parse(value) as PendingGeneration | PipelineCheckpointV2;
-    if ("version" in parsed && parsed.version === 2 && Array.isArray(parsed.attempts)
+    if (parsed && "version" in parsed && parsed.version === 2 && Array.isArray(parsed.attempts)
       && typeof parsed.initializationKey === "string") return parsed;
     return "sourceDocumentId" in parsed && Number.isSafeInteger(parsed.sourceDocumentId) && parsed.sourceFilename ? parsed : null;
   } catch { return null; }
@@ -92,12 +100,43 @@ function availableOutlineRefs(draft: CourseImportDraft): CourseSourceRef[] {
   return refs.filter((ref, index) => refs.findIndex((item) => sameSourceRef(item, ref)) === index);
 }
 
+export function mergeResearchCandidates(
+  current: ResearchCandidate[],
+  incoming: ResearchCandidate[],
+  selectedCandidateKeys: string[],
+): ResearchCandidate[] {
+  const selected = new Set(selectedCandidateKeys);
+  const retained = current.filter((candidate, index, all) =>
+    all.findIndex((item) => item.canonicalUrl === candidate.canonicalUrl) === index);
+  if (retained.length > 20) {
+    const selectedCandidates = retained.filter((candidate) => selected.has(candidate.candidateKey));
+    const selectedUrls = new Set(selectedCandidates.map((candidate) => candidate.canonicalUrl));
+    return [...selectedCandidates, ...retained.filter((candidate) => !selectedUrls.has(candidate.canonicalUrl))].slice(0, 20);
+  }
+  const seen = new Set(retained.map((candidate) => candidate.canonicalUrl));
+  for (const candidate of incoming) {
+    if (retained.length >= 20) break;
+    if (!seen.has(candidate.canonicalUrl)) { retained.push(candidate); seen.add(candidate.canonicalUrl); }
+  }
+  return retained;
+}
+
 export function ContentPipelineAdmin() {
   const [imports, setImports] = useState<CourseImportDraft[]>([]);
   const [selectedJobId, setSelectedJobId] = useState<number | null>(null);
   const [selectedOutlineLessonId, setSelectedOutlineLessonId] = useState<number | null>(null);
   const [pendingGeneration, setPendingGeneration] = useState<PendingGeneration | null>(null);
   const [sourceAttempts, setSourceAttempts] = useState<StagedSourceAttempt[]>([]);
+  const [topic, setTopic] = useState("");
+  const [researchCandidates, setResearchCandidates] = useState<ResearchCandidate[]>([]);
+  const [selectedCandidateKeys, setSelectedCandidateKeys] = useState<string[]>([]);
+  const [researchCursor, setResearchCursor] = useState<string | null>(null);
+  const [researchHasMore, setResearchHasMore] = useState(false);
+  const [researchBusy, setResearchBusy] = useState(false);
+  const [researchError, setResearchError] = useState<string | null>(null);
+  const researchResultsHeading = useRef<HTMLHeadingElement>(null);
+  const researchErrorAlert = useRef<HTMLDivElement>(null);
+  const focusResearchResults = useRef(false);
   const [initializationKey, setInitializationKey] = useState(() => crypto.randomUUID());
   const [sourceReviewJobId, setSourceReviewJobId] = useState<number | null>(null);
   const [pendingSourceAction, setPendingSourceAction] = useState<PipelineCheckpointV2["pendingAction"]>(null);
@@ -117,8 +156,10 @@ export function ContentPipelineAdmin() {
     const sourceIds = new Set(sourceAttempts.flatMap((attempt) => attempt.sourceDocumentId ? [attempt.sourceDocumentId] : []));
     const reviewedJob = imports.find((item) => item.jobId === sourceReviewJobId) ?? selectedImport;
     const serverOnlyCount = reviewedJob?.sources.filter((source) => !sourceIds.has(source.sourceDocumentId)).length ?? 0;
-    return sourceAttempts.length + serverOnlyCount;
-  }, [imports, selectedImport, sourceAttempts, sourceReviewJobId]);
+    const materializedCandidateKeys = new Set(sourceAttempts.flatMap((attempt) => attempt.candidateKey ? [attempt.candidateKey] : []));
+    const pendingSelectedCount = selectedCandidateKeys.filter((key) => !materializedCandidateKeys.has(key)).length;
+    return sourceAttempts.length + serverOnlyCount + pendingSelectedCount;
+  }, [imports, selectedCandidateKeys, selectedImport, sourceAttempts, sourceReviewJobId]);
   const selectedOutlineLesson = selectedImport?.lessons.find((lesson) => lesson.id === selectedOutlineLessonId) ?? null;
   const selectedContent = selectedOutlineLesson?.contentDraft ?? null;
   const refresh = useCallback(async () => {
@@ -131,6 +172,9 @@ export function ContentPipelineAdmin() {
       if (checkpoint && "version" in checkpoint) {
         setSourceAttempts(checkpoint.attempts); setInitializationKey(checkpoint.initializationKey);
         setSourceReviewJobId(checkpoint.jobId); setPendingSourceAction(checkpoint.pendingAction);
+        setTopic(checkpoint.topic); setSelectedCandidateKeys(checkpoint.selectedCandidateKeys);
+        setResearchCandidates(checkpoint.candidates ?? []); setResearchCursor(checkpoint.researchCursor ?? null);
+        setResearchHasMore(checkpoint.researchHasMore ?? false);
         if (checkpoint.jobId && importData.items.some((item) => item.jobId === checkpoint.jobId)) setSelectedJobId(checkpoint.jobId);
       } else if (checkpoint && importData.items.some((item) => item.sourceDocumentId === checkpoint.sourceDocumentId)) {
         storeCheckpoint(null); setPendingGeneration(null);
@@ -143,14 +187,25 @@ export function ContentPipelineAdmin() {
 
   useEffect(() => {
     if (!checkpointLoaded) return;
-    if (!sourceAttempts.length && !sourceReviewJobId) {
+    if (!sourceAttempts.length && !sourceReviewJobId && !topic && !researchCandidates.length) {
       const current = decodePipelineCheckpoint(sessionStorage.getItem(CHECKPOINT_KEY));
       if (current && "version" in current) storeCheckpoint(null);
       return;
     }
-    storeCheckpoint({ version: 2, topic: "", selectedCandidateKeys: [], attempts: sourceAttempts,
+    storeCheckpoint({ version: 2, topic, selectedCandidateKeys, candidates: researchCandidates,
+      researchCursor, researchHasMore, attempts: sourceAttempts,
       initializationKey, jobId: sourceReviewJobId, pendingAction: pendingSourceAction });
-  }, [sourceAttempts, initializationKey, sourceReviewJobId, pendingSourceAction, checkpointLoaded]);
+  }, [sourceAttempts, initializationKey, sourceReviewJobId, pendingSourceAction, checkpointLoaded,
+    topic, selectedCandidateKeys, researchCandidates, researchCursor, researchHasMore]);
+
+  useEffect(() => {
+    if (focusResearchResults.current && researchCandidates.length && !researchBusy) {
+      researchResultsHeading.current?.focus();
+      focusResearchResults.current = false;
+    }
+  }, [researchBusy, researchCandidates.length]);
+
+  useEffect(() => { if (researchError) researchErrorAlert.current?.focus(); }, [researchError]);
 
   useEffect(() => {
     refresh().catch((cause: unknown) => {
@@ -203,6 +258,90 @@ export function ContentPipelineAdmin() {
     setSourceAttempts((current) => current.map((attempt) => attempt.clientKey === clientKey ? { ...attempt, ...changes } : attempt));
   }
 
+  async function runResearch(append: boolean) {
+    setResearchBusy(true); setResearchError(null);
+    try {
+      const result = await requestPipelineApi<CourseResearchResult>("/api/admin/course-research", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ topic, ...(append && researchCursor ? { cursor: researchCursor } : {}) }),
+      });
+      setTopic(result.topic);
+      setResearchCandidates((current) => append
+        ? mergeResearchCandidates(current, result.results, selectedCandidateKeys)
+        : result.results.slice(0, 20));
+      if (!append) setSelectedCandidateKeys([]);
+      setResearchCursor(result.cursor); setResearchHasMore(result.hasMore);
+      setMessage(result.results.length
+        ? `Đã tìm thấy ${result.results.length} ứng viên nguồn để Admin review.`
+        : "Không tìm thấy ứng viên nguồn phù hợp. Bạn vẫn có thể thêm URL hoặc file.");
+      focusResearchResults.current = true;
+    } catch (cause) {
+      setResearchError(cause instanceof Error ? cause.message : "Không thể nghiên cứu chủ đề lúc này.");
+    } finally { setResearchBusy(false); }
+  }
+
+  async function researchTopic(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    await runResearch(false);
+  }
+
+  function toggleResearchCandidate(candidateKey: string, checked: boolean) {
+    if (checked && reviewedSourceCount >= 8) {
+      setResearchError("Mỗi Course chỉ được chọn tối đa 8 nguồn.");
+      return;
+    }
+    setResearchError(null);
+    setSelectedCandidateKeys((current) => checked
+      ? current.includes(candidateKey) ? current : [...current, candidateKey]
+      : current.filter((key) => key !== candidateKey));
+  }
+
+  async function ingestSelectedResearchCandidates() {
+    const alreadyAttempted = new Set(sourceAttempts.flatMap((attempt) => attempt.candidateKey ? [attempt.candidateKey] : []));
+    const selected = researchCandidates.filter((candidate) =>
+      selectedCandidateKeys.includes(candidate.candidateKey) && !alreadyAttempted.has(candidate.candidateKey));
+    if (!selected.length) return;
+    const attempts = selected.map((candidate): StagedSourceAttempt => ({
+      clientKey: crypto.randomUUID(),
+      idempotencyKey: crypto.randomUUID(),
+      candidateKey: candidate.candidateKey,
+      kind: "discovered",
+      label: candidate.title,
+      url: candidate.url,
+      authorityScore: candidate.authorityScore,
+      relevanceScore: candidate.relevanceScore,
+      status: "ingesting",
+    }));
+    setSourceAttempts((current) => [...current, ...attempts].slice(0, 8));
+    setBusy(true); setError(null); setPendingSourceAction("ingestion");
+    try {
+      for (const attempt of attempts) {
+        try {
+          const result = await requestPipelineApi<{ sourceDocumentId: number; status: "extracted"; chunkCount: number }>("/api/admin/content-sources/url", {
+            method: "POST", headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              url: attempt.url,
+              discovery: "discovered",
+              title: attempt.label,
+              idempotencyKey: attempt.idempotencyKey,
+              authorityScore: attempt.authorityScore,
+            }),
+          });
+          updateAttempt(attempt.clientKey, { sourceDocumentId: result.sourceDocumentId, status: "extracted" });
+        } catch (cause) {
+          const requestError = cause as PipelineRequestError;
+          updateAttempt(attempt.clientKey, {
+            sourceDocumentId: requestError.sourceDocumentId,
+            status: "failed",
+            error: cause instanceof Error ? cause.message : "Không thể ingest nguồn đã chọn.",
+          });
+        }
+      }
+      setMessage("Đã ingest xong các ứng viên được chọn. Hãy review kết quả nguồn trước khi khởi tạo Course import.");
+    } finally { setBusy(false); setPendingSourceAction(null); }
+  }
+
   async function ingestManualUrl(event: FormEvent<HTMLFormElement>) {
     event.preventDefault(); setBusy(true); setError(null); setPendingSourceAction("ingestion");
     if (reviewedSourceCount >= 8) { setError("Mỗi Course chỉ được tối đa 8 nguồn."); setBusy(false); setPendingSourceAction(null); return; }
@@ -251,10 +390,15 @@ export function ContentPipelineAdmin() {
       if (attempt.sourceDocumentId) {
         await requestPipelineApi(`/api/admin/content-sources/${attempt.sourceDocumentId}/extract`, { method: "POST" });
         updateAttempt(attempt.clientKey, { status: "extracted" });
-      } else if (attempt.kind === "manual_url" && attempt.url) {
+      } else if ((attempt.kind === "manual_url" || attempt.kind === "discovered") && attempt.url) {
         const result = await requestPipelineApi<{ sourceDocumentId: number }>("/api/admin/content-sources/url", {
           method: "POST", headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ url: attempt.url, discovery: "manual_url", idempotencyKey: attempt.idempotencyKey }),
+          body: JSON.stringify({
+            url: attempt.url,
+            discovery: attempt.kind,
+            idempotencyKey: attempt.idempotencyKey,
+            ...(attempt.kind === "discovered" ? { title: attempt.label, authorityScore: attempt.authorityScore } : {}),
+          }),
         });
         updateAttempt(attempt.clientKey, { sourceDocumentId: result.sourceDocumentId, status: "extracted" });
       } else throw new Error("Hãy chọn lại file để thử lại nguồn này.");
@@ -280,13 +424,19 @@ export function ContentPipelineAdmin() {
       if (!jobId) {
         const result = await requestPipelineApi<{ jobId: number }>("/api/admin/course-imports", {
           method: "POST", headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ initializationKey, sources: usable.map((attempt) => ({ sourceDocumentId: attempt.sourceDocumentId })) }),
+          body: JSON.stringify({ initializationKey, sources: usable.map((attempt) => ({
+            sourceDocumentId: attempt.sourceDocumentId,
+            ...(attempt.relevanceScore === undefined ? {} : { relevanceScore: attempt.relevanceScore }),
+          })) }),
         });
         jobId = result.jobId; setSourceReviewJobId(jobId);
       } else {
         for (const attempt of usable) {
           await requestPipelineApi(`/api/admin/course-drafts/${jobId}/sources`, {
-            method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ sourceDocumentId: attempt.sourceDocumentId }),
+            method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({
+              sourceDocumentId: attempt.sourceDocumentId,
+              ...(attempt.relevanceScore === undefined ? {} : { relevanceScore: attempt.relevanceScore }),
+            }),
           });
         }
       }
@@ -453,6 +603,56 @@ export function ContentPipelineAdmin() {
     <section className="rounded-2xl border border-blue-200 bg-blue-50 p-6" aria-labelledby="source-review-title">
       <h2 id="source-review-title" className="text-xl font-semibold text-slate-950">Nguồn cho Course đa nguồn</h2>
       <p className="mt-2 text-sm text-slate-700">Thêm URL công khai và/hoặc tài liệu tùy chọn. Chỉ nguồn trích xuất thành công mới có thể trở thành evidence.</p>
+      <form className="mt-5 rounded-lg border border-blue-200 bg-white p-4" onSubmit={researchTopic}>
+        <label className="text-sm font-medium text-slate-800" htmlFor="course-research-topic">Chủ đề Course</label>
+        <div className="mt-2 flex flex-col gap-3 sm:flex-row">
+          <input id="course-research-topic" className="block min-w-0 flex-1 rounded-lg border border-slate-300 p-2"
+            value={topic} onChange={(event) => setTopic(event.target.value)} minLength={3} maxLength={300}
+            required disabled={researchBusy} aria-describedby="course-research-help" />
+          <button className="rounded bg-indigo-700 px-4 py-2 text-sm font-semibold text-white disabled:opacity-50"
+            type="submit" disabled={researchBusy}>{researchBusy ? "Đang nghiên cứu…" : "Nghiên cứu"}</button>
+        </div>
+        <p id="course-research-help" className="mt-2 text-xs text-slate-600">Tìm kiếm ưu tiên tiếng Việt; kết quả chỉ là ứng viên cho đến khi Admin xác nhận ingest.</p>
+      </form>
+      {researchError ? <div ref={researchErrorAlert} tabIndex={-1} role="alert"
+        className="mt-3 rounded-lg border border-red-300 bg-red-50 p-3 text-sm text-red-800">{researchError}
+        <button type="button" className="ml-2 font-semibold underline" onClick={() => runResearch(researchCandidates.length > 0 && researchHasMore)} disabled={researchBusy}>Thử lại nghiên cứu</button>
+      </div> : null}
+      {researchCandidates.length ? <div className="mt-5 rounded-lg border border-blue-200 bg-white p-4">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <h3 ref={researchResultsHeading} tabIndex={-1} className="font-semibold text-slate-950">Ứng viên nguồn nghiên cứu</h3>
+          <button type="button" className="rounded border border-indigo-500 px-3 py-1.5 text-sm font-semibold text-indigo-800 disabled:opacity-50"
+            onClick={() => runResearch(true)} disabled={researchBusy || !researchHasMore}>
+            {researchBusy ? "Đang nghiên cứu…" : "Nghiên cứu thêm"}
+          </button>
+        </div>
+        <p className="mt-1 text-xs text-slate-600" aria-live="polite">{researchCandidates.length}/20 ứng viên đang hiển thị · {reviewedSourceCount}/8 nguồn đã chọn</p>
+        <ul className="mt-3 space-y-3" aria-label="Ứng viên nguồn nghiên cứu">
+          {researchCandidates.map((candidate) => {
+            const checked = selectedCandidateKeys.includes(candidate.candidateKey);
+            const materialized = sourceAttempts.some((attempt) => attempt.candidateKey === candidate.candidateKey);
+            return <li key={candidate.candidateKey} className="rounded-lg border border-slate-200 p-3">
+              <label className="flex cursor-pointer items-start gap-3">
+                <input type="checkbox" className="mt-1 size-4" checked={checked}
+                  onChange={(event) => toggleResearchCandidate(candidate.candidateKey, event.target.checked)}
+                  disabled={busy || researchBusy || materialized || (!checked && reviewedSourceCount >= 8)} />
+                <span className="min-w-0">
+                  <span className="block font-semibold text-slate-950">{candidate.title}</span>
+                  <span className="block text-xs text-slate-600">{candidate.domain}{candidate.language ? ` · ${candidate.language}` : ""} · discovered</span>
+                  <span className="mt-1 block text-sm text-slate-700">{candidate.snippet}</span>
+                  <span className="mt-1 block text-xs text-indigo-800">Điểm tư vấn: authority {Math.round(candidate.authorityScore * 100)}% · relevance {Math.round(candidate.relevanceScore * 100)}%</span>
+                  {materialized ? <span className="mt-1 block text-xs font-semibold text-emerald-700">Đã chuyển sang source review</span> : null}
+                </span>
+              </label>
+            </li>;
+          })}
+        </ul>
+        <button className="mt-4 rounded bg-emerald-700 px-4 py-2 text-sm font-semibold text-white disabled:opacity-50"
+          type="button" onClick={ingestSelectedResearchCandidates}
+          disabled={busy || researchBusy || !selectedCandidateKeys.some((key) => !sourceAttempts.some((attempt) => attempt.candidateKey === key))}>
+          Xác nhận và ingest nguồn đã chọn
+        </button>
+      </div> : researchBusy ? <p className="mt-3 text-sm text-slate-700" role="status">Đang tìm ứng viên nguồn…</p> : null}
       <div className="mt-5 grid gap-4 md:grid-cols-2">
         <form className="rounded-lg border border-blue-200 bg-white p-4" onSubmit={ingestManualUrl}>
           <label className="text-sm font-medium text-slate-800">URL thủ công
@@ -470,7 +670,7 @@ export function ContentPipelineAdmin() {
       <p className="mt-3 text-sm font-medium text-slate-700">{reviewedSourceCount}/8 nguồn đã chọn · {sourceAttempts.filter((attempt) => attempt.status === "extracted").length} usable</p>
       {sourceAttempts.length ? <ul className="mt-3 space-y-2" aria-label="Trạng thái nguồn">{sourceAttempts.map((attempt) => <li className="rounded-lg border border-slate-200 bg-white p-3 text-sm" key={attempt.clientKey}>
         <div className="flex flex-wrap items-start justify-between gap-3">
-          <div><p className="font-semibold text-slate-900">{attempt.label}</p><p className="text-slate-600">{attempt.kind === "manual_url" ? "URL thủ công" : "File upload"} · {attempt.status}{attempt.attached ? " · attached" : " · staged"}</p>
+          <div><p className="font-semibold text-slate-900">{attempt.label}</p><p className="text-slate-600">{attempt.kind === "manual_url" ? "URL thủ công" : attempt.kind === "discovered" ? "Nguồn nghiên cứu" : "File upload"} · {attempt.status}{attempt.attached ? " · attached" : " · staged"}</p>
             {attempt.error ? <p role="alert" className="mt-1 text-red-700">{attempt.error}</p> : null}</div>
           <div className="flex gap-2">{attempt.status === "failed" ? <button className="rounded border px-2 py-1 font-semibold" type="button" onClick={() => retrySourceAttempt(attempt)} disabled={busy}>Retry</button> : null}
             {!attempt.attached ? <button className="rounded border border-red-400 px-2 py-1 font-semibold text-red-700" type="button" onClick={() => removeSourceAttempt(attempt)} disabled={busy || attempt.status === "ingesting"}>Remove</button> : null}</div>

@@ -297,6 +297,125 @@ test("recovers a partial-failure manual URL and file source-review flow without 
   await expectNoSeriousA11yViolations(page);
 });
 
+test("researches a topic, preserves Research More selection, and ingests only confirmed candidates", async ({ page }) => {
+  type Stage = "empty" | "processing" | "outline" | "content" | "published";
+  let stage: Stage = "empty";
+  let researchRound = 0;
+  const fixtureResponse = await page.request.get("http://127.0.0.1:54321/__e2e/fixtures/phase4-research");
+  expect(fixtureResponse.ok()).toBeTruthy();
+  const fixture = await fixtureResponse.json() as {
+    rounds: Array<Array<Record<string, unknown>>>;
+    sourceIds: { researchA: number; researchC: number; manual: number; file: number };
+    jobId: number;
+  };
+  const discoveredIngestions: string[] = [];
+  let initializedSources: Array<{ sourceDocumentId: number; relevanceScore?: number }> = [];
+  const sourceMetadata = new Map<number, { title: string; ingestionMethod: "uploaded" | "manual_url" | "discovered"; url: string | null; domain: string | null; authority: number | null }>([
+    [fixture.sourceIds.researchA, { title: "Nguồn nghiên cứu A", ingestionMethod: "discovered", url: "https://a.example/guide", domain: "a.example", authority: 0.7 }],
+    [fixture.sourceIds.researchC, { title: "Nguồn nghiên cứu C", ingestionMethod: "discovered", url: "https://c.example/reference", domain: "c.example", authority: 0.8 }],
+    [fixture.sourceIds.manual, { title: "Manual reference", ingestionMethod: "manual_url", url: "https://manual.example/reference", domain: "manual.example", authority: null }],
+    [fixture.sourceIds.file, { title: "notes.md", ingestionMethod: "uploaded", url: null, domain: null, authority: null }],
+  ]);
+  const sources = () => initializedSources.map(({ sourceDocumentId, relevanceScore }, sourceOrder) => {
+    const metadata = sourceMetadata.get(sourceDocumentId)!;
+    return {
+      sourceDocumentId, sourceOrder, sourceType: metadata.url ? "web_page" : "file",
+      ingestionMethod: metadata.ingestionMethod, title: metadata.title,
+      filename: metadata.url ? "snapshot.md" : metadata.title,
+      sourceUrl: metadata.url, canonicalUrl: metadata.url, domain: metadata.domain,
+      authorityScore: metadata.authority, relevanceScore: relevanceScore ?? null,
+      status: "ready_for_review", errorCode: null, chunkCount: 1,
+    };
+  });
+  const content = (id: number, outlineLessonId: number) => ({
+    id, outlineLessonId, revision: 1, title: `Lesson ${outlineLessonId}`, summary: "Nội dung có nguồn.",
+    estimatedMinutes: 10, sections: [{ heading: "Mở đầu", bodyMarkdown: "Nội dung", citationChunkIndexes: [0] }],
+    status: "ready", provider: "e2e", model: "e2e",
+    citations: [{ sectionIndex: 0, chunkIndex: 0, quote: "Evidence" }],
+  });
+  const job = () => ({
+    jobId: fixture.jobId, sourceDocumentId: initializedSources[0]?.sourceDocumentId,
+    sourceFilename: sources()[0]?.filename ?? "snapshot.md", sources: sources(), outlineStale: false,
+    status: stage === "outline" ? "outline_review" : stage === "content" ? "content_review" : "processing",
+    errorCode: null, outlineRevision: stage === "processing" ? 0 : 1,
+    approvedOutlineRevision: stage === "content" ? 1 : null,
+    title: stage === "processing" ? "Course đang chuẩn bị" : "Course nghiên cứu chủ đề",
+    description: stage === "processing" ? "Đang chuẩn bị evidence." : "Course từ nguồn được chọn.",
+    learningObjectives: stage === "processing" ? [] : ["Hiểu evidence"],
+    lessons: stage === "processing" ? [] : [
+      { id: 71, clientKey: "lesson-a", lessonOrder: 1, title: "Nghiên cứu cơ bản", summary: "A", learningObjectives: ["Hiểu A"], sourceChunkIndexes: [0], sourceRefs: [{ sourceDocumentId: initializedSources[0].sourceDocumentId, chunkIndex: 0 }], contentDraft: stage === "content" ? content(81, 71) : null },
+      { id: 72, clientKey: "lesson-b", lessonOrder: 2, title: "Nghiên cứu nâng cao", summary: "B", learningObjectives: ["Hiểu B"], sourceChunkIndexes: [0], sourceRefs: [{ sourceDocumentId: initializedSources[1].sourceDocumentId, chunkIndex: 0 }], contentDraft: stage === "content" ? content(82, 72) : null },
+    ],
+    publishedCourseId: null, createdAt: "2026-08-13T00:00:00.000Z", updatedAt: "2026-08-13T00:00:00.000Z",
+  });
+
+  await page.route("**/api/admin/**", async (route) => {
+    const request = route.request(); const pathname = new URL(request.url()).pathname;
+    const respond = (data: unknown, status = 200) => route.fulfill({ status, contentType: "application/json", body: JSON.stringify({ success: true, data }) });
+    if (pathname === "/api/admin/course-drafts") return respond({ items: stage === "empty" || stage === "published" ? [] : [job()] });
+    if (pathname === "/api/admin/course-research") {
+      researchRound += 1;
+      if (researchRound === 3) return route.fulfill({ status: 503, contentType: "application/json", body: JSON.stringify({ success: false, error: { code: "SEARCH_PROVIDER_TIMEOUT", message: "Search provider unavailable" } }) });
+      return respond({ topic: "Python concurrency", queries: ["Python concurrency hướng dẫn học tập tiếng Việt"],
+        results: fixture.rounds[researchRound - 1], cursor: `opaque-${researchRound}`, hasMore: true });
+    }
+    if (pathname === "/api/admin/content-sources/url") {
+      const body = request.postDataJSON() as { url: string; discovery: string };
+      if (body.discovery === "discovered") discoveredIngestions.push(body.url);
+      const sourceDocumentId = body.url.includes("a.example") ? fixture.sourceIds.researchA
+        : body.url.includes("c.example") ? fixture.sourceIds.researchC : fixture.sourceIds.manual;
+      return respond({ sourceDocumentId, status: "extracted", chunkCount: 1, attached: false }, 201);
+    }
+    if (pathname === "/api/admin/content-sources" && request.method() === "POST") return respond({ sourceDocumentId: fixture.sourceIds.file, status: "uploaded", attached: false }, 201);
+    if (pathname === `/api/admin/content-sources/${fixture.sourceIds.file}/extract`) return respond({ documentId: fixture.sourceIds.file, status: "extracted", chunkCount: 1 });
+    if (pathname === "/api/admin/course-imports") {
+      initializedSources = (request.postDataJSON() as { sources: typeof initializedSources }).sources;
+      stage = "processing";
+      return respond({ jobId: fixture.jobId, sourceDocumentId: initializedSources[0].sourceDocumentId, sourceDocumentIds: initializedSources.map((source) => source.sourceDocumentId) }, 201);
+    }
+    if (pathname === `/api/admin/course-drafts/${fixture.jobId}/outline` && request.method() === "POST") { stage = "outline"; return respond({ jobId: fixture.jobId, outlineRevision: 1, status: "outline_review" }, 201); }
+    if (pathname === `/api/admin/course-drafts/${fixture.jobId}/lessons/generate`) { stage = "content"; return respond({ jobId: fixture.jobId, status: "content_review" }, 201); }
+    if (pathname === `/api/admin/course-drafts/${fixture.jobId}/reviews`) { stage = "published"; return respond({ jobId: fixture.jobId, sourceDocumentId: initializedSources[0].sourceDocumentId, sourceDocumentIds: initializedSources.map((source) => source.sourceDocumentId), courseId: 51, status: "published", lessonIds: [61, 62] }); }
+    return route.fallback();
+  });
+
+  await loginAs(page, "admin"); await page.goto("/admin/content");
+  await page.getByLabel("Chủ đề Course").fill("Python concurrency");
+  await page.getByRole("button", { name: "Nghiên cứu" }).click();
+  const sourceA = page.getByRole("checkbox", { name: /Nguồn nghiên cứu A/u });
+  await sourceA.focus(); await page.keyboard.press("Space");
+  await expect(sourceA).toBeChecked();
+  await page.getByRole("button", { name: "Nghiên cứu thêm" }).click();
+  await expect(sourceA).toBeChecked();
+  const sourceB = page.getByRole("checkbox", { name: /Nguồn nghiên cứu B/u });
+  await sourceB.check(); await sourceB.uncheck();
+  await page.getByRole("checkbox", { name: /Nguồn nghiên cứu C/u }).check();
+  await expectNoSeriousA11yViolations(page);
+
+  await page.getByRole("button", { name: "Nghiên cứu thêm" }).click();
+  await expect(page.getByRole("alert").filter({ hasText: "Dịch vụ tạm thời" })).toBeFocused();
+  await expect(sourceA).toBeChecked();
+  await expect(page.getByLabel("URL thủ công")).toBeEnabled();
+  await expect(page.getByLabel("Tài liệu tùy chọn")).toBeEnabled();
+
+  await page.getByLabel("URL thủ công").fill("https://manual.example/reference");
+  await page.getByRole("button", { name: "Ingest URL" }).click();
+  await page.getByLabel("Tài liệu tùy chọn").setInputFiles({ name: "notes.md", mimeType: "text/markdown", buffer: Buffer.from("Evidence") });
+  await page.getByRole("button", { name: "Ingest file" }).click();
+  await page.getByRole("button", { name: "Xác nhận và ingest nguồn đã chọn" }).click();
+  await expect(page.getByText("Đã chuyển sang source review")).toHaveCount(2);
+  expect(discoveredIngestions.sort()).toEqual(["https://a.example/guide", "https://c.example/reference"]);
+
+  await page.getByRole("button", { name: "Khởi tạo Course import" }).click();
+  expect(initializedSources).toHaveLength(4);
+  await page.getByRole("button", { name: "Tạo outline từ evidence đã review" }).click();
+  await expect(page.getByRole("textbox", { name: "Course title" })).toHaveValue("Course nghiên cứu chủ đề");
+  await page.getByRole("button", { name: "Continue: sinh Lesson contents" }).click();
+  await page.getByRole("button", { name: "Publish Course" }).click();
+  await expect(page.getByRole("link", { name: "Mở Course" })).toHaveAttribute("href", "/courses/51");
+  await expectNoSeriousA11yViolations(page);
+});
+
 test("reviews and publishes a multi-source Course with distinct colliding chunk refs", async ({ page }) => {
   let stage: "outline" | "content" | "published" = "outline";
   let revision = 1;

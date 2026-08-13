@@ -51,6 +51,21 @@ const phase3SourceReviewFixture = {
   initializationKey: "33333333-3333-4333-8333-333333333333",
 };
 
+const phase4ResearchFixture = {
+  rounds: [
+    [
+      { candidateKey: "research-a", url: "https://a.example/guide", canonicalUrl: "https://a.example/guide", title: "Nguồn nghiên cứu A", domain: "a.example", snippet: "Tài liệu A", language: "vi", discovery: "discovered", authorityScore: 0.7, relevanceScore: 0.9 },
+      { candidateKey: "research-b", url: "https://b.example/guide", canonicalUrl: "https://b.example/guide", title: "Nguồn nghiên cứu B", domain: "b.example", snippet: "Tài liệu B", language: "en", discovery: "discovered", authorityScore: 0.6, relevanceScore: 0.8 },
+    ],
+    [
+      { candidateKey: "research-b", url: "https://b.example/guide", canonicalUrl: "https://b.example/guide", title: "Nguồn nghiên cứu B", domain: "b.example", snippet: "Tài liệu B", language: "en", discovery: "discovered", authorityScore: 0.6, relevanceScore: 0.8 },
+      { candidateKey: "research-c", url: "https://c.example/reference", canonicalUrl: "https://c.example/reference", title: "Nguồn nghiên cứu C", domain: "c.example", snippet: "Tài liệu C", language: "vi", discovery: "discovered", authorityScore: 0.8, relevanceScore: 0.85 },
+    ],
+  ],
+  sourceIds: { researchA: 21, researchC: 22, manual: 23, file: 24 },
+  jobId: 41,
+};
+
 let state;
 
 function resetState() {
@@ -470,6 +485,9 @@ const server = createServer(async (request, response) => {
     }
     if (url.pathname === "/__e2e/fixtures/phase3-source-review") {
       return sendJson(response, 200, structuredClone(phase3SourceReviewFixture));
+    }
+    if (url.pathname === "/__e2e/fixtures/phase4-research") {
+      return sendJson(response, 200, structuredClone(phase4ResearchFixture));
     }
     if (url.pathname === "/__e2e/reset" && request.method === "POST") {
       resetState();

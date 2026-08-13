@@ -15,6 +15,7 @@ const serviceMocks = vi.hoisted(() => ({
   removeStagedSource: vi.fn(),
   uploadContentSource: vi.fn(),
   uploadStagedContentSource: vi.fn(),
+  researchCourseSources: vi.fn(),
 }));
 
 vi.mock("@/features/content-pipeline/services/content-pipeline-service", async (importOriginal) => {
@@ -34,6 +35,57 @@ import { GET as listSources, POST as attachSource } from "../course-drafts/[id]/
 import { DELETE as detachSource } from "../course-drafts/[id]/sources/[sourceDocumentId]/route";
 import { DELETE as removeStaged } from "../content-sources/[id]/route";
 import { POST as uploadSource } from "../content-sources/route";
+import { POST as researchSources } from "../course-research/route";
+
+describe("Phase 4 stateless research route", () => {
+  beforeEach(() => vi.clearAllMocks());
+
+  it("returns the approved no-store research envelope without persistence", async () => {
+    serviceMocks.researchCourseSources.mockResolvedValue({
+      topic: "Python async", queries: ["Python async"], results: [], cursor: null, hasMore: false,
+    });
+    const body = { topic: "Python async" };
+    const response = await researchSources(new Request("http://localhost/api/admin/course-research", {
+      method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body),
+    }));
+    expect(response.status).toBe(200);
+    expect(response.headers.get("Cache-Control")).toBe("no-store");
+    await expect(response.json()).resolves.toEqual({
+      success: true,
+      data: { topic: "Python async", queries: ["Python async"], results: [], cursor: null, hasMore: false },
+    });
+    expect(serviceMocks.researchCourseSources).toHaveBeenCalledWith(body);
+    expect(serviceMocks.ingestUrlSource).not.toHaveBeenCalled();
+    expect(serviceMocks.initializeCourseImport).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    ["UNAUTHENTICATED", 401],
+    ["FORBIDDEN", 403],
+    ["VALIDATION_ERROR", 400],
+    ["RATE_LIMITED", 429],
+    ["SEARCH_PROVIDER_AUTH", 503],
+    ["SEARCH_PROVIDER_QUOTA", 503],
+    ["SEARCH_PROVIDER_TIMEOUT", 503],
+    ["SEARCH_PROVIDER_UNAVAILABLE", 503],
+  ] as const)("maps %s to HTTP %i with the stable error envelope", async (code, status) => {
+    serviceMocks.researchCourseSources.mockRejectedValue(new ContentPipelineError(
+      code,
+      "recoverable",
+      code === "RATE_LIMITED" ? { retryAfterSeconds: 42 } : undefined,
+    ));
+    const response = await researchSources(new Request("http://localhost/api/admin/course-research", {
+      method: "POST", body: JSON.stringify({ topic: "Python async" }),
+    }));
+    expect(response.status).toBe(status);
+    expect(response.headers.get("Cache-Control")).toBe("no-store");
+    await expect(response.json()).resolves.toEqual({
+      success: false,
+      error: { code, message: "recoverable", ...(code === "RATE_LIMITED" ? { retryAfterSeconds: 42 } : {}) },
+    });
+    expect(response.headers.get("Retry-After")).toBe(code === "RATE_LIMITED" ? "42" : null);
+  });
+});
 
 describe("Phase 3 source routes", () => {
   beforeEach(() => vi.clearAllMocks());
