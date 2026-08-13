@@ -7,6 +7,7 @@ import type {
   CourseImportLessonDraft,
   CourseImportMutationResult,
   CourseImportSourceSummary,
+  CourseSourceChunk,
   CourseDraftBatch,
   CreateCourseDraftBatchResult,
   ContentChapterTarget,
@@ -557,11 +558,25 @@ export async function getCourseImportGenerationContext(jobId: number) {
     .order("chunk_index");
   if (error) throw new Error("DATABASE_ERROR");
   const sourceOrder = new Map(sources.map((source) => [source.sourceDocumentId, source.sourceOrder]));
-  const chunks = ((data ?? []) as Required<DocumentChunkRow>[]).sort((left, right) =>
+  const rows = ((data ?? []) as Required<DocumentChunkRow>[]).sort((left, right) =>
     (sourceOrder.get(left.source_document_id) ?? Number.MAX_SAFE_INTEGER)
       - (sourceOrder.get(right.source_document_id) ?? Number.MAX_SAFE_INTEGER)
     || left.chunk_index - right.chunk_index
   );
+  const chunks: CourseSourceChunk[] = rows.map((chunk) => {
+    const source = sources.find((item) => item.sourceDocumentId === chunk.source_document_id);
+    if (!source) throw new Error("DATABASE_ERROR");
+    return {
+      documentChunkId: chunk.id,
+      sourceDocumentId: chunk.source_document_id,
+      sourceOrder: source.sourceOrder,
+      sourceTitle: source.title,
+      sourceUrl: source.canonicalUrl ?? source.sourceUrl,
+      sourceDomain: source.domain,
+      chunkIndex: chunk.chunk_index,
+      content: chunk.content,
+    };
+  });
   return { jobId, sources, chunks };
 }
 
@@ -584,7 +599,7 @@ async function loadCourseImports(jobId?: number): Promise<CourseImportDraft[]> {
     .select("*")
     .order("created_at", { ascending: false });
   if (jobId) jobQuery = jobQuery.eq("id", jobId);
-  else jobQuery = jobQuery.in("status", ["outline_review", "generating_content", "content_review", "ready_to_publish", "failed"]);
+  else jobQuery = jobQuery.in("status", ["processing", "outline_review", "generating_content", "content_review", "ready_to_publish", "failed"]);
   const jobResult = await jobQuery;
   if (jobResult.error) throw new Error("DATABASE_ERROR");
   const jobs = (jobResult.data ?? []) as unknown as RawImportJob[];
@@ -652,6 +667,7 @@ async function loadCourseImports(jobId?: number): Promise<CourseImportDraft[]> {
       sourceDocumentId: job.source_document_id,
       sourceFilename: jobSources[0].filename,
       sources: jobSources,
+      outlineStale: job.status === "processing" && job.current_outline_revision > 0,
       status: job.status,
       errorCode: job.error_code,
       outlineRevision: job.current_outline_revision,
@@ -686,8 +702,15 @@ async function loadCourseImports(jobId?: number): Promise<CourseImportDraft[]> {
                 source.sourceDocumentId === citation.document_chunks.source_document_id)?.title,
               sourceDomain: jobSources.find((source) =>
                 source.sourceDocumentId === citation.document_chunks.source_document_id)?.domain,
-              sourceUrl: jobSources.find((source) =>
-                source.sourceDocumentId === citation.document_chunks.source_document_id)?.canonicalUrl,
+              sourceUrl: (() => {
+                const source = jobSources.find((item) =>
+                  item.sourceDocumentId === citation.document_chunks.source_document_id);
+                return source?.canonicalUrl ?? source?.sourceUrl;
+              })(),
+              sourceRef: {
+                sourceDocumentId: citation.document_chunks.source_document_id,
+                chunkIndex: citation.document_chunks.chunk_index,
+              },
             })),
           } : null;
           return {
@@ -700,6 +723,11 @@ async function loadCourseImports(jobId?: number): Promise<CourseImportDraft[]> {
               .sort((a, b) => a.objective_order - b.objective_order).map((item) => item.objective),
             sourceChunkIndexes: sources.filter((item) => item.outline_lesson_id === lesson.id)
               .sort((a, b) => a.source_order - b.source_order).map((item) => item.document_chunks.chunk_index),
+            sourceRefs: sources.filter((item) => item.outline_lesson_id === lesson.id)
+              .sort((a, b) => a.source_order - b.source_order).map((item) => ({
+                sourceDocumentId: item.document_chunks.source_document_id,
+                chunkIndex: item.document_chunks.chunk_index,
+              })),
             sourceChunks: sources.filter((item) => item.outline_lesson_id === lesson.id)
               .sort((a, b) => a.source_order - b.source_order).map((item) => ({
                 documentChunkId: item.document_chunk_id,
@@ -727,12 +755,8 @@ export async function getCourseImport(jobId: number): Promise<CourseImportDraft 
   return (await loadCourseImports(jobId))[0] ?? null;
 }
 
-export async function getCourseImportChunks(sourceDocumentId: number): Promise<DocumentChunkRow[]> {
-  const supabase = adminClient();
-  const { data, error } = await supabase.from("document_chunks")
-    .select("id, chunk_index, content").eq("source_document_id", sourceDocumentId).order("chunk_index");
-  if (error) throw new Error("DATABASE_ERROR");
-  return (data ?? []) as DocumentChunkRow[];
+export async function getCourseImportChunks(jobId: number): Promise<CourseSourceChunk[]> {
+  return (await getCourseImportGenerationContext(jobId))?.chunks ?? [];
 }
 
 export async function prepareCourseLessonGeneration(jobId: number): Promise<void> {

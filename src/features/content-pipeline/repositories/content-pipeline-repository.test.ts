@@ -358,8 +358,8 @@ describe("Phase 1 Course-import source ownership repository", () => {
     await expect(getCourseImportGenerationContext(31)).resolves.toMatchObject({
       jobId: 31,
       chunks: [
-        { id: 101, source_document_id: 11, chunk_index: 0, content: "A" },
-        { id: 202, source_document_id: 12, chunk_index: 0, content: "B" },
+        { documentChunkId: 101, sourceDocumentId: 11, sourceOrder: 0, sourceTitle: "A", chunkIndex: 0, content: "A" },
+        { documentChunkId: 202, sourceDocumentId: 12, sourceOrder: 1, sourceTitle: "B", chunkIndex: 0, content: "B" },
       ],
     });
   });

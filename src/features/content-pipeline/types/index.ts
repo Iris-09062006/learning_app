@@ -34,6 +34,7 @@ export interface LessonDraftSection {
   heading: string;
   bodyMarkdown: string;
   citationChunkIndexes: number[];
+  citationSourceRefs?: CourseSourceRef[];
 }
 
 export interface StructuredLessonDraft {
@@ -47,11 +48,25 @@ export interface LessonDraftGenerationRequest {
   documentTitle: string;
   lessonTitle: string;
   learningObjectives?: string[];
-  chunks: Array<{ chunkIndex: number; content: string }>;
+  chunks: Array<{ chunkIndex: number; content: string }> | ProviderSourceChunk[];
+}
+
+export interface ProviderLessonDraftSection {
+  heading: string;
+  bodyMarkdown: string;
+  citationSourceRefs: number[];
+  citationChunkIndexes?: never;
+}
+
+export interface ProviderStructuredLessonDraft {
+  title: string;
+  summary: string;
+  estimatedMinutes: number;
+  sections: ProviderLessonDraftSection[];
 }
 
 export interface LessonDraftGenerationResponse {
-  draft: StructuredLessonDraft;
+  draft: StructuredLessonDraft | ProviderStructuredLessonDraft;
   provider: string;
   model: string;
 }
@@ -79,6 +94,7 @@ export interface CourseOutlineLesson {
   summary: string;
   learningObjectives: string[];
   sourceChunkIndexes: number[];
+  sourceRefs?: CourseSourceRef[];
 }
 
 export interface StructuredCourseOutline {
@@ -90,11 +106,27 @@ export interface StructuredCourseOutline {
 
 export interface CourseOutlineGenerationRequest {
   documentTitle: string;
-  chunks: Array<{ chunkIndex: number; content: string }>;
+  chunks: Array<{ chunkIndex: number; content: string }> | ProviderSourceChunk[];
+}
+
+export interface ProviderCourseOutlineLesson {
+  clientKey: string;
+  title: string;
+  summary: string;
+  learningObjectives: string[];
+  sourceRefs: number[];
+  sourceChunkIndexes?: never;
+}
+
+export interface ProviderStructuredCourseOutline {
+  title: string;
+  description: string;
+  learningObjectives: string[];
+  lessons: ProviderCourseOutlineLesson[];
 }
 
 export interface CourseOutlineGenerationResponse {
-  outline: StructuredCourseOutline;
+  outline: StructuredCourseOutline | ProviderStructuredCourseOutline;
   provider: string;
   model: string;
 }
@@ -120,6 +152,7 @@ export interface CourseImportLessonDraft {
     sourceTitle?: string;
     sourceDomain?: string | null;
     sourceUrl?: string | null;
+    sourceRef?: CourseSourceRef;
   }>;
 }
 
@@ -155,11 +188,34 @@ export interface CourseImportSourceSummary {
   chunkCount: number;
 }
 
+export type CourseImportSource = CourseImportSourceSummary;
+
+export interface CourseSourceRef {
+  sourceDocumentId: number;
+  chunkIndex: number;
+}
+
+export interface CourseSourceChunk extends CourseSourceRef {
+  documentChunkId: number;
+  sourceOrder: number;
+  sourceTitle: string;
+  sourceUrl: string | null;
+  sourceDomain: string | null;
+  content: string;
+}
+
+export interface ProviderSourceChunk {
+  sourceRef: number;
+  sourceLabel: string;
+  content: string;
+}
+
 export interface CourseImportDraft {
   jobId: number;
   sourceDocumentId: number;
   sourceFilename: string;
   sources: CourseImportSourceSummary[];
+  outlineStale: boolean;
   status: CourseImportStatus;
   errorCode: string | null;
   outlineRevision: number;

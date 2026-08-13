@@ -1,6 +1,6 @@
 # Active Task Queue
 
-- **Active task:** `TASK-067` — Topic-Based Multi-Source Course Creation: Phase 1
+- **Active task:** `TASK-068` — Topic-Based Multi-Source Course Creation: Phase 2
 - **Status:** `VERIFIED`
 - **Owner / Reviewer:** Codex
 - **Deferred design task:** `TASK-047` (`DRAFT`)
@@ -8,13 +8,17 @@
 
 ## Current objective
 
-Implement only the additive database/repository compatibility phase in
-`specs/001-topic-course-research/tasks.md`; Phase 2–5 are excluded.
+Implement only the multi-source generation boundary in
+`specs/001-topic-course-research/tasks.md`; Phase 3–5 are excluded.
 
 Phase 1 T001–T031 is verified. Migration, PostgreSQL concurrency/invariant checks, focused and
 full tests, legacy PDF browser E2E, lint, typecheck, and build pass. Evidence is recorded in
 `reports/TASK-067-implementation.md`, `reports/TASK-067-test.md`, and
 `reports/TASK-067-review.md`.
+
+Phase 2 T032–T049 is verified. Source-qualified provider/DTO contracts, deterministic job-wide
+generation, Admin provenance/editor compatibility, and both new plus legacy browser gates pass.
+Phase 3–5 remain excluded.
 
 ## Previous active external verification
 

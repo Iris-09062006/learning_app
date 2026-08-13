@@ -10,6 +10,7 @@ import {
   downloadSourceObject,
   getCourseGenerationContext,
   getCourseImport,
+  getCourseImportGenerationContext,
   getCourseImportChunks,
   getGenerationContext,
   getLessonDraft,
@@ -22,7 +23,8 @@ import {
   persistGeneratedDraft,
   persistGeneratedCourseDraft,
   persistCourseOutline,
-  persistCourseLessonContent,
+  persistCourseOutlineForJob,
+  persistCourseLessonContentForJob,
   prepareCourseLessonGeneration,
   publishCourseImport,
   publishLessonDraft,
@@ -41,6 +43,10 @@ import {
   SUPPORTED_SOURCE_MIME_TYPES,
   type LessonDraftReviewDecision,
   type CourseImportDraft,
+  type CourseSourceChunk,
+  type CourseSourceRef,
+  type ProviderStructuredCourseOutline,
+  type ProviderStructuredLessonDraft,
   type StructuredCourseOutline,
   type StructuredLessonDraft,
   type SupportedSourceMimeType,
@@ -177,12 +183,15 @@ export async function generateLessonDraft(
       lessonTitle: context.lesson.title,
       chunks: selectedChunks.map((chunk) => ({ chunkIndex: chunk.chunk_index, content: chunk.content })),
     });
+    if (!generated.draft.sections.every((section) => Array.isArray(section.citationChunkIndexes))) {
+      throw new Error("AI_RESPONSE_INVALID");
+    }
     const draftId = await persistGeneratedDraft({
       sourceDocumentId,
       courseId: context.lesson.chapters.course_id,
       chapterId: context.lesson.chapter_id,
       targetLessonId,
-      draft: generated.draft,
+      draft: generated.draft as StructuredLessonDraft,
       provider: generated.provider,
       model: generated.model,
     });
@@ -273,14 +282,31 @@ function validateCourseOutline(value: unknown): StructuredCourseOutline {
       throw new ContentPipelineError("VALIDATION_ERROR", "Outline Lesson is invalid.");
     }
     const item = lesson as Record<string, unknown>;
-    const allowedLessonKeys = new Set(["clientKey", "title", "summary", "learningObjectives", "sourceChunkIndexes"]);
+    const allowedLessonKeys = new Set(["clientKey", "title", "summary", "learningObjectives", "sourceChunkIndexes", "sourceRefs"]);
+    const sourceChunkIndexes = Array.isArray(item.sourceChunkIndexes) ? item.sourceChunkIndexes : [];
+    const rawSourceRefs = Array.isArray(item.sourceRefs) ? item.sourceRefs : [];
+    const sourceRefs = rawSourceRefs.map((sourceRef) => {
+      if (!sourceRef || typeof sourceRef !== "object" || Array.isArray(sourceRef)) {
+        throw new ContentPipelineError("VALIDATION_ERROR", "Outline Lesson is invalid.");
+      }
+      const ref = sourceRef as Record<string, unknown>;
+      if (!Object.keys(ref).every((key) => ["sourceDocumentId", "chunkIndex"].includes(key)) ||
+        !Number.isSafeInteger(ref.sourceDocumentId) || Number(ref.sourceDocumentId) <= 0 ||
+        !Number.isSafeInteger(ref.chunkIndex) || Number(ref.chunkIndex) < 0) {
+        throw new ContentPipelineError("VALIDATION_ERROR", "Outline Lesson is invalid.");
+      }
+      return { sourceDocumentId: Number(ref.sourceDocumentId), chunkIndex: Number(ref.chunkIndex) };
+    });
+    const sourceRefKeys = sourceRefs.map((ref) => `${ref.sourceDocumentId}:${ref.chunkIndex}`);
     if (!Object.keys(item).every((key) => allowedLessonKeys.has(key)) ||
       typeof item.clientKey !== "string" || !item.clientKey.trim() || item.clientKey.trim().length > 80 ||
       keys.has(item.clientKey.trim()) || typeof item.title !== "string" || !item.title.trim() ||
       item.title.trim().length > 150 || typeof item.summary !== "string" || !item.summary.trim() ||
-      !Array.isArray(item.sourceChunkIndexes) || item.sourceChunkIndexes.length < 1 ||
-      !item.sourceChunkIndexes.every((index) => Number.isInteger(index) && Number(index) >= 0) ||
-      new Set(item.sourceChunkIndexes).size !== item.sourceChunkIndexes.length) {
+      (sourceChunkIndexes.length < 1 && sourceRefs.length < 1) ||
+      (sourceChunkIndexes.length > 0 && sourceRefs.length > 0) ||
+      !sourceChunkIndexes.every((index) => Number.isInteger(index) && Number(index) >= 0) ||
+      new Set(sourceChunkIndexes).size !== sourceChunkIndexes.length ||
+      new Set(sourceRefKeys).size !== sourceRefKeys.length) {
       throw new ContentPipelineError("VALIDATION_ERROR", "Outline Lesson is invalid.");
     }
     const clientKey = item.clientKey.trim();
@@ -290,7 +316,8 @@ function validateCourseOutline(value: unknown): StructuredCourseOutline {
       title: item.title.trim(),
       summary: item.summary.trim(),
       learningObjectives: validateStringList(item.learningObjectives, "Lesson learning objectives", 12),
-      sourceChunkIndexes: item.sourceChunkIndexes.map(Number),
+      sourceChunkIndexes: sourceChunkIndexes.map(Number),
+      sourceRefs: sourceRefs.length ? sourceRefs : undefined,
     };
   });
   return {
@@ -301,7 +328,7 @@ function validateCourseOutline(value: unknown): StructuredCourseOutline {
   };
 }
 
-function selectProviderChunks<T extends { content: string }>(chunks: T[]): T[] {
+function selectLegacyProviderChunks<T extends { content: string }>(chunks: T[]): T[] {
   const selected: T[] = [];
   let characters = 0;
   for (const chunk of chunks) {
@@ -310,6 +337,92 @@ function selectProviderChunks<T extends { content: string }>(chunks: T[]): T[] {
     characters += chunk.content.length;
   }
   return selected;
+}
+
+export function selectCourseImportProviderChunks(
+  chunks: CourseSourceChunk[],
+  characterLimit = 80_000
+): CourseSourceChunk[] {
+  const groups = new Map<number, CourseSourceChunk[]>();
+  for (const chunk of [...chunks].sort((left, right) =>
+    left.sourceOrder - right.sourceOrder || left.chunkIndex - right.chunkIndex
+  )) groups.set(chunk.sourceOrder, [...(groups.get(chunk.sourceOrder) ?? []), chunk]);
+  const selected: CourseSourceChunk[] = [];
+  let characters = 0;
+  const orderedGroups = [...groups.entries()].sort(([left], [right]) => left - right).map(([, items]) => items);
+  for (let chunkIndex = 0; orderedGroups.some((items) => chunkIndex < items.length); chunkIndex += 1) {
+    for (const items of orderedGroups) {
+      const chunk = items[chunkIndex];
+      if (!chunk || chunk.content.length > characterLimit - characters) continue;
+      selected.push(chunk);
+      characters += chunk.content.length;
+    }
+  }
+  return selected;
+}
+
+function sourceRefKey(ref: CourseSourceRef) {
+  return `${ref.sourceDocumentId}:${ref.chunkIndex}`;
+}
+
+function sourceLabel(chunk: CourseSourceChunk) {
+  const location = chunk.sourceDomain ?? chunk.sourceUrl ?? "private file";
+  return `${chunk.sourceTitle} (${location}), local chunk ${chunk.chunkIndex}`;
+}
+
+function resolveJobOutline(
+  value: unknown,
+  context: NonNullable<Awaited<ReturnType<typeof getCourseImportGenerationContext>>>
+) {
+  const outline = validateCourseOutline(value);
+  const byRef = new Map(context.chunks.map((chunk) => [sourceRefKey(chunk), chunk]));
+  const legacySource = context.sources.length === 1 ? context.sources[0] : null;
+  const lessons = outline.lessons.map((lesson) => {
+    const refs = lesson.sourceRefs ?? (legacySource
+      ? lesson.sourceChunkIndexes.map((chunkIndex) => ({
+          sourceDocumentId: legacySource.sourceDocumentId,
+          chunkIndex,
+        }))
+      : []);
+    if (!refs.length || (!lesson.sourceRefs && !legacySource)) {
+      throw new ContentPipelineError("VALIDATION_ERROR", "Outline contains an ambiguous source reference.");
+    }
+    const resolved = refs.map((ref) => byRef.get(sourceRefKey(ref)));
+    if (resolved.some((chunk) => !chunk)) {
+      throw new ContentPipelineError("VALIDATION_ERROR", "Outline contains an invalid source reference.");
+    }
+    return {
+      clientKey: lesson.clientKey,
+      title: lesson.title,
+      summary: lesson.summary,
+      learningObjectives: lesson.learningObjectives,
+      sourceChunkIds: resolved.map((chunk) => chunk!.documentChunkId),
+    };
+  });
+  return {
+    title: outline.title,
+    description: outline.description,
+    learningObjectives: outline.learningObjectives,
+    lessons,
+  };
+}
+
+function mapProviderOutline(
+  outline: ProviderStructuredCourseOutline,
+  providerMap: Map<number, CourseSourceChunk>
+) {
+  return {
+    ...outline,
+    lessons: outline.lessons.map((lesson) => ({
+      ...lesson,
+      sourceChunkIndexes: [],
+      sourceRefs: lesson.sourceRefs.map((sourceRef) => {
+        const chunk = providerMap.get(sourceRef);
+        if (!chunk) throw new ContentPipelineError("VALIDATION_ERROR", "Provider returned an unknown source reference.");
+        return { sourceDocumentId: chunk.sourceDocumentId, chunkIndex: chunk.chunkIndex };
+      }),
+    })),
+  };
 }
 
 export async function generateCourseOutline(
@@ -329,7 +442,7 @@ export async function generateCourseOutline(
   await updateSourceStatus(sourceDocumentId, "generating");
   try {
     if (!provider.generateCourseOutline) throw new Error("AI_PROVIDER_UNSUPPORTED");
-    const chunks = selectProviderChunks(context.chunks);
+    const chunks = selectLegacyProviderChunks(context.chunks);
     const generated = await provider.generateCourseOutline({
       documentTitle: context.document.original_filename,
       chunks: chunks.map((chunk) => ({ chunkIndex: chunk.chunk_index, content: chunk.content })),
@@ -347,6 +460,53 @@ export async function generateCourseOutline(
   }
 }
 
+export async function generateCourseOutlineForJob(
+  jobIdValue: unknown,
+  provider: LessonDraftProvider = new NineRouterLessonDraftProvider()
+) {
+  const adminId = await requireAdmin();
+  await requireAiCapacity("ai:course-outline", adminId);
+  const jobId = asPositiveId(jobIdValue, "jobId");
+  const context = await getCourseImportGenerationContext(jobId);
+  if (!context) throw new ContentPipelineError("NOT_FOUND", "Course import job not found.");
+  if (!context.sources.length || context.sources.some((source) =>
+    !["extracted", "ready_for_review"].includes(source.status)
+  )) throw new ContentPipelineError("INVALID_STATE", "Every attached source must contain usable extracted evidence.");
+  const chunks = selectCourseImportProviderChunks(context.chunks);
+  if (!chunks.length) throw new ContentPipelineError("INVALID_STATE", "Course import has no usable source chunks.");
+  if (new Set(chunks.map((chunk) => chunk.sourceDocumentId)).size !== context.sources.length) {
+    throw new ContentPipelineError("INVALID_STATE", "Every attached source must contribute provider context.");
+  }
+  const providerMap = new Map(chunks.map((chunk, sourceRef) => [sourceRef, chunk]));
+  try {
+    if (!provider.generateCourseOutline) throw new Error("AI_PROVIDER_UNSUPPORTED");
+    const generated = await provider.generateCourseOutline({
+      documentTitle: context.sources.map((source) => source.title).join("; "),
+      chunks: chunks.map((chunk, sourceRef) => ({
+        sourceRef,
+        sourceLabel: sourceLabel(chunk),
+        content: chunk.content,
+      })),
+    }, () => requireAiCapacity("ai:course-outline", adminId));
+    if (!generated.outline.lessons.every((lesson) => "sourceRefs" in lesson)) {
+      throw new ContentPipelineError("VALIDATION_ERROR", "Provider returned ambiguous multi-source references.");
+    }
+    return await persistCourseOutlineForJob({
+      jobId,
+      outline: resolveJobOutline(
+        mapProviderOutline(generated.outline as ProviderStructuredCourseOutline, providerMap),
+        context
+      ),
+      provider: generated.provider,
+      model: generated.model,
+    });
+  } catch (error) {
+    await failCourseImport(jobId, "OUTLINE_GENERATION_FAILED").catch(() => undefined);
+    if (error instanceof ContentPipelineError) throw error;
+    throw new ContentPipelineError("AI_PROVIDER_ERROR", "Unable to generate a valid Course outline.");
+  }
+}
+
 export async function updateCourseOutline(jobIdValue: unknown, body: unknown) {
   await requireAdmin();
   const jobId = asPositiveId(jobIdValue, "jobId");
@@ -355,16 +515,11 @@ export async function updateCourseOutline(jobIdValue: unknown, body: unknown) {
   if (current.status !== "outline_review") {
     throw new ContentPipelineError("INVALID_STATE", "Course outline cannot be edited in its current state.");
   }
-  const outline = validateCourseOutline(body);
-  const chunks = await getCourseImportChunks(current.sourceDocumentId);
-  const allowed = new Set(chunks.map((chunk) => chunk.chunk_index));
-  if (outline.lessons.some((lesson) => lesson.sourceChunkIndexes.some((index) => !allowed.has(index)))) {
-    throw new ContentPipelineError("VALIDATION_ERROR", "Outline contains an invalid source reference.");
-  }
-  await updateSourceStatus(current.sourceDocumentId, "generating");
-  return persistCourseOutline({
-    sourceDocumentId: current.sourceDocumentId,
-    outline,
+  const context = await getCourseImportGenerationContext(jobId);
+  if (!context) throw new ContentPipelineError("NOT_FOUND", "Course import evidence not found.");
+  return persistCourseOutlineForJob({
+    jobId,
+    outline: resolveJobOutline(body, context),
     provider: "admin_edit",
     model: null,
   });
@@ -377,32 +532,76 @@ export async function regenerateCourseOutline(jobIdValue: unknown, provider?: Le
   if (current.status !== "outline_review" && current.status !== "failed") {
     throw new ContentPipelineError("INVALID_STATE", "Course outline cannot be regenerated in its current state.");
   }
-  return generateCourseOutline(current.sourceDocumentId, provider);
+  return generateCourseOutlineForJob(current.jobId, provider);
 }
 
 async function generateOneCourseLesson(
   job: CourseImportDraft,
   outlineLessonId: number,
-  chunks: Awaited<ReturnType<typeof getCourseImportChunks>>,
+  chunks: CourseSourceChunk[],
   provider: LessonDraftProvider,
   actorId: string
 ) {
   await requireAiCapacity("ai:lesson-content", actorId);
   const lesson = job.lessons.find((item) => item.id === outlineLessonId);
   if (!lesson) throw new ContentPipelineError("NOT_FOUND", "Outline Lesson not found.");
-  const allowed = new Set(lesson.sourceChunkIndexes);
-  const selected = chunks.filter((chunk) => allowed.has(chunk.chunk_index));
-  if (!selected.length) throw new ContentPipelineError("INVALID_STATE", "Outline Lesson has no source context.");
+  const allowedIds = new Set((lesson.sourceChunks ?? []).map((chunk) => chunk.documentChunkId));
+  let selected = chunks.filter((chunk) => allowedIds.has(chunk.documentChunkId));
+  if (!selected.length && allowedIds.size === 0 && job.sources.length === 1) {
+    const allowedIndexes = new Set(lesson.sourceChunkIndexes);
+    selected = chunks.filter((chunk) => chunk.sourceDocumentId === job.sourceDocumentId
+      && allowedIndexes.has(chunk.chunkIndex));
+  }
+  if (!selected.length || (allowedIds.size > 0 && selected.length !== allowedIds.size)) {
+    throw new ContentPipelineError("INVALID_STATE", "Outline Lesson has invalid or foreign source context.");
+  }
+  const multiSource = job.sources.length > 1;
+  const providerMap = new Map(selected.map((chunk, sourceRef) => [sourceRef, chunk]));
   const generated = await provider.generateLessonDraft({
     documentTitle: job.sourceFilename,
     lessonTitle: lesson.title,
     learningObjectives: lesson.learningObjectives,
-    chunks: selected.map((chunk) => ({ chunkIndex: chunk.chunk_index, content: chunk.content })),
+    chunks: multiSource
+      ? selected.map((chunk, sourceRef) => ({ sourceRef, sourceLabel: sourceLabel(chunk), content: chunk.content }))
+      : selected.map((chunk) => ({ chunkIndex: chunk.chunkIndex, content: chunk.content })),
   });
-  await persistCourseLessonContent({
+  const providerDraft = generated.draft as StructuredLessonDraft | ProviderStructuredLessonDraft;
+  const citations: Array<{ sectionIndex: number; documentChunkId: number }> = [];
+  const sections = providerDraft.sections.map((section, sectionIndex) => {
+    const providerRefs = "citationSourceRefs" in section && Array.isArray(section.citationSourceRefs) &&
+      section.citationSourceRefs.every((sourceRef) => typeof sourceRef === "number")
+      ? section.citationSourceRefs as number[] : null;
+    const legacyIndexes = "citationChunkIndexes" in section && Array.isArray(section.citationChunkIndexes)
+      ? section.citationChunkIndexes : null;
+    const resolved = providerRefs
+      ? providerRefs.map((sourceRef) => providerMap.get(sourceRef))
+      : (legacyIndexes ?? []).map((chunkIndex) => selected.find((chunk) =>
+          chunk.sourceDocumentId === job.sourceDocumentId && chunk.chunkIndex === chunkIndex));
+    if (!resolved.length || resolved.some((chunk) => !chunk) ||
+      new Set(resolved.map((chunk) => chunk!.documentChunkId)).size !== resolved.length) {
+      throw new ContentPipelineError("VALIDATION_ERROR", "Lesson contains an invalid source citation.");
+    }
+    for (const chunk of resolved) citations.push({ sectionIndex, documentChunkId: chunk!.documentChunkId });
+    return {
+      heading: section.heading,
+      bodyMarkdown: section.bodyMarkdown,
+      citationChunkIndexes: resolved.map((chunk) => chunk!.chunkIndex),
+      citationSourceRefs: multiSource ? resolved.map((chunk) => ({
+        sourceDocumentId: chunk!.sourceDocumentId,
+        chunkIndex: chunk!.chunkIndex,
+      })) : undefined,
+    };
+  });
+  await persistCourseLessonContentForJob({
     jobId: job.jobId,
     outlineLessonId: lesson.id,
-    draft: generated.draft,
+    draft: {
+      title: providerDraft.title,
+      summary: providerDraft.summary,
+      estimatedMinutes: providerDraft.estimatedMinutes,
+      sections,
+    },
+    citations,
     provider: generated.provider,
     model: generated.model,
   });
@@ -420,11 +619,15 @@ export async function generateCourseLessonContents(
     return { jobId, status: "content_review" as const };
   }
   await prepareCourseLessonGeneration(jobId);
-  const chunks = await getCourseImportChunks(job.sourceDocumentId);
+  const approvedJob = await getCourseImport(jobId);
+  if (!approvedJob || approvedJob.approvedOutlineRevision !== approvedJob.outlineRevision) {
+    throw new ContentPipelineError("INVALID_STATE", "Approved outline revision is unavailable.");
+  }
+  const chunks = await getCourseImportChunks(jobId);
   try {
-    await Promise.all(job.lessons
+    await Promise.all(approvedJob.lessons
       .filter((lesson) => !lesson.contentDraft)
-      .map((lesson) => generateOneCourseLesson(job, lesson.id, chunks, provider, adminId)));
+      .map((lesson) => generateOneCourseLesson(approvedJob, lesson.id, chunks, provider, adminId)));
     return { jobId, status: "content_review" as const };
   } catch (error) {
     await failCourseImport(jobId, "LESSON_GENERATION_FAILED").catch(() => undefined);
@@ -445,7 +648,11 @@ export async function regenerateCourseLessonContent(
   if (!job) throw new ContentPipelineError("NOT_FOUND", "Course import job not found.");
   await prepareCourseLessonGeneration(jobId);
   try {
-    await generateOneCourseLesson(job, outlineLessonId, await getCourseImportChunks(job.sourceDocumentId), provider, adminId);
+    const approvedJob = await getCourseImport(jobId);
+    if (!approvedJob || approvedJob.approvedOutlineRevision !== approvedJob.outlineRevision) {
+      throw new ContentPipelineError("INVALID_STATE", "Approved outline revision is unavailable.");
+    }
+    await generateOneCourseLesson(approvedJob, outlineLessonId, await getCourseImportChunks(jobId), provider, adminId);
     return { jobId, outlineLessonId, status: "content_review" as const };
   } catch (error) {
     await failCourseImport(jobId, "LESSON_GENERATION_FAILED").catch(() => undefined);

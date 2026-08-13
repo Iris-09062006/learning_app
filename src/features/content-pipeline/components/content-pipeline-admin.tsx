@@ -7,8 +7,8 @@ import type {
   CourseImportDraft,
   CourseImportLessonDraft,
   CourseImportOutlineLesson,
+  CourseSourceRef,
   ReviewCourseDraftBatchResult,
-  StructuredCourseOutline,
 } from "@/features/content-pipeline/types";
 
 interface ApiEnvelope<T> { success: boolean; data: T; message?: string; error?: { message?: string } }
@@ -42,15 +42,27 @@ function storeCheckpoint(value: PendingGeneration | null) {
   else sessionStorage.removeItem(CHECKPOINT_KEY);
 }
 
-function outlinePayload(draft: CourseImportDraft): StructuredCourseOutline {
+function outlinePayload(draft: CourseImportDraft) {
   return {
     title: draft.title,
     description: draft.description,
     learningObjectives: draft.learningObjectives,
-    lessons: draft.lessons.map(({ clientKey, title, summary, learningObjectives, sourceChunkIndexes }) => ({
-      clientKey, title, summary, learningObjectives, sourceChunkIndexes,
-    })),
+    lessons: draft.lessons.map(({ clientKey, title, summary, learningObjectives, sourceChunkIndexes, sourceRefs }) =>
+      sourceRefs?.length
+        ? { clientKey, title, summary, learningObjectives, sourceRefs }
+        : { clientKey, title, summary, learningObjectives, sourceChunkIndexes }
+    ),
   };
+}
+
+function sameSourceRef(left: CourseSourceRef, right: CourseSourceRef) {
+  return left.sourceDocumentId === right.sourceDocumentId && left.chunkIndex === right.chunkIndex;
+}
+
+function availableOutlineRefs(draft: CourseImportDraft): CourseSourceRef[] {
+  const refs = draft.lessons.flatMap((lesson) => lesson.sourceRefs ??
+    lesson.sourceChunks?.map(({ sourceDocumentId, chunkIndex }) => ({ sourceDocumentId, chunkIndex })) ?? []);
+  return refs.filter((ref, index) => refs.findIndex((item) => sameSourceRef(item, ref)) === index);
 }
 
 export function ContentPipelineAdmin() {
@@ -145,7 +157,12 @@ export function ContentPipelineAdmin() {
 
   function addLesson() {
     if (!selectedImport || selectedImport.lessons.length >= 20) return;
-    const sourceChunkIndexes = selectedImport.lessons[0]?.sourceChunkIndexes ?? [0];
+    const sourceRefs = selectedImport.lessons[0]?.sourceRefs ??
+      selectedImport.lessons[0]?.sourceChunks?.map(({ sourceDocumentId, chunkIndex }) => ({ sourceDocumentId, chunkIndex }));
+    if (selectedImport.sources.length > 1 && !sourceRefs?.length) return;
+    const sourceChunkIndexes = selectedImport.sources.length === 1
+      ? selectedImport.lessons[0]?.sourceChunkIndexes ?? [0]
+      : [];
     const temporaryId = -Date.now();
     updateSelected((draft) => ({ ...draft, lessons: [...draft.lessons, {
       id: temporaryId,
@@ -155,6 +172,7 @@ export function ContentPipelineAdmin() {
       summary: "Mô tả Lesson",
       learningObjectives: ["Mục tiêu học tập"],
       sourceChunkIndexes,
+      sourceRefs,
       contentDraft: null,
     }] }));
   }
@@ -273,6 +291,15 @@ export function ContentPipelineAdmin() {
       <div className="rounded-2xl border border-slate-200 bg-white p-6">
         {!selectedImport ? <p className="text-sm text-slate-500">Chọn một Course import.</p> : <div className="space-y-5">
           <p className="text-xs font-semibold uppercase tracking-wide text-blue-700">{selectedImport.status} · outline r{selectedImport.outlineRevision}</p>
+          <div className="rounded-lg border border-slate-200 bg-slate-50 p-3 text-sm">
+            <p className="font-semibold text-slate-900">Nguồn evidence ({selectedImport.sources.length})</p>
+            <ul className="mt-2 space-y-1">{selectedImport.sources.map((source) => <li key={source.sourceDocumentId}>
+              {source.title}{source.domain ? ` · ${source.domain}` : ""} · {source.chunkCount} chunks
+            </li>)}</ul>
+          </div>
+          {selectedImport.outlineStale ? <div role="alert" className="rounded-lg border border-amber-300 bg-amber-50 p-3 text-sm text-amber-950">
+            Evidence đã thay đổi. Hãy tạo outline revision mới trước khi Continue.
+          </div> : null}
           <label className="block text-sm font-medium">Course title
             <input className="mt-1 w-full rounded-lg border border-slate-300 p-2" value={selectedImport.title} disabled={!canEditOutline}
               onChange={(event) => updateSelected((draft) => ({ ...draft, title: event.target.value }))} />
@@ -290,8 +317,24 @@ export function ContentPipelineAdmin() {
               <label className="text-sm font-medium">Lesson {index + 1} title<input className="mt-1 w-full rounded border p-2" value={lesson.title} onChange={(e) => editLesson(lesson.id, { title: e.target.value })} /></label>
               <label className="text-sm font-medium">Summary<textarea className="mt-1 w-full rounded border p-2" value={lesson.summary} onChange={(e) => editLesson(lesson.id, { summary: e.target.value })} /></label>
               <label className="text-sm font-medium">Learning objectives<textarea className="mt-1 w-full rounded border p-2" value={lesson.learningObjectives.join("\n")} onChange={(e) => editLesson(lesson.id, { learningObjectives: e.target.value.split("\n").filter(Boolean) })} /></label>
-              <label className="text-sm font-medium">Source chunk indexes<input className="mt-1 w-full rounded border p-2" value={lesson.sourceChunkIndexes.join(",")}
-                onChange={(e) => editLesson(lesson.id, { sourceChunkIndexes: e.target.value.split(",").map(Number).filter(Number.isInteger) })} /></label>
+              {selectedImport.sources.length > 1 ? <fieldset className="rounded border p-3">
+                <legend className="px-1 text-sm font-medium">Nguồn tham chiếu</legend>
+                <div className="grid gap-2 sm:grid-cols-2">{availableOutlineRefs(selectedImport).map((ref) => {
+                    const source = selectedImport.sources.find((item) => item.sourceDocumentId === ref.sourceDocumentId);
+                    const checked = (lesson.sourceRefs ?? []).some((item) => sameSourceRef(item, ref));
+                    return <label className="flex items-center gap-2 text-sm" key={`${ref.sourceDocumentId}:${ref.chunkIndex}`}>
+                      <input type="checkbox" checked={checked} onChange={(event) => {
+                        const current = lesson.sourceRefs ?? [];
+                        const next = event.target.checked
+                          ? [...current, ref]
+                          : current.filter((item) => !sameSourceRef(item, ref));
+                        if (next.length) editLesson(lesson.id, { sourceRefs: next, sourceChunkIndexes: [] });
+                      }} />
+                      {source?.title ?? `Source ${ref.sourceDocumentId}`} · chunk {ref.chunkIndex}
+                    </label>;
+                  })}</div>
+              </fieldset> : <label className="text-sm font-medium">Source chunk indexes<input className="mt-1 w-full rounded border p-2" value={lesson.sourceChunkIndexes.join(",")}
+                onChange={(e) => editLesson(lesson.id, { sourceChunkIndexes: e.target.value.split(",").map(Number).filter(Number.isInteger), sourceRefs: undefined })} /></label>}
               <div className="flex flex-wrap gap-2">
                 <button type="button" className="rounded border px-2 py-1" onClick={() => reorderLesson(lesson.id, -1)} disabled={index === 0}>Di chuyển lên</button>
                 <button type="button" className="rounded border px-2 py-1" onClick={() => reorderLesson(lesson.id, 1)} disabled={index === selectedImport.lessons.length - 1}>Di chuyển xuống</button>
@@ -306,7 +349,7 @@ export function ContentPipelineAdmin() {
             <button className="rounded border px-4 py-2 text-sm font-semibold" type="button" onClick={addLesson} disabled={busy || selectedImport.lessons.length >= 20}>Thêm Lesson</button>
             <button className="rounded bg-blue-700 px-4 py-2 text-sm font-semibold text-white" type="button" onClick={saveOutline} disabled={busy}>Lưu outline</button>
             <button className="rounded border border-blue-500 px-4 py-2 text-sm font-semibold text-blue-800" type="button" onClick={regenerateOutline} disabled={busy}>Regenerate outline</button>
-            <button className="rounded bg-emerald-700 px-4 py-2 text-sm font-semibold text-white" type="button" onClick={continueToLessons} disabled={busy}>Continue: sinh Lesson contents</button>
+            <button className="rounded bg-emerald-700 px-4 py-2 text-sm font-semibold text-white" type="button" onClick={continueToLessons} disabled={busy || selectedImport.outlineStale}>Continue: sinh Lesson contents</button>
           </div> : null}
           {selectedImport.status === "failed" ? <button className="rounded bg-amber-700 px-4 py-2 text-sm font-semibold text-white" type="button" onClick={selectedImport.approvedOutlineRevision ? continueToLessons : regenerateOutline} disabled={busy}>Thử lại bước bị lỗi</button> : null}
           {canReviewContent ? <div className="space-y-3">
@@ -352,6 +395,13 @@ function ContentEditor({ content, onChange, onSave, onRegenerate, busy }: {
         <input aria-label={`Tiêu đề phần ${index + 1}`} className="mb-2 w-full rounded border p-2" value={section.heading} onChange={(e) => updateSection(index, "heading", e.target.value)} />
         <textarea aria-label={`Nội dung phần ${index + 1}`} className="min-h-36 w-full rounded border p-2" value={section.bodyMarkdown} onChange={(e) => updateSection(index, "bodyMarkdown", e.target.value)} />
         <p className="mt-2 text-xs text-slate-500">Nguồn chunk: {section.citationChunkIndexes.join(", ")}</p>
+        <ul className="mt-2 space-y-1 text-xs text-slate-600">{content.citations
+          .filter((citation) => citation.sectionIndex === index)
+          .map((citation) => <li key={`${citation.documentChunkId ?? citation.chunkIndex}`}>
+            {citation.sourceTitle
+              ? `${citation.sourceTitle}${citation.sourceDomain || citation.sourceUrl ? ` · ${citation.sourceDomain ?? citation.sourceUrl}` : ""} · chunk ${citation.chunkIndex}: ${citation.quote}`
+              : `Chunk ${citation.chunkIndex}: ${citation.quote}`}
+          </li>)}</ul>
       </fieldset>)}
       <div className="flex gap-3"><button className="rounded bg-blue-700 px-4 py-2 text-white" type="button" onClick={onSave} disabled={busy}>Lưu Lesson content</button>
         <button className="rounded border border-blue-500 px-4 py-2 text-blue-800" type="button" onClick={onRegenerate} disabled={busy}>Regenerate Lesson này</button></div>

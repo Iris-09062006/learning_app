@@ -28,6 +28,22 @@ const seededUsers = [
   },
 ];
 
+const multiSourceCourseImportFixture = {
+  sources: [
+    { sourceDocumentId: 9, sourceOrder: 0, sourceType: "file", ingestionMethod: "uploaded",
+      title: "Nguồn A", filename: "a.md", sourceUrl: null, canonicalUrl: null, domain: null,
+      authorityScore: null, relevanceScore: null, status: "ready_for_review", errorCode: null, chunkCount: 1 },
+    { sourceDocumentId: 10, sourceOrder: 1, sourceType: "web_page", ingestionMethod: "manual_url",
+      title: "Nguồn B", filename: "b.md", sourceUrl: "https://b.test", canonicalUrl: "https://b.test",
+      domain: "b.test", authorityScore: 0.7, relevanceScore: 0.8, status: "ready_for_review",
+      errorCode: null, chunkCount: 1 },
+  ],
+  chunks: [
+    { documentChunkId: 101, sourceDocumentId: 9, sourceOrder: 0, chunkIndex: 0 },
+    { documentChunkId: 202, sourceDocumentId: 10, sourceOrder: 1, chunkIndex: 0 },
+  ],
+};
+
 let state;
 
 function resetState() {
@@ -442,6 +458,9 @@ const server = createServer(async (request, response) => {
     const url = new URL(request.url ?? "/", `http://${host}:${port}`);
 
     if (url.pathname === "/__e2e/health") return sendJson(response, 200, { ok: true });
+    if (url.pathname === "/__e2e/fixtures/multi-source-course-import") {
+      return sendJson(response, 200, structuredClone(multiSourceCourseImportFixture));
+    }
     if (url.pathname === "/__e2e/reset" && request.method === "POST") {
       resetState();
       return sendJson(response, 200, { ok: true });

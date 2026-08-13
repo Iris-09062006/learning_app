@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import type { CourseImportDraft } from "../../types";
@@ -39,6 +39,7 @@ function importItem(status: CourseImportDraft["status"] = "outline_review"): Cou
       errorCode: null,
       chunkCount: 2,
     }],
+    outlineStale: false,
     status,
     errorCode: null,
     outlineRevision: 1,
@@ -53,6 +54,44 @@ function importItem(status: CourseImportDraft["status"] = "outline_review"): Cou
     publishedCourseId: null,
     createdAt: "2026-08-10T00:00:00Z",
     updatedAt: "2026-08-10T00:00:00Z",
+  };
+}
+
+function multiImportItem(status: CourseImportDraft["status"] = "outline_review"): CourseImportDraft {
+  const item = importItem(status);
+  const secondSource = {
+    ...item.sources[0], sourceDocumentId: 10, sourceOrder: 1, sourceType: "web_page" as const,
+    ingestionMethod: "manual_url" as const, title: "Python docs", filename: "python-docs.md",
+    sourceUrl: "https://docs.python.org/3/", canonicalUrl: "https://docs.python.org/3/",
+    domain: "docs.python.org", chunkCount: 1,
+  };
+  return {
+    ...item,
+    sources: [item.sources[0], secondSource],
+    lessons: item.lessons.map((lesson, index) => ({
+      ...lesson,
+      sourceChunkIndexes: [],
+      sourceRefs: [{ sourceDocumentId: index === 0 ? 9 : 10, chunkIndex: 0 }],
+      sourceChunks: [{
+        documentChunkId: index === 0 ? 101 : 202,
+        sourceDocumentId: index === 0 ? 9 : 10,
+        sourceOrder: index,
+        chunkIndex: 0,
+      }],
+      contentDraft: lesson.contentDraft ? {
+        ...lesson.contentDraft,
+        citations: [{
+          sectionIndex: 0,
+          chunkIndex: 0,
+          quote: index === 0 ? "Nguồn PDF" : "Nguồn web",
+          documentChunkId: index === 0 ? 101 : 202,
+          sourceDocumentId: index === 0 ? 9 : 10,
+          sourceTitle: index === 0 ? "python.pdf" : "Python docs",
+          sourceDomain: index === 0 ? null : "docs.python.org",
+          sourceUrl: index === 0 ? null : "https://docs.python.org/3/",
+        }],
+      } : null,
+    })),
   };
 }
 
@@ -146,5 +185,58 @@ describe("content pipeline Admin", () => {
     expect(await screen.findByRole("link", { name: "Mở danh sách Lesson" })).toHaveAttribute("href", "/moderation/lessons");
     expect(screen.queryByLabelText("Lesson")).not.toBeInTheDocument();
     expect(fetchSpy).not.toHaveBeenCalledWith("/api/ai/exercises/generate", expect.anything());
+  });
+
+  it("edits multi-source refs with controlled selectors and copies refs to a new Lesson", async () => {
+    let savedBody: unknown;
+    vi.spyOn(globalThis, "fetch").mockImplementation(async (input, init) => {
+      const url = String(input);
+      if (url === "/api/admin/course-drafts") return json({ success: true, data: { items: [multiImportItem()] } });
+      if (url === "/api/admin/course-drafts/61/outline" && init?.method === "PATCH") {
+        savedBody = JSON.parse(String(init.body));
+        return json({ success: true, data: { outlineRevision: 2 } });
+      }
+      throw new Error(`Unexpected request: ${url}`);
+    });
+    render(<ContentPipelineAdmin />);
+    const firstLessonTitle = await screen.findByDisplayValue("Biến Python");
+    const firstLesson = firstLessonTitle.closest("li");
+    expect(firstLesson).not.toBeNull();
+    const webRef = within(firstLesson!).getByLabelText("Python docs · chunk 0");
+    webRef.focus();
+    expect(webRef).toHaveFocus();
+    fireEvent.click(webRef);
+    expect(webRef).toBeChecked();
+    fireEvent.click(screen.getByRole("button", { name: "Thêm Lesson" }));
+    expect(screen.getByRole("textbox", { name: "Lesson 3 title" })).toHaveValue("Lesson mới");
+    fireEvent.click(screen.getByRole("button", { name: "Lưu outline" }));
+    await waitFor(() => expect(savedBody).toBeDefined());
+    expect(savedBody).toMatchObject({ lessons: [
+      expect.objectContaining({ sourceRefs: [
+        { sourceDocumentId: 9, chunkIndex: 0 },
+        { sourceDocumentId: 10, chunkIndex: 0 },
+      ] }),
+      expect.objectContaining({ sourceRefs: [{ sourceDocumentId: 10, chunkIndex: 0 }] }),
+      expect.objectContaining({ sourceRefs: [
+        { sourceDocumentId: 9, chunkIndex: 0 },
+        { sourceDocumentId: 10, chunkIndex: 0 },
+      ] }),
+    ] });
+    expect(JSON.stringify(savedBody)).not.toContain("sourceChunkIndexes");
+  });
+
+  it("shows Admin citation provenance and disables Continue for stale evidence", async () => {
+    const stale = { ...multiImportItem("outline_review"), outlineStale: true };
+    vi.spyOn(globalThis, "fetch").mockResolvedValue(json({ success: true, data: { items: [stale] } }));
+    render(<ContentPipelineAdmin />);
+    expect(await screen.findByRole("alert")).toHaveTextContent("Evidence đã thay đổi");
+    expect(screen.getByRole("button", { name: "Continue: sinh Lesson contents" })).toBeDisabled();
+
+    const contentItem = multiImportItem("content_review");
+    vi.restoreAllMocks();
+    vi.spyOn(globalThis, "fetch").mockResolvedValue(json({ success: true, data: { items: [contentItem] } }));
+    render(<ContentPipelineAdmin />);
+    fireEvent.click((await screen.findAllByRole("button", { name: /Biến Python/ }))[0]);
+    expect(await screen.findByText(/python\.pdf.*chunk 0: Nguồn PDF/u)).toBeInTheDocument();
   });
 });

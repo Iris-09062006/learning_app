@@ -11,10 +11,10 @@
 
 ## Active Task
 
-`TASK-067` — Topic-Based Multi-Source Course Creation: Phase 1 (`VERIFIED`). Additive
-database/repository compatibility only; Phase 2–5 remain excluded. Evidence:
-`reports/TASK-067-implementation.md`, `reports/TASK-067-test.md`, and
-`reports/TASK-067-review.md`. `TASK-066` remains in progress on its prior external verification.
+`TASK-068` — Topic-Based Multi-Source Course Creation: Phase 2 (`VERIFIED`). Source-qualified
+provider/DTO contracts, job-wide generation, Admin provenance, and Phase 2 browser gates only;
+Phase 3–5 remain excluded. Phase 1 remains verified at `d28f8da`. `TASK-066` remains in progress
+on its prior external verification.
 
 Recently verified supporting hotfixes:
 
@@ -33,6 +33,7 @@ Supabase Auth Redirect URLs wildcard and a fresh confirmation email.
 
 | Task ID | Title | Status | Phase | Evidence |
 |---|---|---|---|---|
+| `TASK-068` | Topic-Based Multi-Source Course Creation: Phase 2 | VERIFIED | Course research Phase 2 | `reports/TASK-068-implementation.md`, `reports/TASK-068-review.md`, `reports/TASK-068-test.md` |
 | `TASK-067` | Topic-Based Multi-Source Course Creation: Phase 1 | VERIFIED | Course research Phase 1 | `reports/TASK-067-implementation.md`, `reports/TASK-067-review.md`, `reports/TASK-067-test.md` |
 | `TASK-064` | Repair Vercel PDF Extraction Packaging | VERIFIED | Content operations hotfix | `reports/TASK-064-implementation.md`, `reports/TASK-064-review.md`, `reports/TASK-064-test.md` |
 | `TASK-063` | Allow Learners to Advance to the Next Lesson | VERIFIED | Phase 4 UX hotfix | `reports/TASK-063-implementation.md`, `reports/TASK-063-review.md`, `reports/TASK-063-test.md` |
@@ -91,7 +92,6 @@ Supabase Auth Redirect URLs wildcard and a fresh confirmation email.
 
 | Task ID | Title | Status | Phase | Dependency |
 |---|---|---|---|---|
-| `TASK-067` | Topic-Based Multi-Source Course Creation: Phase 1 | IN_PROGRESS | Feature Phase 1 | `TASK-057` |
 | `TASK-066` | Normalize Single-Chunk Lesson Citations | IN_PROGRESS | Content operations hotfix | CI and production verification |
 
 ## Active Epic

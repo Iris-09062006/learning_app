@@ -133,6 +133,10 @@ test("reviews an outline, generates Lesson contents, and atomically publishes a 
   });
   const job = () => ({
     jobId: 61, sourceDocumentId: 9, sourceFilename: "lagrange.txt",
+    sources: [{ sourceDocumentId: 9, sourceOrder: 0, sourceType: "file", ingestionMethod: "uploaded",
+      title: "lagrange.txt", filename: "lagrange.txt", sourceUrl: null, canonicalUrl: null,
+      domain: null, authorityScore: null, relevanceScore: null, status: "ready_for_review",
+      errorCode: null, chunkCount: 1 }], outlineStale: false,
     status: stage === "outline" ? "outline_review" : "content_review",
     errorCode: null, outlineRevision: 1, approvedOutlineRevision: stage === "outline" ? null : 1,
     title: "Phương pháp tính", description: "Khóa học nội suy.", learningObjectives: ["Hiểu nội suy"],
@@ -194,6 +198,101 @@ test("reviews an outline, generates Lesson contents, and atomically publishes a 
   await expect(page.getByRole("button", { name: "Publish Course" })).toBeVisible();
   await page.getByRole("button", { name: "Publish Course" }).click();
 
+  await expect(page.getByText("Hàng chờ trống.")).toBeVisible();
+  await expect(page.getByRole("link", { name: "Mở Course" })).toHaveAttribute("href", "/courses/31");
+  await expectNoSeriousA11yViolations(page);
+});
+
+test("reviews and publishes a multi-source Course with distinct colliding chunk refs", async ({ page }) => {
+  let stage: "outline" | "content" | "published" = "outline";
+  let revision = 1;
+  let savedOutline: Record<string, unknown> | null = null;
+  const fixtureResponse = await page.request.get(
+    "http://127.0.0.1:54321/__e2e/fixtures/multi-source-course-import"
+  );
+  expect(fixtureResponse.ok()).toBeTruthy();
+  const fixture = await fixtureResponse.json() as {
+    sources: Array<{ sourceDocumentId: number; sourceOrder: number; sourceType: string;
+      ingestionMethod: string; title: string; filename: string; sourceUrl: string | null;
+      canonicalUrl: string | null; domain: string | null; authorityScore: number | null;
+      relevanceScore: number | null; status: string; errorCode: string | null; chunkCount: number }>;
+    chunks: Array<{ documentChunkId: number; sourceDocumentId: number; sourceOrder: number; chunkIndex: number }>;
+  };
+  const { sources } = fixture;
+  const content = (id: number, outlineLessonId: number, source: typeof sources[number], documentChunkId: number) => ({
+    id, outlineLessonId, revision: 1, title: `Lesson ${outlineLessonId}`, summary: "Nội dung đa nguồn.",
+    estimatedMinutes: 12,
+    sections: [{ heading: "Mở đầu", bodyMarkdown: "Nội dung bài học", citationChunkIndexes: [0],
+      citationSourceRefs: [{ sourceDocumentId: source.sourceDocumentId, chunkIndex: 0 }] }],
+    status: "ready", provider: "9router", model: "e2e-model",
+    citations: [{ sectionIndex: 0, chunkIndex: 0, documentChunkId,
+      sourceDocumentId: source.sourceDocumentId, sourceOrder: source.sourceOrder,
+      sourceTitle: source.title, sourceDomain: source.domain, sourceUrl: source.canonicalUrl,
+      quote: `Trích dẫn ${source.title}` }],
+  });
+  const lessons = () => [
+    { id: 71, clientKey: "source-a", lessonOrder: 1, title: "Lesson nguồn A", summary: "A",
+      learningObjectives: ["Hiểu A"], sourceChunkIndexes: [0],
+      sourceRefs: [{ sourceDocumentId: 9, chunkIndex: 0 }],
+      sourceChunks: [fixture.chunks[0]],
+      contentDraft: stage === "content" ? content(81, 71, sources[0], fixture.chunks[0].documentChunkId) : null },
+    { id: 72, clientKey: "source-b", lessonOrder: 2, title: "Lesson nguồn B", summary: "B",
+      learningObjectives: ["Hiểu B"], sourceChunkIndexes: [0],
+      sourceRefs: [{ sourceDocumentId: 10, chunkIndex: 0 }],
+      sourceChunks: [fixture.chunks[1]],
+      contentDraft: stage === "content" ? content(82, 72, sources[1], fixture.chunks[1].documentChunkId) : null },
+  ];
+  const job = () => ({
+    jobId: 61, sourceDocumentId: 9, sourceFilename: "a.md", sources, outlineStale: false,
+    status: stage === "outline" ? "outline_review" : "content_review", errorCode: null,
+    outlineRevision: revision, approvedOutlineRevision: stage === "outline" ? null : revision,
+    title: "Course đa nguồn", description: "Khóa học từ hai nguồn.", learningObjectives: ["Đối chiếu"],
+    lessons: lessons(), publishedCourseId: null,
+    createdAt: "2026-08-13T00:00:00.000Z", updatedAt: "2026-08-13T00:00:00.000Z",
+  });
+
+  await page.route("**/api/admin/**", async (route) => {
+    const request = route.request();
+    const pathname = new URL(request.url()).pathname;
+    const respond = (data: unknown, status = 200) => route.fulfill({
+      status, contentType: "application/json", body: JSON.stringify({ success: true, data }),
+    });
+    if (pathname === "/api/admin/course-drafts") {
+      return respond({ items: stage === "published" ? [] : [job()] });
+    }
+    if (pathname === "/api/admin/course-drafts/61/outline" && request.method() === "PATCH") {
+      savedOutline = request.postDataJSON() as Record<string, unknown>;
+      revision = 2;
+      return respond({ jobId: 61, sourceDocumentId: 9, sourceDocumentIds: [9, 10],
+        outlineRevision: revision, status: "outline_review" });
+    }
+    if (pathname === "/api/admin/course-drafts/61/lessons/generate") {
+      stage = "content";
+      return respond({ jobId: 61, status: "content_review" }, 201);
+    }
+    if (pathname === "/api/admin/course-drafts/61/reviews") {
+      stage = "published";
+      return respond({ jobId: 61, sourceDocumentId: 9, sourceDocumentIds: [9, 10],
+        courseId: 31, status: "published", lessonIds: [51, 52, 53] });
+    }
+    return route.fallback();
+  });
+
+  await loginAs(page, "admin");
+  await page.goto("/admin/content");
+  await expect(page.getByText("Nguồn evidence (2)")).toBeVisible();
+  await page.getByRole("button", { name: "Di chuyển xuống" }).first().click();
+  await page.getByRole("button", { name: "Thêm Lesson" }).click();
+  await expect(page.getByRole("textbox", { name: "Lesson 3 title" })).toHaveValue("Lesson mới");
+  await page.getByRole("button", { name: "Lưu outline" }).click();
+  await expect.poll(() => savedOutline).not.toBeNull();
+  expect(JSON.stringify(savedOutline)).toContain('"sourceDocumentId":9');
+  expect(JSON.stringify(savedOutline)).toContain('"sourceDocumentId":10');
+  expect(JSON.stringify(savedOutline)).not.toContain("sourceChunkIndexes");
+  await page.getByRole("button", { name: "Continue: sinh Lesson contents" }).click();
+  await page.getByRole("button", { name: /Lesson nguồn B/u }).click();
+  await expect(page.getByText(/Nguồn B · b\.test · chunk 0: Trích dẫn Nguồn B/u)).toBeVisible();
+  await page.getByRole("button", { name: "Publish Course" }).click();
   await expect(page.getByText("Hàng chờ trống.")).toBeVisible();
   await expect(page.getByRole("link", { name: "Mở Course" })).toHaveAttribute("href", "/courses/31");
   await expectNoSeriousA11yViolations(page);

@@ -6,6 +6,7 @@ const mocks = vi.hoisted(() => ({
   createServerSupabaseClient: vi.fn(),
   getGenerationContext: vi.fn(),
   getCourseGenerationContext: vi.fn(),
+  getCourseImportGenerationContext: vi.fn(),
   getSourceDocument: vi.fn(),
   listContentChapters: vi.fn(),
   listContentCourses: vi.fn(),
@@ -17,8 +18,10 @@ const mocks = vi.hoisted(() => ({
   getCourseImport: vi.fn(),
   getCourseImportChunks: vi.fn(),
   persistCourseOutline: vi.fn(),
+  persistCourseOutlineForJob: vi.fn(),
   prepareCourseLessonGeneration: vi.fn(),
   persistCourseLessonContent: vi.fn(),
+  persistCourseLessonContentForJob: vi.fn(),
   failCourseImport: vi.fn(),
   reviewCourseImport: vi.fn(),
   publishCourseImport: vi.fn(),
@@ -32,6 +35,7 @@ vi.mock("@/features/content-pipeline/repositories/content-pipeline-repository", 
   createContentCurriculum: mocks.createContentCurriculum,
   getGenerationContext: mocks.getGenerationContext,
   getCourseGenerationContext: mocks.getCourseGenerationContext,
+  getCourseImportGenerationContext: mocks.getCourseImportGenerationContext,
   getSourceDocument: mocks.getSourceDocument,
   listContentChapters: mocks.listContentChapters,
   listContentCourses: mocks.listContentCourses,
@@ -43,8 +47,10 @@ vi.mock("@/features/content-pipeline/repositories/content-pipeline-repository", 
   getCourseImport: mocks.getCourseImport,
   getCourseImportChunks: mocks.getCourseImportChunks,
   persistCourseOutline: mocks.persistCourseOutline,
+  persistCourseOutlineForJob: mocks.persistCourseOutlineForJob,
   prepareCourseLessonGeneration: mocks.prepareCourseLessonGeneration,
   persistCourseLessonContent: mocks.persistCourseLessonContent,
+  persistCourseLessonContentForJob: mocks.persistCourseLessonContentForJob,
   failCourseImport: mocks.failCourseImport,
   reviewCourseImport: mocks.reviewCourseImport,
   publishCourseImport: mocks.publishCourseImport,
@@ -68,7 +74,12 @@ import {
   generateLessonDraft,
   generateCourseDraft,
   generateCourseOutline,
+  generateCourseOutlineForJob,
   generateCourseLessonContents,
+  regenerateCourseLessonContent,
+  regenerateCourseOutline,
+  updateCourseOutline,
+  selectCourseImportProviderChunks,
   getCourseDraftQueue,
   submitCourseDraftReview,
   getContentTargets,
@@ -312,30 +323,37 @@ describe("two-stage Course imports", () => {
   });
 
   it("generates each Lesson only after preparing the approved outline", async () => {
-    mocks.getCourseImport.mockResolvedValue({
+    const job = {
       jobId: 61, sourceDocumentId: 9, sourceFilename: "python.pdf", status: "outline_review",
+      outlineRevision: 1, approvedOutlineRevision: null,
+      sources: [{ sourceDocumentId: 9, sourceOrder: 0, title: "python.pdf" }],
       lessons: [
-        { id: 71, title: "Biến", learningObjectives: ["Khai báo biến"], sourceChunkIndexes: [0], contentDraft: null },
-        { id: 72, title: "Hàm", learningObjectives: ["Định nghĩa hàm"], sourceChunkIndexes: [1], contentDraft: null },
+        { id: 71, title: "Biến", learningObjectives: ["Khai báo biến"], sourceChunkIndexes: [0], sourceChunks: [{ documentChunkId: 1 }], contentDraft: null },
+        { id: 72, title: "Hàm", learningObjectives: ["Định nghĩa hàm"], sourceChunkIndexes: [1], sourceChunks: [{ documentChunkId: 2 }], contentDraft: null },
       ],
+    };
+    mocks.getCourseImport.mockResolvedValueOnce(job).mockResolvedValueOnce({
+      ...job, status: "generating_content", approvedOutlineRevision: 1,
     });
     mocks.getCourseImportChunks.mockResolvedValue([
-      { id: 1, chunk_index: 0, content: "Biến" }, { id: 2, chunk_index: 1, content: "Hàm" },
+      { documentChunkId: 1, sourceDocumentId: 9, sourceOrder: 0, sourceTitle: "python.pdf", sourceUrl: null, sourceDomain: null, chunkIndex: 0, content: "Biến" },
+      { documentChunkId: 2, sourceDocumentId: 9, sourceOrder: 0, sourceTitle: "python.pdf", sourceUrl: null, sourceDomain: null, chunkIndex: 1, content: "Hàm" },
     ]);
-    const provider = { generateLessonDraft: vi.fn().mockResolvedValue({
+    const provider = { generateLessonDraft: vi.fn().mockImplementation(async (request) => ({
       draft: { title: "Lesson", summary: "Tóm tắt", estimatedMinutes: 10,
-        sections: [{ heading: "Nội dung", bodyMarkdown: "Bài học", citationChunkIndexes: [0] }] },
+        sections: [{ heading: "Nội dung", bodyMarkdown: "Bài học", citationChunkIndexes: [request.chunks[0].chunkIndex] }] },
       provider: "9router", model: "model",
-    }) };
+    })) };
     await generateCourseLessonContents(61, provider);
     expect(mocks.prepareCourseLessonGeneration).toHaveBeenCalledWith(61);
     expect(provider.generateLessonDraft).toHaveBeenCalledTimes(2);
-    expect(mocks.persistCourseLessonContent).toHaveBeenCalledTimes(2);
+    expect(mocks.persistCourseLessonContentForJob).toHaveBeenCalledTimes(2);
   });
 
   it("keeps an already complete content review out of the generating state", async () => {
     mocks.getCourseImport.mockResolvedValue({
       jobId: 61, sourceDocumentId: 9, sourceFilename: "python.pdf", status: "content_review",
+      sources: [{ sourceDocumentId: 9, sourceOrder: 0, title: "python.pdf" }],
       lessons: [{ id: 71, title: "Biến", learningObjectives: ["Khai báo biến"], sourceChunkIndexes: [0], contentDraft: { id: 81 } }],
     });
 
@@ -347,11 +365,14 @@ describe("two-stage Course imports", () => {
   });
 
   it("persists a retryable failed state when one Lesson provider call fails", async () => {
-    mocks.getCourseImport.mockResolvedValue({
+    const job = {
       jobId: 61, sourceDocumentId: 9, sourceFilename: "python.pdf", status: "outline_review",
-      lessons: [{ id: 71, title: "Biến", learningObjectives: ["Khai báo biến"], sourceChunkIndexes: [0], contentDraft: null }],
-    });
-    mocks.getCourseImportChunks.mockResolvedValue([{ id: 1, chunk_index: 0, content: "Biến" }]);
+      outlineRevision: 1, approvedOutlineRevision: null,
+      sources: [{ sourceDocumentId: 9, sourceOrder: 0, title: "python.pdf" }],
+      lessons: [{ id: 71, title: "Biến", learningObjectives: ["Khai báo biến"], sourceChunkIndexes: [0], sourceChunks: [{ documentChunkId: 1 }], contentDraft: null }],
+    };
+    mocks.getCourseImport.mockResolvedValueOnce(job).mockResolvedValueOnce({ ...job, approvedOutlineRevision: 1 });
+    mocks.getCourseImportChunks.mockResolvedValue([{ documentChunkId: 1, sourceDocumentId: 9, sourceOrder: 0, sourceTitle: "python.pdf", sourceUrl: null, sourceDomain: null, chunkIndex: 0, content: "Biến" }]);
     const provider = { generateLessonDraft: vi.fn().mockRejectedValue(new Error("AI_PROVIDER_TIMEOUT")) };
 
     await expect(generateCourseLessonContents(61, provider)).rejects.toMatchObject({ code: "AI_PROVIDER_ERROR" });
@@ -371,5 +392,242 @@ describe("two-stage Course imports", () => {
     }) };
     await expect(generateCourseOutline(9, provider)).rejects.toMatchObject({ code: "VALIDATION_ERROR" });
     expect(mocks.persistCourseOutline).not.toHaveBeenCalled();
+  });
+
+  it("selects job-wide chunks round-robin, deterministically, and within 80,000 characters", () => {
+    const chunk = (documentChunkId: number, sourceDocumentId: number, sourceOrder: number,
+      chunkIndex: number, length: number) => ({
+      documentChunkId, sourceDocumentId, sourceOrder, sourceTitle: `Nguồn ${sourceOrder}`,
+      sourceUrl: null, sourceDomain: null, chunkIndex, content: "x".repeat(length),
+    });
+    const chunks = [
+      chunk(1, 9, 0, 0, 30_000), chunk(2, 9, 0, 1, 30_000),
+      chunk(3, 10, 1, 0, 30_000), chunk(4, 10, 1, 1, 30_000),
+    ];
+    const selected = selectCourseImportProviderChunks(chunks);
+    expect(selected.map((item) => item.documentChunkId)).toEqual([1, 3]);
+    expect(selected.reduce((total, item) => total + item.content.length, 0)).toBeLessThanOrEqual(80_000);
+    expect(selectCourseImportProviderChunks([...chunks].reverse())).toEqual(selected);
+  });
+
+  it("represents each non-empty source before refilling from earlier sources", () => {
+    const chunks = [
+      { documentChunkId: 1, sourceDocumentId: 9, sourceOrder: 0, sourceTitle: "A", sourceUrl: null, sourceDomain: null, chunkIndex: 0, content: "A0" },
+      { documentChunkId: 2, sourceDocumentId: 9, sourceOrder: 0, sourceTitle: "A", sourceUrl: null, sourceDomain: null, chunkIndex: 1, content: "A1" },
+      { documentChunkId: 3, sourceDocumentId: 10, sourceOrder: 1, sourceTitle: "B", sourceUrl: null, sourceDomain: null, chunkIndex: 0, content: "B0" },
+    ];
+    expect(selectCourseImportProviderChunks(chunks).map((chunk) => chunk.documentChunkId)).toEqual([1, 3, 2]);
+  });
+
+  it("maps colliding local indexes to canonical IDs during job-wide outline generation", async () => {
+    mocks.getCourseImportGenerationContext.mockResolvedValue({
+      jobId: 61,
+      sources: [
+        { sourceDocumentId: 9, sourceOrder: 0, title: "Nguồn A", status: "extracted" },
+        { sourceDocumentId: 10, sourceOrder: 1, title: "Nguồn B", status: "extracted" },
+      ],
+      chunks: [
+        { documentChunkId: 101, sourceDocumentId: 9, sourceOrder: 0, sourceTitle: "Nguồn A", sourceUrl: null, sourceDomain: "a.test", chunkIndex: 0, content: "A0" },
+        { documentChunkId: 202, sourceDocumentId: 10, sourceOrder: 1, sourceTitle: "Nguồn B", sourceUrl: null, sourceDomain: "b.test", chunkIndex: 0, content: "B0" },
+      ],
+    });
+    mocks.persistCourseOutlineForJob.mockResolvedValue({
+      jobId: 61, sourceDocumentId: 9, sourceDocumentIds: [9, 10], outlineRevision: 1, status: "outline_review",
+    });
+    const provider = { generateLessonDraft: vi.fn(), generateCourseOutline: vi.fn().mockImplementation(async (request) => {
+      expect(request.chunks).toEqual([
+        expect.objectContaining({ sourceRef: 0, content: "A0" }),
+        expect.objectContaining({ sourceRef: 1, content: "B0" }),
+      ]);
+      return { outline: {
+        title: "Đa nguồn", description: "Khóa học", learningObjectives: ["Đối chiếu"],
+        lessons: [
+          { clientKey: "a", title: "A", summary: "A", learningObjectives: ["A"], sourceRefs: [0] },
+          { clientKey: "b", title: "B", summary: "B", learningObjectives: ["B"], sourceRefs: [1] },
+        ],
+      }, provider: "9router", model: "model" };
+    }) };
+
+    await expect(generateCourseOutlineForJob(61, provider)).resolves.toMatchObject({ outlineRevision: 1 });
+    expect(mocks.persistCourseOutlineForJob).toHaveBeenCalledWith(expect.objectContaining({
+      jobId: 61,
+      outline: expect.objectContaining({ lessons: [
+        expect.objectContaining({ sourceChunkIds: [101] }),
+        expect.objectContaining({ sourceChunkIds: [202] }),
+      ] }),
+    }));
+    expect(mocks.updateSourceStatus).not.toHaveBeenCalled();
+  });
+
+  it("leaves source and revision state unchanged when job-wide provider generation fails", async () => {
+    mocks.getCourseImportGenerationContext.mockResolvedValue({
+      jobId: 61,
+      sources: [{ sourceDocumentId: 9, sourceOrder: 0, title: "Nguồn", status: "extracted" }],
+      chunks: [{ documentChunkId: 101, sourceDocumentId: 9, sourceOrder: 0, sourceTitle: "Nguồn", sourceUrl: null, sourceDomain: null, chunkIndex: 0, content: "A" }],
+    });
+    const provider = { generateLessonDraft: vi.fn(), generateCourseOutline: vi.fn().mockRejectedValue(new Error("timeout")) };
+    await expect(generateCourseOutlineForJob(61, provider)).rejects.toMatchObject({ code: "AI_PROVIDER_ERROR" });
+    expect(mocks.persistCourseOutlineForJob).not.toHaveBeenCalled();
+    expect(mocks.updateSourceStatus).not.toHaveBeenCalled();
+    expect(mocks.failCourseImport).toHaveBeenCalledWith(61, "OUTLINE_GENERATION_FAILED");
+  });
+
+  it("rejects an attached source with no usable selected context before provider access", async () => {
+    mocks.getCourseImportGenerationContext.mockResolvedValue({
+      jobId: 61,
+      sources: [
+        { sourceDocumentId: 9, sourceOrder: 0, title: "A", status: "extracted" },
+        { sourceDocumentId: 10, sourceOrder: 1, title: "B", status: "extracted" },
+      ],
+      chunks: [{ documentChunkId: 101, sourceDocumentId: 9, sourceOrder: 0,
+        sourceTitle: "A", sourceUrl: null, sourceDomain: null, chunkIndex: 0, content: "A" }],
+    });
+    const provider = { generateLessonDraft: vi.fn(), generateCourseOutline: vi.fn() };
+    await expect(generateCourseOutlineForJob(61, provider)).rejects.toMatchObject({ code: "INVALID_STATE" });
+    expect(provider.generateCourseOutline).not.toHaveBeenCalled();
+    expect(mocks.persistCourseOutlineForJob).not.toHaveBeenCalled();
+  });
+
+  it("regenerates an outline from stored job evidence without using the legacy source reader", async () => {
+    mocks.getCourseImport.mockResolvedValue({ jobId: 61, status: "outline_review" });
+    mocks.getCourseImportGenerationContext.mockResolvedValue({
+      jobId: 61,
+      sources: [{ sourceDocumentId: 9, sourceOrder: 0, title: "Stored snapshot", status: "ready_for_review" }],
+      chunks: [{ documentChunkId: 101, sourceDocumentId: 9, sourceOrder: 0,
+        sourceTitle: "Stored snapshot", sourceUrl: null, sourceDomain: null, chunkIndex: 0,
+        content: "Immutable stored content" }],
+    });
+    mocks.persistCourseOutlineForJob.mockResolvedValue({
+      jobId: 61, sourceDocumentId: 9, sourceDocumentIds: [9], outlineRevision: 3, status: "outline_review",
+    });
+    const provider = { generateLessonDraft: vi.fn(), generateCourseOutline: vi.fn().mockResolvedValue({
+      outline: { title: "Stored", description: "Stored", learningObjectives: ["Stored"], lessons: [
+        { clientKey: "a", title: "A", summary: "A", learningObjectives: ["A"], sourceRefs: [0] },
+        { clientKey: "b", title: "B", summary: "B", learningObjectives: ["B"], sourceRefs: [0] },
+      ] }, provider: "9router", model: "model",
+    }) };
+    await expect(regenerateCourseOutline(61, provider)).resolves.toMatchObject({ outlineRevision: 3 });
+    expect(mocks.getCourseImportGenerationContext).toHaveBeenCalledWith(61);
+    expect(mocks.getCourseGenerationContext).not.toHaveBeenCalled();
+  });
+
+  it("saves source-qualified edits and rejects bare refs for a multi-source job", async () => {
+    mocks.getCourseImport.mockResolvedValue({ jobId: 61, status: "outline_review" });
+    mocks.getCourseImportGenerationContext.mockResolvedValue({
+      jobId: 61,
+      sources: [
+        { sourceDocumentId: 9, sourceOrder: 0 },
+        { sourceDocumentId: 10, sourceOrder: 1 },
+      ],
+      chunks: [
+        { documentChunkId: 101, sourceDocumentId: 9, sourceOrder: 0, sourceTitle: "A", sourceUrl: null, sourceDomain: null, chunkIndex: 0, content: "A" },
+        { documentChunkId: 202, sourceDocumentId: 10, sourceOrder: 1, sourceTitle: "B", sourceUrl: null, sourceDomain: null, chunkIndex: 0, content: "B" },
+      ],
+    });
+    mocks.persistCourseOutlineForJob.mockResolvedValue({ jobId: 61, sourceDocumentId: 9, sourceDocumentIds: [9, 10], outlineRevision: 2, status: "outline_review" });
+    const base = { title: "Đa nguồn", description: "Khóa", learningObjectives: ["Học"], lessons: [
+      { clientKey: "a", title: "A", summary: "A", learningObjectives: ["A"], sourceRefs: [{ sourceDocumentId: 9, chunkIndex: 0 }] },
+      { clientKey: "b", title: "B", summary: "B", learningObjectives: ["B"], sourceRefs: [{ sourceDocumentId: 10, chunkIndex: 0 }] },
+    ] };
+    await expect(updateCourseOutline(61, base)).resolves.toMatchObject({ outlineRevision: 2 });
+    expect(mocks.persistCourseOutlineForJob).toHaveBeenCalledWith(expect.objectContaining({
+      outline: expect.objectContaining({ lessons: expect.arrayContaining([
+        expect.objectContaining({ sourceChunkIds: [101] }),
+        expect.objectContaining({ sourceChunkIds: [202] }),
+      ]) }),
+    }));
+    await expect(updateCourseOutline(61, {
+      ...base,
+      lessons: base.lessons.map((lesson) => ({
+        clientKey: lesson.clientKey,
+        title: lesson.title,
+        summary: lesson.summary,
+        learningObjectives: lesson.learningObjectives,
+        sourceChunkIndexes: [0],
+      })),
+    })).rejects.toMatchObject({ code: "VALIDATION_ERROR" });
+  });
+
+  it("generates multi-source Lesson citations only from approved canonical outline chunks", async () => {
+    const job = {
+      jobId: 61, sourceDocumentId: 9, sourceFilename: "Nguồn A", status: "outline_review",
+      outlineRevision: 2, approvedOutlineRevision: null,
+      sources: [{ sourceDocumentId: 9 }, { sourceDocumentId: 10 }],
+      lessons: [{ id: 71, title: "Đối chiếu", learningObjectives: ["So sánh"],
+        sourceChunkIndexes: [0, 0], sourceChunks: [
+          { documentChunkId: 101, sourceDocumentId: 9, sourceOrder: 0, chunkIndex: 0 },
+          { documentChunkId: 202, sourceDocumentId: 10, sourceOrder: 1, chunkIndex: 0 },
+        ], contentDraft: null }],
+    };
+    mocks.getCourseImport.mockResolvedValueOnce(job).mockResolvedValueOnce({
+      ...job, status: "generating_content", approvedOutlineRevision: 2,
+    });
+    mocks.getCourseImportChunks.mockResolvedValue([
+      { documentChunkId: 101, sourceDocumentId: 9, sourceOrder: 0, sourceTitle: "A", sourceUrl: null, sourceDomain: "a.test", chunkIndex: 0, content: "A" },
+      { documentChunkId: 202, sourceDocumentId: 10, sourceOrder: 1, sourceTitle: "B", sourceUrl: null, sourceDomain: "b.test", chunkIndex: 0, content: "B" },
+    ]);
+    const provider = { generateLessonDraft: vi.fn().mockResolvedValue({
+      draft: { title: "Đối chiếu", summary: "Tóm tắt", estimatedMinutes: 10, sections: [
+        { heading: "A", bodyMarkdown: "A", citationSourceRefs: [0] },
+        { heading: "B", bodyMarkdown: "B", citationSourceRefs: [1] },
+      ] }, provider: "9router", model: "model",
+    }) };
+    await generateCourseLessonContents(61, provider);
+    expect(mocks.persistCourseLessonContentForJob).toHaveBeenCalledWith(expect.objectContaining({
+      jobId: 61,
+      citations: [{ sectionIndex: 0, documentChunkId: 101 }, { sectionIndex: 1, documentChunkId: 202 }],
+    }));
+  });
+
+  it("rejects a foreign approved-outline chunk before calling the Lesson provider", async () => {
+    const job = {
+      jobId: 61, sourceDocumentId: 9, sourceFilename: "Nguồn", status: "outline_review",
+      outlineRevision: 1, approvedOutlineRevision: null, sources: [{ sourceDocumentId: 9 }],
+      lessons: [{ id: 71, title: "A", learningObjectives: ["A"], sourceChunkIndexes: [0],
+        sourceChunks: [{ documentChunkId: 999 }], contentDraft: null }],
+    };
+    mocks.getCourseImport.mockResolvedValueOnce(job).mockResolvedValueOnce({ ...job, approvedOutlineRevision: 1 });
+    mocks.getCourseImportChunks.mockResolvedValue([
+      { documentChunkId: 101, sourceDocumentId: 9, sourceOrder: 0, sourceTitle: "A", sourceUrl: null, sourceDomain: null, chunkIndex: 0, content: "A" },
+    ]);
+    const provider = { generateLessonDraft: vi.fn() };
+    await expect(generateCourseLessonContents(61, provider)).rejects.toMatchObject({ code: "INVALID_STATE" });
+    expect(provider.generateLessonDraft).not.toHaveBeenCalled();
+    expect(mocks.persistCourseLessonContentForJob).not.toHaveBeenCalled();
+  });
+
+  it("regenerates only the targeted Lesson without expanding approved evidence", async () => {
+    const job = {
+      jobId: 61, sourceDocumentId: 9, sourceFilename: "Nguồn", status: "content_review",
+      outlineRevision: 2, approvedOutlineRevision: 2,
+      sources: [{ sourceDocumentId: 9 }, { sourceDocumentId: 10 }],
+      lessons: [
+        { id: 71, title: "A", learningObjectives: ["A"], sourceChunkIndexes: [0],
+          sourceChunks: [{ documentChunkId: 101 }], contentDraft: { id: 81 } },
+        { id: 72, title: "B", learningObjectives: ["B"], sourceChunkIndexes: [0],
+          sourceChunks: [{ documentChunkId: 202 }], contentDraft: { id: 82 } },
+      ],
+    };
+    mocks.getCourseImport.mockResolvedValue(job);
+    mocks.getCourseImportChunks.mockResolvedValue([
+      { documentChunkId: 101, sourceDocumentId: 9, sourceOrder: 0, sourceTitle: "A", sourceUrl: null, sourceDomain: null, chunkIndex: 0, content: "A" },
+      { documentChunkId: 202, sourceDocumentId: 10, sourceOrder: 1, sourceTitle: "B", sourceUrl: null, sourceDomain: null, chunkIndex: 0, content: "B" },
+    ]);
+    const provider = { generateLessonDraft: vi.fn().mockResolvedValue({
+      draft: { title: "B mới", summary: "B", estimatedMinutes: 10,
+        sections: [{ heading: "B", bodyMarkdown: "B", citationSourceRefs: [0] }] },
+      provider: "9router", model: "model",
+    }) };
+    await expect(regenerateCourseLessonContent(61, 72, provider)).resolves.toMatchObject({
+      outlineLessonId: 72,
+    });
+    expect(provider.generateLessonDraft).toHaveBeenCalledOnce();
+    expect(provider.generateLessonDraft).toHaveBeenCalledWith(expect.objectContaining({
+      chunks: [expect.objectContaining({ content: "B" })],
+    }));
+    expect(mocks.persistCourseLessonContentForJob).toHaveBeenCalledWith(expect.objectContaining({
+      outlineLessonId: 72,
+      citations: [{ sectionIndex: 0, documentChunkId: 202 }],
+    }));
   });
 });
