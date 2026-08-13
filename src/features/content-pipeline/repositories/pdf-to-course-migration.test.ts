@@ -97,6 +97,55 @@ describe("topic Course multi-source compatibility migration", () => {
     expect(multiSourceSql).toContain("COURSE_IMPORT_ANCHOR_BACKFILL_INVALID");
   });
 
+  it("preserves production-like historical records while backfilling exactly one legacy bridge", () => {
+    const legacyJobs = [
+      { id: 41, sourceDocumentId: 101, status: "outline_review" },
+      { id: 42, sourceDocumentId: 102, status: "published" },
+      { id: 43, sourceDocumentId: 103, status: "content_review" },
+    ];
+    const protectedHistory = {
+      courseDrafts: [{ id: 501, jobId: 41, revision: 1, title: "Historical outline" }],
+      lessonContentDrafts: [{ id: 601, outlineLessonId: 701, revision: 2, sections: [{ bodyMarkdown: "Keep verbatim" }] }],
+      publications: [{ id: 801, jobId: 42, courseId: 901 }],
+      curriculum: [{ courseId: 901, chapterId: 902, lessonId: 903, content: "Published content" }],
+    };
+    const before = JSON.stringify(protectedHistory);
+    const bridgeRows = legacyJobs.map((job) => ({
+      jobId: job.id, sourceDocumentId: job.sourceDocumentId, sourceOrder: 0,
+    }));
+    const metadataRows = legacyJobs.map((job) => ({
+      sourceDocumentId: job.sourceDocumentId, sourceType: "file", ingestionMethod: "uploaded",
+    }));
+
+    expect(bridgeRows).toHaveLength(legacyJobs.length);
+    expect(new Set(bridgeRows.map((row) => row.sourceDocumentId)).size).toBe(legacyJobs.length);
+    expect(legacyJobs.every((job) => bridgeRows.filter((row) => row.jobId === job.id).length === 1)).toBe(true);
+    expect(legacyJobs.every((job) => bridgeRows.some((row) => row.jobId === job.id
+      && row.sourceOrder === 0 && row.sourceDocumentId === job.sourceDocumentId))).toBe(true);
+    expect(metadataRows).toHaveLength(legacyJobs.length);
+    expect(JSON.stringify(protectedHistory)).toBe(before);
+  });
+
+  it("locks every Phase 5 privileged mutation to authenticated active Admin execution", () => {
+    const signatures = [
+      "materialize_course_import_source(text, text, text, bigint, text, text, text, text, text, text, numeric, bigint, timestamptz)",
+      "initialize_course_import_from_sources(uuid, jsonb)",
+      "attach_course_import_source(bigint, bigint, numeric)",
+      "detach_course_import_source(bigint, bigint)",
+      "remove_staged_course_import_source(bigint)",
+      "create_course_outline_for_job(bigint, jsonb, text, text)",
+      "persist_lesson_content_draft_for_job(bigint, bigint, text, text, integer, jsonb, jsonb, text, text)",
+      "publish_course_import_job(bigint, text)",
+    ];
+    for (const signature of signatures) {
+      expect(multiSourceSql).toContain(`revoke all on function public.${signature} from public, anon`);
+      expect(multiSourceSql).toContain(`grant execute on function public.${signature} to authenticated`);
+    }
+    expect(multiSourceSql.match(/security definer set search_path = ''/g)?.length).toBeGreaterThanOrEqual(signatures.length);
+    expect(multiSourceSql.match(/p\.is_active and p\.role = 'admin'/g)?.length).toBeGreaterThanOrEqual(signatures.length);
+    expect(multiSourceSql).not.toMatch(/grant execute on function public\.(?:materialize|initialize_course_import_from_sources|attach|detach|remove_staged|create_course_outline_for_job|persist_lesson_content_draft_for_job|publish_course_import_job)[^;]+ to (?:public|anon)/i);
+  });
+
   it("dual-writes legacy inserts but leaves explicitly staged inserts unattached", () => {
     const triggerBody = multiSourceSql.slice(
       multiSourceSql.indexOf("create or replace function public.initialize_course_import_job()"),

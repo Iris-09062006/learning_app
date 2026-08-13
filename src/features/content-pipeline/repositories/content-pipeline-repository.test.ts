@@ -16,6 +16,7 @@ vi.mock("@/lib/supabase/server", () => ({
 import {
   attachCourseImportSource,
   detachCourseImportSource,
+  getCourseImportCompatibilityDiagnostics,
   getCourseImportGenerationContext,
   getGenerationContext,
   initializeCourseImportFromSources,
@@ -379,5 +380,40 @@ describe("Phase 1 Course-import source ownership repository", () => {
         { documentChunkId: 202, sourceDocumentId: 12, sourceOrder: 1, sourceTitle: "B", chunkIndex: 0, content: "B" },
       ],
     });
+  });
+
+  it("reports stable compatibility diagnostics without reading or mutating source content", async () => {
+    const tableRows = new Map<string, unknown[]>([
+      ["course_import_jobs", [
+        { id: 31, source_document_id: 11 },
+        { id: 32, source_document_id: 12 },
+        { id: 33, source_document_id: 13 },
+      ]],
+      ["course_import_job_sources", [
+        { job_id: 31, source_document_id: 12, source_order: 0 },
+        { job_id: 32, source_document_id: 12, source_order: 0 },
+        { job_id: 32, source_document_id: 99, source_order: 1 },
+      ]],
+      ["source_documents", [{ id: 11 }, { id: 12 }, { id: 13 }]],
+      ["source_document_metadata", [{ source_document_id: 11 }, { source_document_id: 12 }]],
+    ]);
+    const queries = new Map<string, { select: ReturnType<typeof vi.fn> }>();
+    for (const [table, data] of tableRows) {
+      queries.set(table, { select: vi.fn().mockResolvedValue({ data, error: null }) });
+    }
+    const from = vi.fn((table: string) => queries.get(table));
+    mocks.createAdminSupabaseClient.mockReturnValue({ from });
+
+    const diagnostics = await getCourseImportCompatibilityDiagnostics();
+
+    expect(diagnostics).toEqual([
+      { code: "ANCHOR_DRIFT", jobId: 31, sourceDocumentId: 11 },
+      { code: "DUPLICATE_SOURCE_MEMBERSHIP", sourceDocumentId: 12 },
+      { code: "INVALID_PROVENANCE_JOIN", jobId: 32, sourceDocumentId: 99 },
+      { code: "MISSING_BRIDGE", jobId: 33, sourceDocumentId: 13 },
+    ]);
+    expect(queries.get("source_documents")?.select).toHaveBeenCalledWith("id");
+    expect(JSON.stringify(diagnostics)).not.toMatch(/content|storage|url|chunk|body/i);
+    expect(from).toHaveBeenCalledTimes(4);
   });
 });

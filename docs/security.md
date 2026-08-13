@@ -1,5 +1,21 @@
 # Security Specification
 
+## Topic research and web evidence controls
+
+- Search and web ingestion execute server-side after active-Admin authorization and distributed
+  rate limiting. Brave, service-role, and AI credentials are never `NEXT_PUBLIC_*` values.
+- URL ingestion accepts HTTP(S) ports 80/443 only, rejects credentials/IP literals and any DNS
+  answer in non-public ranges, binds the validated address to the connection, revalidates every
+  redirect, blocks HTTPS downgrade, and enforces redirect, timeout, header, MIME, compressed, and
+  2 MiB decompressed-body limits.
+- Scripts/resources are not executed. Stored snapshots and prompt source blocks are untrusted
+  evidence; generation uses only stored job-owned chunks.
+- RLS keeps metadata/bridges Admin-only. Privileged RPCs verify active Admin ownership, have empty
+  `search_path`, reject cross-owner/cross-job refs, revoke `PUBLIC`/`anon`, and grant authenticated.
+- Logs are metadata-only. Page/snapshot/chunk bodies, prompts, provider payloads, credentials,
+  tokens, private addresses, and storage contents are forbidden. Learner DTO/UI receives no
+  ranking or private provenance fields.
+
 ## TASK-056 privileged deletion controls
 
 - Learner removal reuses the protected `admin_change_user_status` RPC; no client can

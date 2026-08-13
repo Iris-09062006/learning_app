@@ -133,6 +133,11 @@ describe("lesson service", () => {
         exercises: [],
         nextLesson: null,
       });
+      const serialized = JSON.stringify(res);
+      for (const forbidden of ["authorityScore", "relevanceScore", "sourceUrl", "canonicalUrl",
+        "sourceDocumentId", "sourceBody", "citation", "provenance"]) {
+        expect(serialized).not.toContain(forbidden);
+      }
     });
   });
 

@@ -113,10 +113,12 @@ import {
   initializeCourseImport,
   attachSourceToCourseImport,
   researchCourseSources,
+  submitCourseImportReview,
 } from "./content-pipeline-service";
 import { WebSearchProviderError } from "@/features/content-pipeline/providers/web-search-provider";
 
 function mockActiveAdmin() {
+  vi.spyOn(console, "info").mockImplementation(() => undefined);
   mocks.createServerSupabaseClient.mockResolvedValue({
     auth: { getUser: vi.fn().mockResolvedValue({ data: { user: { id: "11111111-1111-4111-8111-111111111111" } }, error: null }) },
     from: vi.fn().mockReturnValue({
@@ -219,6 +221,28 @@ describe("Phase 3 source staging and initialization", () => {
     expect(mocks.attachCourseImportSource).toHaveBeenCalledWith({ jobId: 31, sourceDocumentId: 23, relevanceScore: null });
     await expect(attachSourceToCourseImport(0, { sourceDocumentId: 23 })).rejects.toMatchObject({ code: "VALIDATION_ERROR" });
   });
+
+  it.each([
+    ["SOURCE_LIMIT_REACHED", "SOURCE_LIMIT_EXCEEDED"],
+    ["EVIDENCE_LOCKED", "SOURCE_MUTATION_LOCKED"],
+    ["SOURCE_REMOVAL_FORBIDDEN", "SOURCE_MUTATION_LOCKED"],
+    ["IDEMPOTENCY_CONFLICT", "SOURCE_CONFLICT"],
+    ["SOURCE_OWNERSHIP_INVALID", "INVALID_SOURCE"],
+    ["SOURCE_NOT_USABLE", "INVALID_SOURCE"],
+    ["SOURCE_NOT_ATTACHED", "NOT_FOUND"],
+    ["SOURCE_NOT_FOUND", "NOT_FOUND"],
+    ["unexpected database detail", "DATABASE_ERROR"],
+  ] as const)("maps mutation diagnostic %s to stable code %s without leaking database text", async (diagnostic, code) => {
+    mocks.initializeCourseImportFromSources.mockRejectedValue(new Error(diagnostic));
+    await expect(initializeCourseImport({
+      initializationKey: "33333333-3333-4333-8333-333333333333",
+      sources: [{ sourceDocumentId: 21 }],
+    })).rejects.toMatchObject({ code, message: expect.not.stringContaining(diagnostic) });
+    expect(console.info).toHaveBeenLastCalledWith("[content-pipeline] operational", expect.objectContaining({
+      event: "source_mutation", stage: "initialize", code,
+      actorId: "11111111-1111-4111-8111-111111111111", sourceCount: 1,
+    }));
+  });
 });
 
 describe("Phase 4 stateless course research", () => {
@@ -291,6 +315,29 @@ describe("Phase 4 stateless course research", () => {
       provider,
       checkCapacity: vi.fn().mockResolvedValue({ allowed: true as const }),
     })).rejects.toMatchObject({ code: serviceCode, message: expect.not.stringContaining("raw vendor detail") });
+    const logged = JSON.stringify(vi.mocked(console.info).mock.calls);
+    expect(logged).toContain(serviceCode);
+    expect(logged).not.toContain("raw vendor detail");
+    expect(logged).not.toMatch(/body|prompt|credential|token|privateAddress|storagePath|chunks/i);
+  });
+});
+
+describe("Phase 5 publication error contract", () => {
+  beforeEach(() => { vi.clearAllMocks(); mockActiveAdmin(); });
+
+  it("keeps a ready-to-publish job retryable with a stable metadata-only failure", async () => {
+    mocks.getCourseImport.mockResolvedValue({
+      jobId: 61, status: "ready_to_publish", title: "Python", sources: [{ sourceDocumentId: 9 }],
+    });
+    mocks.publishCourseImport.mockRejectedValue(new Error("raw SQL payload and source body"));
+
+    await expect(submitCourseImportReview(61, { decision: "published" }))
+      .rejects.toMatchObject({ code: "PUBLICATION_FAILED", message: expect.stringContaining("retried") });
+    expect(console.info).toHaveBeenLastCalledWith("[content-pipeline] operational", {
+      event: "publication", outcome: "failure", stage: "publish", code: "PUBLICATION_FAILED",
+      actorId: "11111111-1111-4111-8111-111111111111", jobId: 61, sourceCount: 1,
+    });
+    expect(JSON.stringify(vi.mocked(console.info).mock.calls)).not.toContain("raw SQL payload");
   });
 });
 
@@ -803,6 +850,22 @@ describe("two-stage Course imports", () => {
     await expect(generateCourseLessonContents(61, provider)).rejects.toMatchObject({ code: "INVALID_STATE" });
     expect(provider.generateLessonDraft).not.toHaveBeenCalled();
     expect(mocks.persistCourseLessonContentForJob).not.toHaveBeenCalled();
+  });
+
+  it("rejects Continue on a stale outline with a stable metadata-only signal", async () => {
+    mocks.getCourseImport.mockResolvedValue({
+      jobId: 61, sourceDocumentId: 9, sourceFilename: "source.md", status: "outline_review",
+      outlineRevision: 1, approvedOutlineRevision: null, outlineStale: true,
+      sources: [{ sourceDocumentId: 9 }, { sourceDocumentId: 10 }], lessons: [],
+    });
+
+    await expect(generateCourseLessonContents(61, { generateLessonDraft: vi.fn() }))
+      .rejects.toMatchObject({ code: "STALE_OUTLINE" });
+    expect(mocks.prepareCourseLessonGeneration).not.toHaveBeenCalled();
+    expect(console.info).toHaveBeenLastCalledWith("[content-pipeline] operational", expect.objectContaining({
+      event: "stale_outline", outcome: "rejected", stage: "continue", code: "STALE_OUTLINE",
+      actorId: "admin-1", jobId: 61, sourceCount: 2,
+    }));
   });
 
   it("regenerates only the targeted Lesson without expanding approved evidence", async () => {

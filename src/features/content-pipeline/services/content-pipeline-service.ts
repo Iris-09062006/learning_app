@@ -72,25 +72,58 @@ import { checkRateLimit } from "@/lib/rate-limiter";
 const MAX_FILE_BYTES = 10 * 1024 * 1024;
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
+export type ContentPipelineErrorCode =
+  | "UNAUTHENTICATED"
+  | "FORBIDDEN"
+  | "NOT_FOUND"
+  | "VALIDATION_ERROR"
+  | "INVALID_STATE"
+  | "INVALID_SOURCE"
+  | "INVALID_SOURCE_REFERENCE"
+  | "SOURCE_LIMIT_EXCEEDED"
+  | "SOURCE_CONFLICT"
+  | "SOURCE_MUTATION_LOCKED"
+  | "STALE_OUTLINE"
+  | "STORAGE_ERROR"
+  | "FETCH_FAILED"
+  | "EXTRACTION_ERROR"
+  | "EXTRACTION_FAILED"
+  | "PAYLOAD_TOO_LARGE"
+  | "UNSUPPORTED_MEDIA_TYPE"
+  | "AI_PROVIDER_ERROR"
+  | "GENERATION_FAILED"
+  | "PUBLICATION_FAILED"
+  | "RATE_LIMITED"
+  | "SEARCH_PROVIDER_AUTH"
+  | "SEARCH_PROVIDER_QUOTA"
+  | "SEARCH_PROVIDER_TIMEOUT"
+  | "SEARCH_PROVIDER_UNAVAILABLE"
+  | "DATABASE_ERROR";
+
+export interface ContentPipelineOperationalSignal {
+  event: "research" | "fetch" | "source_mutation" | "source_reference" | "outline_generation"
+    | "stale_outline" | "lesson_generation" | "publication";
+  outcome: "success" | "failure" | "retry" | "rejected";
+  stage: string;
+  code: string;
+  actorId?: string;
+  jobId?: number;
+  sourceDocumentId?: number;
+  durationMs?: number;
+  byteCount?: number;
+  redirectCount?: number;
+  sourceCount?: number;
+}
+
+export function emitContentPipelineSignal(signal: ContentPipelineOperationalSignal): void {
+  // The closed signal type is the privacy boundary: source/provider bodies, URLs, prompts,
+  // credentials, tokens, private addresses, and storage paths cannot be passed to this logger.
+  console.info("[content-pipeline] operational", signal);
+}
+
 export class ContentPipelineError extends Error {
   constructor(
-    public readonly code:
-      | "UNAUTHENTICATED"
-      | "FORBIDDEN"
-      | "NOT_FOUND"
-      | "VALIDATION_ERROR"
-      | "INVALID_STATE"
-      | "STORAGE_ERROR"
-      | "EXTRACTION_ERROR"
-      | "PAYLOAD_TOO_LARGE"
-      | "UNSUPPORTED_MEDIA_TYPE"
-      | "AI_PROVIDER_ERROR"
-      | "RATE_LIMITED"
-      | "SEARCH_PROVIDER_AUTH"
-      | "SEARCH_PROVIDER_QUOTA"
-      | "SEARCH_PROVIDER_TIMEOUT"
-      | "SEARCH_PROVIDER_UNAVAILABLE"
-      | "DATABASE_ERROR",
+    public readonly code: ContentPipelineErrorCode,
     message: string,
     public readonly details?: Record<string, unknown>
   ) {
@@ -153,15 +186,19 @@ function encodeResearchCursor(topic: string, providerCursors: Array<string | nul
   return Buffer.from(JSON.stringify(payload), "utf8").toString("base64url");
 }
 
-function mapSearchProviderError(error: unknown): never {
+function searchProviderErrorCode(error: unknown): ContentPipelineErrorCode {
   if (error instanceof WebSearchProviderError) {
-    const code = error.code === "AUTH" ? "SEARCH_PROVIDER_AUTH"
+    return error.code === "AUTH" ? "SEARCH_PROVIDER_AUTH"
       : error.code === "QUOTA" ? "SEARCH_PROVIDER_QUOTA"
         : error.code === "TIMEOUT" ? "SEARCH_PROVIDER_TIMEOUT"
           : "SEARCH_PROVIDER_UNAVAILABLE";
-    throw new ContentPipelineError(code, "Web research is temporarily unavailable. Retry or use a manual URL or file.");
   }
-  throw new ContentPipelineError("SEARCH_PROVIDER_UNAVAILABLE", "Web research is temporarily unavailable. Retry or use a manual URL or file.");
+  return "SEARCH_PROVIDER_UNAVAILABLE";
+}
+
+function mapSearchProviderError(error: unknown): never {
+  throw new ContentPipelineError(searchProviderErrorCode(error),
+    "Web research is temporarily unavailable. Retry or use a manual URL or file.");
 }
 
 export async function researchCourseSources(
@@ -169,6 +206,7 @@ export async function researchCourseSources(
   dependencies: CourseResearchDependencies = {},
 ): Promise<CourseResearchResult> {
   const adminId = await requireAdmin();
+  const startedAt = Date.now();
   if (!body || typeof body !== "object" || Array.isArray(body)) throw new ContentPipelineError("VALIDATION_ERROR", "Request body is invalid.");
   const input = body as Record<string, unknown>;
   if (Object.keys(input).some((key) => key !== "topic" && key !== "cursor")) {
@@ -198,8 +236,17 @@ export async function researchCourseSources(
     const results = rankSearchResults(normalized, plan.topic, queryStrings).slice(0, 20);
     const providerCursors = pages.map((page) => page.hasMore ? page.cursor : null);
     const cursor = encodeResearchCursor(plan.topic, providerCursors);
+    emitContentPipelineSignal({
+      event: "research", outcome: "success", stage: "provider_search", code: "OK",
+      actorId: adminId, durationMs: Date.now() - startedAt, sourceCount: results.length,
+    });
     return { topic: plan.topic, queries: queryStrings, results, cursor, hasMore: cursor !== null };
   } catch (error) {
+    const code = searchProviderErrorCode(error);
+    emitContentPipelineSignal({
+      event: "research", outcome: "failure", stage: "provider_search", code,
+      actorId: adminId, durationMs: Date.now() - startedAt,
+    });
     mapSearchProviderError(error);
   }
 }
@@ -255,13 +302,35 @@ function asOptionalScore(value: unknown, field: string) {
   return value;
 }
 
-function mapMutationError(error: unknown): never {
+function mutationErrorCode(error: unknown): ContentPipelineErrorCode {
   const diagnostic = error instanceof Error ? error.message : "";
-  if (/CONFLICT|INVALID|ATTACHED|LOCKED|LAST_SOURCE|SOURCE_LIMIT|NOT_USABLE|NOT_EXTRACTED|EMPTY/i.test(diagnostic)) {
-    throw new ContentPipelineError("INVALID_STATE", "The source set cannot be changed in its current state.");
+  if (/SOURCE_LIMIT_(?:REACHED|EXCEEDED)|SOURCE_COUNT_INVALID/i.test(diagnostic)) {
+    return "SOURCE_LIMIT_EXCEEDED";
   }
-  if (/NOT_FOUND/i.test(diagnostic)) throw new ContentPipelineError("NOT_FOUND", "The requested source or Course import was not found.");
-  throw new ContentPipelineError("DATABASE_ERROR", "Unable to persist the source-set change.");
+  if (/EVIDENCE_LOCKED|JOB_SOURCE_LOCKED|LAST_SOURCE_REQUIRED|SOURCE_HAS_HISTORY|SOURCE_REMOVAL_FORBIDDEN|INITIALIZATION_IMMUTABLE/i.test(diagnostic)) {
+    return "SOURCE_MUTATION_LOCKED";
+  }
+  if (/IDEMPOTENCY_CONFLICT|SOURCE_ALREADY_(?:ATTACHED|OWNED)|CONFLICT/i.test(diagnostic)) {
+    return "SOURCE_CONFLICT";
+  }
+  if (/SOURCE_NOT_FOUND|SOURCE_NOT_ATTACHED|JOB_NOT_FOUND|NOT_FOUND/i.test(diagnostic)) {
+    return "NOT_FOUND";
+  }
+  if (/SOURCE_INVALID|SOURCE_OWNERSHIP_INVALID|PROVENANCE_INVALID|RELEVANCE_INVALID|INITIALIZATION_INVALID|SOURCE_NOT_USABLE|SOURCE_NOT_EXTRACTED|EMPTY/i.test(diagnostic)) {
+    return "INVALID_SOURCE";
+  }
+  return "DATABASE_ERROR";
+}
+
+function mapMutationError(error: unknown): never {
+  const code = mutationErrorCode(error);
+  const message = code === "SOURCE_LIMIT_EXCEEDED" ? "A Course import supports one to eight attached sources."
+    : code === "SOURCE_MUTATION_LOCKED" ? "The evidence set cannot be changed in its current state."
+      : code === "SOURCE_CONFLICT" ? "The source request conflicts with existing Course-import state."
+        : code === "NOT_FOUND" ? "The requested source or Course import was not found."
+          : code === "INVALID_SOURCE" ? "The source is not usable Course evidence."
+            : "Unable to persist the source-set change.";
+  throw new ContentPipelineError(code, message);
 }
 
 async function uploadDeterministicObject(path: string, file: File) {
@@ -314,6 +383,7 @@ export async function uploadStagedContentSource(file: File, idempotencyKeyValue:
 
 export async function ingestUrlSource(body: unknown) {
   const adminId = await requireAdmin();
+  const startedAt = Date.now();
   if (!body || typeof body !== "object" || Array.isArray(body)) throw new ContentPipelineError("VALIDATION_ERROR", "Request body is invalid.");
   const input = body as Record<string, unknown>;
   const allowed = new Set(["url", "discovery", "title", "idempotencyKey", "authorityScore"]);
@@ -327,7 +397,9 @@ export async function ingestUrlSource(body: unknown) {
     const { validateWebUrl } = await import("@/features/content-pipeline/extraction/web-page-fetcher");
     validateWebUrl(input.url);
   } catch {
-    throw new ContentPipelineError("EXTRACTION_ERROR", "The URL is not a safe public HTTP(S) destination.");
+    emitContentPipelineSignal({ event: "fetch", outcome: "rejected", stage: "url_validation",
+      code: "INVALID_SOURCE", actorId: adminId, durationMs: Date.now() - startedAt });
+    throw new ContentPipelineError("INVALID_SOURCE", "The URL is not a safe public HTTP(S) destination.");
   }
   const storagePath = `${adminId}/${idempotencyKey}/snapshot.md`;
   const existing = await getSourceDocumentByStoragePath(storagePath);
@@ -336,9 +408,15 @@ export async function ingestUrlSource(body: unknown) {
       const [chunkCount, jobId] = await Promise.all([
         getSourceDocumentChunkCount(existing.id), getCourseImportJobIdForSource(existing.id),
       ]);
+      emitContentPipelineSignal({ event: "fetch", outcome: "retry", stage: "reuse_snapshot",
+        code: "OK", actorId: adminId, sourceDocumentId: existing.id,
+        durationMs: Date.now() - startedAt });
       return { sourceDocumentId: existing.id, status: existing.status, chunkCount, attached: jobId !== null, jobId, reused: true };
     }
     const extraction = await extractContentSource(existing.id);
+    emitContentPipelineSignal({ event: "fetch", outcome: "retry", stage: "reuse_snapshot",
+      code: "OK", actorId: adminId, sourceDocumentId: existing.id,
+      durationMs: Date.now() - startedAt });
     return { sourceDocumentId: existing.id, status: extraction.status, chunkCount: extraction.chunkCount, attached: false, reused: true };
   }
   const capacity = await checkRateLimit("content-source:url", adminId);
@@ -373,17 +451,32 @@ export async function ingestUrlSource(body: unknown) {
     materializedId = materialized.sourceDocumentId;
     const extraction = await extractContentSource(materializedId);
     if (extraction.chunkCount < 1) throw new ContentPipelineError("EXTRACTION_ERROR", "The page produced no usable evidence.");
+    emitContentPipelineSignal({
+      event: "fetch", outcome: "success", stage: "snapshot_extracted", code: "OK",
+      actorId: adminId, sourceDocumentId: materializedId, durationMs: Date.now() - startedAt,
+      byteCount: fetched.body.byteLength, redirectCount: fetched.redirectCount,
+    });
     return { sourceDocumentId: materializedId, status: extraction.status, chunkCount: extraction.chunkCount, attached: false, reused: false };
   } catch (error: unknown) {
     const fetchCode = error instanceof Error && error.name === "WebPageFetchError" ? (error as Error & { code?: string }).code : undefined;
     if (error instanceof Error && /CONFLICT|INVALID/.test(error.message)) mapMutationError(error);
     if (!materializedId && objectUploaded) await removeSourceObject(storagePath).catch(() => undefined);
+    const stableCode = error instanceof ContentPipelineError ? error.code
+      : fetchCode === "RESPONSE_TOO_LARGE" ? "PAYLOAD_TOO_LARGE"
+        : fetchCode === "UNSUPPORTED_CONTENT_TYPE" ? "UNSUPPORTED_MEDIA_TYPE"
+          : fetchCode ? "FETCH_FAILED" : "EXTRACTION_FAILED";
+    emitContentPipelineSignal({
+      event: "fetch", outcome: "failure", stage: materializedId ? "snapshot_extraction" : "page_fetch",
+      code: stableCode, actorId: adminId, sourceDocumentId: materializedId ?? undefined,
+      durationMs: Date.now() - startedAt,
+    });
     if (error instanceof ContentPipelineError) {
       if (!materializedId || error.details) throw error;
       throw new ContentPipelineError(error.code, error.message, { sourceDocumentId: materializedId });
     }
     throw new ContentPipelineError(fetchCode === "RESPONSE_TOO_LARGE" ? "PAYLOAD_TOO_LARGE"
-      : fetchCode === "UNSUPPORTED_CONTENT_TYPE" ? "UNSUPPORTED_MEDIA_TYPE" : "EXTRACTION_ERROR",
+      : fetchCode === "UNSUPPORTED_CONTENT_TYPE" ? "UNSUPPORTED_MEDIA_TYPE"
+        : fetchCode ? "FETCH_FAILED" : "EXTRACTION_FAILED",
       fetchCode === "RESPONSE_TOO_LARGE" ? "The retrieved page exceeds 2 MiB."
         : fetchCode === "UNSUPPORTED_CONTENT_TYPE" ? "The URL does not return readable HTML or plain text."
           : "The URL could not be captured as usable evidence.",
@@ -392,7 +485,7 @@ export async function ingestUrlSource(body: unknown) {
 }
 
 export async function initializeCourseImport(body: unknown) {
-  await requireAdmin();
+  const adminId = await requireAdmin();
   if (!body || typeof body !== "object" || Array.isArray(body)) throw new ContentPipelineError("VALIDATION_ERROR", "Request body is invalid.");
   const input = body as { initializationKey?: unknown; sources?: unknown };
   const initializationKey = asUuid(input.initializationKey, "initializationKey");
@@ -403,32 +496,62 @@ export async function initializeCourseImport(body: unknown) {
     return { sourceDocumentId: asPositiveId(source.sourceDocumentId, `sources[${index}].sourceDocumentId`), relevanceScore: asOptionalScore(source.relevanceScore, `sources[${index}].relevanceScore`) };
   });
   if (new Set(sources.map((source) => source.sourceDocumentId)).size !== sources.length) throw new ContentPipelineError("VALIDATION_ERROR", "sources must be unique.");
-  try { return await initializeCourseImportFromSources({ initializationKey, sources }); }
-  catch (error) { mapMutationError(error); }
+  try {
+    const result = await initializeCourseImportFromSources({ initializationKey, sources });
+    emitContentPipelineSignal({ event: "source_mutation", outcome: "success", stage: "initialize",
+      code: "OK", actorId: adminId, jobId: result.jobId ?? undefined, sourceCount: sources.length });
+    return result;
+  } catch (error) {
+    emitContentPipelineSignal({ event: "source_mutation", outcome: "rejected", stage: "initialize",
+      code: mutationErrorCode(error), actorId: adminId, sourceCount: sources.length });
+    mapMutationError(error);
+  }
 }
 
 export async function attachSourceToCourseImport(jobIdValue: unknown, body: unknown) {
-  await requireAdmin();
+  const adminId = await requireAdmin();
   const jobId = asPositiveId(jobIdValue, "jobId");
   if (!body || typeof body !== "object" || Array.isArray(body)) throw new ContentPipelineError("VALIDATION_ERROR", "Request body is invalid.");
   const input = body as Record<string, unknown>;
-  try { return await attachCourseImportSource({ jobId, sourceDocumentId: asPositiveId(input.sourceDocumentId, "sourceDocumentId"), relevanceScore: asOptionalScore(input.relevanceScore, "relevanceScore") }); }
-  catch (error) { mapMutationError(error); }
+  const sourceDocumentId = asPositiveId(input.sourceDocumentId, "sourceDocumentId");
+  try {
+    const result = await attachCourseImportSource({ jobId, sourceDocumentId, relevanceScore: asOptionalScore(input.relevanceScore, "relevanceScore") });
+    emitContentPipelineSignal({ event: "source_mutation", outcome: "success", stage: "attach", code: "OK", actorId: adminId, jobId, sourceDocumentId });
+    return result;
+  } catch (error) {
+    emitContentPipelineSignal({ event: "source_mutation", outcome: "rejected", stage: "attach", code: mutationErrorCode(error), actorId: adminId, jobId, sourceDocumentId });
+    mapMutationError(error);
+  }
 }
 
 export async function detachSourceFromCourseImport(jobIdValue: unknown, sourceDocumentIdValue: unknown) {
-  await requireAdmin();
-  try { return await detachCourseImportSource({ jobId: asPositiveId(jobIdValue, "jobId"), sourceDocumentId: asPositiveId(sourceDocumentIdValue, "sourceDocumentId") }); }
-  catch (error) { mapMutationError(error); }
+  const adminId = await requireAdmin();
+  const jobId = asPositiveId(jobIdValue, "jobId");
+  const sourceDocumentId = asPositiveId(sourceDocumentIdValue, "sourceDocumentId");
+  try {
+    const result = await detachCourseImportSource({ jobId, sourceDocumentId });
+    emitContentPipelineSignal({ event: "source_mutation", outcome: "success", stage: "detach", code: "OK", actorId: adminId, jobId, sourceDocumentId });
+    return result;
+  } catch (error) {
+    emitContentPipelineSignal({ event: "source_mutation", outcome: "rejected", stage: "detach", code: mutationErrorCode(error), actorId: adminId, jobId, sourceDocumentId });
+    mapMutationError(error);
+  }
 }
 
 export async function removeStagedSource(sourceDocumentIdValue: unknown) {
-  await requireAdmin();
+  const adminId = await requireAdmin();
+  const sourceDocumentId = asPositiveId(sourceDocumentIdValue, "sourceDocumentId");
   try {
-    const result = await removeStagedCourseImportSource(asPositiveId(sourceDocumentIdValue, "sourceDocumentId"));
+    const result = await removeStagedCourseImportSource(sourceDocumentId);
     await removeSourceObject(result.storagePath!);
+    emitContentPipelineSignal({ event: "source_mutation", outcome: "success", stage: "remove_staged",
+      code: "OK", actorId: adminId, sourceDocumentId });
     return { sourceDocumentId: result.sourceDocumentId, removed: true as const };
-  } catch (error) { mapMutationError(error); }
+  } catch (error) {
+    emitContentPipelineSignal({ event: "source_mutation", outcome: "rejected", stage: "remove_staged",
+      code: mutationErrorCode(error), actorId: adminId, sourceDocumentId });
+    mapMutationError(error);
+  }
 }
 
 export async function getCourseImportSourceReview(jobIdValue: unknown) {
@@ -702,7 +825,7 @@ function resolveJobOutline(
     }
     const resolved = refs.map((ref) => byRef.get(sourceRefKey(ref)));
     if (resolved.some((chunk) => !chunk)) {
-      throw new ContentPipelineError("VALIDATION_ERROR", "Outline contains an invalid source reference.");
+      throw new ContentPipelineError("INVALID_SOURCE_REFERENCE", "Outline contains an invalid source reference.");
     }
     return {
       clientKey: lesson.clientKey,
@@ -731,7 +854,7 @@ function mapProviderOutline(
       sourceChunkIndexes: [],
       sourceRefs: lesson.sourceRefs.map((sourceRef) => {
         const chunk = providerMap.get(sourceRef);
-        if (!chunk) throw new ContentPipelineError("VALIDATION_ERROR", "Provider returned an unknown source reference.");
+        if (!chunk) throw new ContentPipelineError("INVALID_SOURCE_REFERENCE", "Provider returned an unknown source reference.");
         return { sourceDocumentId: chunk.sourceDocumentId, chunkIndex: chunk.chunkIndex };
       }),
     })),
@@ -778,6 +901,7 @@ export async function generateCourseOutlineForJob(
   provider: LessonDraftProvider = new NineRouterLessonDraftProvider()
 ) {
   const adminId = await requireAdmin();
+  const startedAt = Date.now();
   await requireAiCapacity("ai:course-outline", adminId);
   const jobId = asPositiveId(jobIdValue, "jobId");
   const context = await getCourseImportGenerationContext(jobId);
@@ -804,7 +928,7 @@ export async function generateCourseOutlineForJob(
     if (!generated.outline.lessons.every((lesson) => "sourceRefs" in lesson)) {
       throw new ContentPipelineError("VALIDATION_ERROR", "Provider returned ambiguous multi-source references.");
     }
-    return await persistCourseOutlineForJob({
+    const result = await persistCourseOutlineForJob({
       jobId,
       outline: resolveJobOutline(
         mapProviderOutline(generated.outline as ProviderStructuredCourseOutline, providerMap),
@@ -813,15 +937,23 @@ export async function generateCourseOutlineForJob(
       provider: generated.provider,
       model: generated.model,
     });
+    emitContentPipelineSignal({ event: "outline_generation", outcome: "success", stage: "persist_outline",
+      code: "OK", actorId: adminId, jobId, sourceCount: context.sources.length,
+      durationMs: Date.now() - startedAt });
+    return result;
   } catch (error) {
     await failCourseImport(jobId, "OUTLINE_GENERATION_FAILED").catch(() => undefined);
+    const code = error instanceof ContentPipelineError ? error.code : "AI_PROVIDER_ERROR";
+    emitContentPipelineSignal({ event: error instanceof ContentPipelineError && error.code === "INVALID_SOURCE_REFERENCE"
+      ? "source_reference" : "outline_generation", outcome: "failure", stage: "generate_outline",
+      code, actorId: adminId, jobId, sourceCount: context.sources.length, durationMs: Date.now() - startedAt });
     if (error instanceof ContentPipelineError) throw error;
     throw new ContentPipelineError("AI_PROVIDER_ERROR", "Unable to generate a valid Course outline.");
   }
 }
 
 export async function updateCourseOutline(jobIdValue: unknown, body: unknown) {
-  await requireAdmin();
+  const adminId = await requireAdmin();
   const jobId = asPositiveId(jobIdValue, "jobId");
   const current = await getCourseImport(jobId);
   if (!current) throw new ContentPipelineError("NOT_FOUND", "Course import job not found.");
@@ -830,12 +962,20 @@ export async function updateCourseOutline(jobIdValue: unknown, body: unknown) {
   }
   const context = await getCourseImportGenerationContext(jobId);
   if (!context) throw new ContentPipelineError("NOT_FOUND", "Course import evidence not found.");
-  return persistCourseOutlineForJob({
-    jobId,
-    outline: resolveJobOutline(body, context),
-    provider: "admin_edit",
-    model: null,
-  });
+  try {
+    return await persistCourseOutlineForJob({
+      jobId,
+      outline: resolveJobOutline(body, context),
+      provider: "admin_edit",
+      model: null,
+    });
+  } catch (error) {
+    if (error instanceof ContentPipelineError && error.code === "INVALID_SOURCE_REFERENCE") {
+      emitContentPipelineSignal({ event: "source_reference", outcome: "rejected", stage: "admin_outline",
+        code: error.code, actorId: adminId, jobId, sourceCount: context.sources.length });
+    }
+    throw error;
+  }
 }
 
 export async function regenerateCourseOutline(jobIdValue: unknown, provider?: LessonDraftProvider) {
@@ -892,7 +1032,7 @@ async function generateOneCourseLesson(
           chunk.sourceDocumentId === job.sourceDocumentId && chunk.chunkIndex === chunkIndex));
     if (!resolved.length || resolved.some((chunk) => !chunk) ||
       new Set(resolved.map((chunk) => chunk!.documentChunkId)).size !== resolved.length) {
-      throw new ContentPipelineError("VALIDATION_ERROR", "Lesson contains an invalid source citation.");
+      throw new ContentPipelineError("INVALID_SOURCE_REFERENCE", "Lesson contains an invalid source citation.");
     }
     for (const chunk of resolved) citations.push({ sectionIndex, documentChunkId: chunk!.documentChunkId });
     return {
@@ -925,9 +1065,16 @@ export async function generateCourseLessonContents(
   provider: LessonDraftProvider = new NineRouterLessonDraftProvider()
 ) {
   const adminId = await requireAdmin();
+  const startedAt = Date.now();
   const jobId = asPositiveId(jobIdValue, "jobId");
   const job = await getCourseImport(jobId);
   if (!job) throw new ContentPipelineError("NOT_FOUND", "Course import job not found.");
+  if (job.outlineStale) {
+    emitContentPipelineSignal({ event: "stale_outline", outcome: "rejected", stage: "continue",
+      code: "STALE_OUTLINE", actorId: adminId, jobId, sourceCount: job.sources.length,
+      durationMs: Date.now() - startedAt });
+    throw new ContentPipelineError("STALE_OUTLINE", "The evidence set changed; generate and approve a replacement outline.");
+  }
   if (job.status === "content_review" && job.lessons.length > 0 && job.lessons.every((lesson) => lesson.contentDraft)) {
     return { jobId, status: "content_review" as const };
   }
@@ -941,9 +1088,16 @@ export async function generateCourseLessonContents(
     await Promise.all(approvedJob.lessons
       .filter((lesson) => !lesson.contentDraft)
       .map((lesson) => generateOneCourseLesson(approvedJob, lesson.id, chunks, provider, adminId)));
+    emitContentPipelineSignal({ event: "lesson_generation", outcome: "success", stage: "generate_lessons",
+      code: "OK", actorId: adminId, jobId, sourceCount: approvedJob.sources.length,
+      durationMs: Date.now() - startedAt });
     return { jobId, status: "content_review" as const };
   } catch (error) {
     await failCourseImport(jobId, "LESSON_GENERATION_FAILED").catch(() => undefined);
+    const code = error instanceof ContentPipelineError ? error.code : "AI_PROVIDER_ERROR";
+    emitContentPipelineSignal({ event: code === "INVALID_SOURCE_REFERENCE" ? "source_reference" : "lesson_generation",
+      outcome: "failure", stage: "generate_lessons", code, actorId: adminId, jobId,
+      sourceCount: approvedJob.sources.length, durationMs: Date.now() - startedAt });
     if (error instanceof ContentPipelineError) throw error;
     throw new ContentPipelineError("AI_PROVIDER_ERROR", "Unable to generate all Lesson contents.");
   }
@@ -975,7 +1129,7 @@ export async function regenerateCourseLessonContent(
 }
 
 export async function submitCourseImportReview(jobIdValue: unknown, body: unknown) {
-  await requireAdmin();
+  const adminId = await requireAdmin();
   const jobId = asPositiveId(jobIdValue, "jobId");
   if (!body || typeof body !== "object" || Array.isArray(body)) {
     throw new ContentPipelineError("VALIDATION_ERROR", "Review body is invalid.");
@@ -989,6 +1143,7 @@ export async function submitCourseImportReview(jobIdValue: unknown, body: unknow
   if (record.decision !== "published") return reviewCourseImport(jobId, String(record.decision), comment);
   let job = await getCourseImport(jobId);
   if (!job) throw new ContentPipelineError("NOT_FOUND", "Course import job not found.");
+  const publicationRetry = job.status === "ready_to_publish";
   if (job.status === "content_review") {
     await reviewCourseImport(jobId, "ready_to_publish", comment);
     job = { ...job, status: "ready_to_publish" };
@@ -996,7 +1151,16 @@ export async function submitCourseImportReview(jobIdValue: unknown, body: unknow
   if (job.status !== "ready_to_publish") {
     throw new ContentPipelineError("INVALID_STATE", "Course import is not ready to publish.");
   }
-  return publishCourseImport(jobId, curriculumSlug(job.title));
+  try {
+    const result = await publishCourseImport(jobId, curriculumSlug(job.title));
+    emitContentPipelineSignal({ event: "publication", outcome: publicationRetry ? "retry" : "success",
+      stage: "publish", code: "OK", actorId: adminId, jobId, sourceCount: job.sources.length });
+    return result;
+  } catch {
+    emitContentPipelineSignal({ event: "publication", outcome: "failure", stage: "publish",
+      code: "PUBLICATION_FAILED", actorId: adminId, jobId, sourceCount: job.sources.length });
+    throw new ContentPipelineError("PUBLICATION_FAILED", "Course publication failed and may be retried safely.");
+  }
 }
 
 export async function getCourseDraftQueue() {

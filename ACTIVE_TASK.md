@@ -1,15 +1,14 @@
 # Active Task Queue
 
-- **Active task:** `TASK-070` — Topic-Based Multi-Source Course Creation: Phase 4
-- **Status:** `VERIFIED`
+- **Active task:** `TASK-066` — Normalize Single-Chunk Lesson Citations external verification
+- **Status:** `IN_PROGRESS`
 - **Owner / Reviewer:** Codex
 - **Deferred design task:** `TASK-047` (`DRAFT`)
 - **Previous blocked task:** `TASK-044` — external Supabase Redirect URL verification
 
 ## Current objective
 
-Implement only topic research and ranked discovery in
-`specs/001-topic-course-research/tasks.md`; Phase 5 is excluded.
+Phase 5 task `TASK-071` is verified locally. No deployment or push was performed.
 
 Phase 1 T001–T031 is verified. Migration, PostgreSQL concurrency/invariant checks, focused and
 full tests, legacy PDF browser E2E, lint, typecheck, and build pass. Evidence is recorded in
@@ -20,7 +19,9 @@ Phase 2 T032–T049 is verified. Source-qualified provider/DTO contracts, determ
 generation, Admin provenance/editor compatibility, and both new plus legacy browser gates pass.
 Phase 3 T050–T073 is verified. Phase 4 T074–T091 is verified: stateless research, Brave search,
 deterministic candidate review/ranking, selected-only Phase 3 handoff, accessibility, and all
-required browser regressions pass. Phase 5 remains excluded.
+required browser regressions pass. Phase 5 T092–T103 is verified: production-like migration,
+RLS/RPC, API/OpenAPI, observability, security, full regression/E2E/accessibility, documentation,
+and rollout/rollback readiness gates pass. Evidence is in `reports/TASK-071-*.md`.
 
 ## Previous active external verification
 

@@ -1,11 +1,11 @@
 openapi: 3.1.0
 info:
   title: LearningApp Topic and Multi-Source Course Import
-  version: 0.1.0
+  version: 1.0.0
   description: >-
-    Planning contract for additive Admin source research, ingestion, attachment, and
+    Implemented contract for additive Admin source research, ingestion, attachment, and
     job-scoped outline generation. Existing file-only, Lesson generation, review, and
-    publication contracts remain compatible.
+    publication contracts remain compatible. All responses are no-store.
 servers:
   - url: /
 security:
@@ -579,12 +579,47 @@ components:
           const: false
         error:
           type: object
+          additionalProperties: false
           required: [code, message]
           properties:
             code:
               type: string
+              enum:
+                - UNAUTHENTICATED
+                - FORBIDDEN
+                - NOT_FOUND
+                - VALIDATION_ERROR
+                - INVALID_STATE
+                - INVALID_SOURCE
+                - INVALID_SOURCE_REFERENCE
+                - SOURCE_LIMIT_EXCEEDED
+                - SOURCE_CONFLICT
+                - SOURCE_MUTATION_LOCKED
+                - STALE_OUTLINE
+                - STORAGE_ERROR
+                - FETCH_FAILED
+                - EXTRACTION_ERROR
+                - EXTRACTION_FAILED
+                - PAYLOAD_TOO_LARGE
+                - UNSUPPORTED_MEDIA_TYPE
+                - AI_PROVIDER_ERROR
+                - GENERATION_FAILED
+                - PUBLICATION_FAILED
+                - RATE_LIMITED
+                - SEARCH_PROVIDER_AUTH
+                - SEARCH_PROVIDER_QUOTA
+                - SEARCH_PROVIDER_TIMEOUT
+                - SEARCH_PROVIDER_UNAVAILABLE
+                - DATABASE_ERROR
+                - INTERNAL_ERROR
             message:
               type: string
+            retryAfterSeconds:
+              type: number
+              minimum: 0
+            sourceDocumentId:
+              type: integer
+              minimum: 1
 
     CourseResearchRequest:
       type: object

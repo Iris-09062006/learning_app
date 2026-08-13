@@ -69,6 +69,15 @@ test("enrolls, completes the first lesson exercise, and unlocks the next lesson"
 
   await page.getByRole("link", { name: "Học tiếp" }).click();
   await expect(page).toHaveURL(/\/lessons\/101$/u);
+  for (const privateResearchLabel of [
+    "Authority score",
+    "Relevance score",
+    "Source provenance",
+    "Citation chunk",
+    "sourceDocumentId",
+  ]) {
+    await expect(page.getByText(privateResearchLabel, { exact: false })).toHaveCount(0);
+  }
   await expect(page.getByRole("heading", { name: "Biến và phép gán" })).toBeVisible();
   await page.getByRole("button", { name: "Bắt đầu bài học" }).click();
   await page.getByRole("link", { name: "Làm bài" }).click();
@@ -121,6 +130,27 @@ test("provides role-route smoke coverage for moderator and admin", async ({ brow
   await expect(adminPage.getByRole("heading", { name: "Quản lý người dùng" })).toBeVisible();
   await expectNoSeriousA11yViolations(adminPage);
   await adminContext.close();
+});
+
+test("generates, moderates, and publishes an Exercise for one published Lesson", async ({ page }) => {
+  await loginAs(page, "admin");
+  await page.goto("/moderation/lessons/101/exercises/new");
+
+  await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
+  await page.locator("form button[type=submit]").click();
+  const draftLink = page.locator('a[href^="/moderation/"]').filter({ hasText: "draft" });
+  await expect(draftLink).toBeVisible();
+  await draftLink.click();
+
+  await expect(page).toHaveURL(/\/moderation\/3001$/u);
+  await expect(page.getByRole("heading", { name: "Published Lesson Exercise" })).toBeVisible();
+  await page.getByRole("radio").first().check();
+  await page.locator("form button[type=submit]").click();
+  await expect(page.locator("span").filter({ hasText: /^approved$/u })).toBeVisible();
+  await page.getByRole("button", { name: "Publish to Production" }).click();
+  await expect(page.getByText(/Exercise successfully published/u)).toBeVisible();
+  await expect(page.getByText("published", { exact: true })).toBeVisible();
+  await expectNoSeriousA11yViolations(page);
 });
 
 test("reviews an outline, generates Lesson contents, and atomically publishes a Course", async ({ page }) => {
@@ -201,6 +231,62 @@ test("reviews an outline, generates Lesson contents, and atomically publishes a 
   await expect(page.getByText("Hàng chờ trống.")).toBeVisible();
   await expect(page.getByRole("link", { name: "Mở Course" })).toHaveAttribute("href", "/courses/31");
   await expectNoSeriousA11yViolations(page);
+});
+
+test("recovers an existing unpublished import and retries publication idempotently", async ({ page }) => {
+  let published = false;
+  let attempts = 0;
+  const existingJob = {
+    jobId: 62, sourceDocumentId: 19, sourceFilename: "legacy-unpublished.pdf",
+    sources: [{ sourceDocumentId: 19, sourceOrder: 0, sourceType: "file", ingestionMethod: "uploaded",
+      title: "legacy-unpublished.pdf", filename: "legacy-unpublished.pdf", sourceUrl: null,
+      canonicalUrl: null, domain: null, authorityScore: null, relevanceScore: null,
+      status: "ready_for_review", errorCode: null, chunkCount: 1 }],
+    outlineStale: false, status: "content_review", errorCode: null, outlineRevision: 1,
+    approvedOutlineRevision: 1, title: "Existing unpublished Course", description: "Backfilled import",
+    learningObjectives: ["Preserve historical import"],
+    lessons: [{ id: 73, clientKey: "legacy", lessonOrder: 1, title: "Legacy Lesson", summary: "Legacy",
+      learningObjectives: ["Review legacy content"], sourceChunkIndexes: [0],
+      contentDraft: { id: 83, outlineLessonId: 73, revision: 1, title: "Legacy Lesson",
+        summary: "Ready", estimatedMinutes: 10,
+        sections: [{ heading: "Content", bodyMarkdown: "Historical content", citationChunkIndexes: [0] }],
+        status: "ready", provider: "9router", model: "e2e-model",
+        citations: [{ sectionIndex: 0, chunkIndex: 0, quote: "Historical evidence" }] } }],
+    publishedCourseId: null, createdAt: "2026-08-10T00:00:00.000Z",
+    updatedAt: "2026-08-13T00:00:00.000Z",
+  };
+
+  await page.route("**/api/admin/**", async (route) => {
+    const pathname = new URL(route.request().url()).pathname;
+    if (pathname === "/api/admin/content-targets") {
+      return route.fulfill({ status: 200, contentType: "application/json",
+        body: JSON.stringify({ success: true, data: { items: [] } }) });
+    }
+    if (pathname === "/api/admin/course-drafts") {
+      return route.fulfill({ status: 200, contentType: "application/json",
+        body: JSON.stringify({ success: true, data: { items: published ? [] : [existingJob] } }) });
+    }
+    if (pathname === "/api/admin/course-drafts/62/reviews") {
+      attempts += 1;
+      if (attempts === 1) return route.fulfill({ status: 500, contentType: "application/json",
+        body: JSON.stringify({ success: false, error: { code: "PUBLICATION_FAILED",
+          message: "Course publication failed and may be retried safely." } }) });
+      published = true;
+      return route.fulfill({ status: 200, contentType: "application/json",
+        body: JSON.stringify({ success: true, data: { sourceDocumentId: 19,
+          sourceDocumentIds: [19], courseId: 32, lessonIds: [52], status: "published" } }) });
+    }
+    return route.fallback();
+  });
+
+  await loginAs(page, "admin");
+  await page.goto("/admin/content");
+  await expect(page.getByRole("textbox", { name: "Course title" })).toHaveValue("Existing unpublished Course");
+  await page.getByRole("button", { name: "Publish Course" }).click();
+  await expect(page.getByText("Course publication failed and may be retried safely.", { exact: true })).toBeVisible();
+  await page.getByRole("button", { name: "Publish Course" }).click();
+  await expect(page.getByRole("link", { name: /Course/u })).toHaveAttribute("href", "/courses/32");
+  expect(attempts).toBe(2);
 });
 
 test("recovers a partial-failure manual URL and file source-review flow without duplicates", async ({ page }) => {

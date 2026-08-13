@@ -1,5 +1,23 @@
 # API Contract
 
+## Topic research and multi-source Course-import API — implemented
+
+All new/extended routes require an active Admin, use the existing `{ success, data|error }`
+envelope, and set `Cache-Control: no-store`. The surfaces are stateless
+`POST /api/admin/course-research`; URL and staged-file ingestion; atomic ordered-set
+`POST /api/admin/course-imports`; staged removal; job-scoped source list/attach/detach; and
+job-wide outline generation. `{file}` retains legacy immediate initialization while
+`{file,idempotencyKey}` stages without a job.
+
+Stable errors include `VALIDATION_ERROR` (400), `UNAUTHENTICATED` (401), `FORBIDDEN` (403),
+`NOT_FOUND` (404), `INVALID_SOURCE_REFERENCE` (400), `SOURCE_LIMIT_EXCEEDED`, `SOURCE_CONFLICT`,
+`SOURCE_MUTATION_LOCKED`, `STALE_OUTLINE` (409), `PAYLOAD_TOO_LARGE` (413),
+`UNSUPPORTED_MEDIA_TYPE` (415), `INVALID_SOURCE`, `FETCH_FAILED`, `EXTRACTION_ERROR`,
+`EXTRACTION_FAILED` (422), `RATE_LIMITED` (429 with `Retry-After`), recoverable
+`SEARCH_PROVIDER_*` (503), and `PUBLICATION_FAILED` (500, safe to retry). Error envelopes expose
+only approved public details (`retryAfterSeconds`, `sourceDocumentId`). Complete schemas are
+normative in `specs/001-topic-course-research/contracts/openapi.yaml`.
+
 ## TASK-056 Admin course management endpoints
 
 - `GET /api/admin/courses` requires an active Admin and returns

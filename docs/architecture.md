@@ -1,5 +1,30 @@
 # Architecture
 
+## Topic-based multi-source Course creation — implemented architecture
+
+This section is authoritative for the current Course-import implementation and supersedes older
+single-source “target/gap” notes below. `content-pipeline` now supports the complete server-owned
+flow:
+
+```text
+topic -> stateless research -> candidate review -> selected URL/file ingestion
+-> immutable private evidence -> ordered 1..8-source Course import -> multi-source outline
+-> outline review/revisions -> Continue (evidence lock) -> per-Lesson content generation
+-> content review -> atomic/idempotent Course publication
+-> separate published-Lesson Exercise generation/moderation/publication
+```
+
+Research candidates remain request/browser state until explicit selection. Web acquisition is
+server-only, SSRF constrained, and materialized as deterministic private Markdown before
+extraction. `course_import_job_sources` is authoritative ownership; the legacy singular source is
+retained as the order-zero compatibility anchor. Application references are source-qualified and
+resolve to canonical chunk IDs inside the job boundary. Learner, enrollment, progress, and
+Exercise modules do not import Course-import provenance or ranking data.
+
+Operational signals stay inside the existing service boundary and contain identifiers, stage,
+stable code, duration, byte/redirect/source counts only. They never contain source/page/chunk
+bodies, prompts, provider payloads, credentials, tokens, private addresses, or storage contents.
+
 ## AI pipeline boundary — target architecture
 
 `content-pipeline` sở hữu state machine PDF → extraction → outline → outline review →

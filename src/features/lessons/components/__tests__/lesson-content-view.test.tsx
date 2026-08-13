@@ -101,6 +101,10 @@ describe("LessonContentView", () => {
     expect(container.querySelector("pre code")).toHaveTextContent("print(message)");
     expect(screen.getByRole("link", { name: "Python" })).toHaveAttribute("href", "https://python.org");
     expect(screen.getAllByRole("link", { name: /Làm bài/ })).toHaveLength(2);
+    for (const adminOnlyLabel of ["Authority score", "Relevance score", "Source provenance",
+      "Citation chunk", "sourceDocumentId"]) {
+      expect(screen.queryByText(adminOnlyLabel, { exact: false })).not.toBeInTheDocument();
+    }
   });
 
   it("shows an accessible API error without revealing content", async () => {

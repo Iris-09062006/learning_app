@@ -11,11 +11,8 @@
 
 ## Active Task
 
-`TASK-070` — Topic-Based Multi-Source Course Creation: Phase 4 (`VERIFIED`). Stateless topic
-research, Brave provider integration, deterministic candidate review/ranking, selected-only Phase 3
-handoff, accessibility, and Phase 4 browser gates only; Phase 5 remains excluded. Phases 1–3 remain
-verified at `d28f8da`, `95bb7ab`, and `06f8f76`. `TASK-066` remains in progress
-on its prior external verification.
+`TASK-066` remains in progress on its prior external verification. `TASK-071` Phase 5 is verified
+locally; it was not pushed or deployed.
 
 Recently verified supporting hotfixes:
 
@@ -34,6 +31,7 @@ Supabase Auth Redirect URLs wildcard and a fresh confirmation email.
 
 | Task ID | Title | Status | Phase | Evidence |
 |---|---|---|---|---|
+| `TASK-071` | Topic-Based Multi-Source Course Creation: Phase 5 | VERIFIED | Course research Phase 5 | `reports/TASK-071-implementation.md`, `reports/TASK-071-review.md`, `reports/TASK-071-test.md` |
 | `TASK-070` | Topic-Based Multi-Source Course Creation: Phase 4 | VERIFIED | Course research Phase 4 | `reports/TASK-070-implementation.md`, `reports/TASK-070-review.md`, `reports/TASK-070-test.md` |
 | `TASK-069` | Topic-Based Multi-Source Course Creation: Phase 3 | VERIFIED | Course research Phase 3 | `reports/TASK-069-implementation.md`, `reports/TASK-069-review.md`, `reports/TASK-069-test.md` |
 | `TASK-068` | Topic-Based Multi-Source Course Creation: Phase 2 | VERIFIED | Course research Phase 2 | `reports/TASK-068-implementation.md`, `reports/TASK-068-review.md`, `reports/TASK-068-test.md` |
@@ -95,6 +93,7 @@ Supabase Auth Redirect URLs wildcard and a fresh confirmation email.
 
 | Task ID | Title | Status | Phase | Dependency |
 |---|---|---|---|---|
+| `TASK-071` | Topic-Based Multi-Source Course Creation: Phase 5 | IN_PROGRESS | Course research Phase 5 | Verified Phases 1–4 |
 | `TASK-066` | Normalize Single-Chunk Lesson Citations | IN_PROGRESS | Content operations hotfix | CI and production verification |
 
 ## Active Epic

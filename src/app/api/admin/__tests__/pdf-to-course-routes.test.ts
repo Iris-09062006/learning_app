@@ -112,11 +112,27 @@ describe("Phase 3 source routes", () => {
   });
 
   it.each([
-    ["PAYLOAD_TOO_LARGE", 413], ["UNSUPPORTED_MEDIA_TYPE", 415], ["EXTRACTION_ERROR", 422], ["RATE_LIMITED", 429],
+    ["PAYLOAD_TOO_LARGE", 413], ["UNSUPPORTED_MEDIA_TYPE", 415], ["EXTRACTION_ERROR", 422],
+    ["FETCH_FAILED", 422], ["EXTRACTION_FAILED", 422], ["INVALID_SOURCE", 422],
+    ["SOURCE_LIMIT_EXCEEDED", 409], ["SOURCE_CONFLICT", 409], ["SOURCE_MUTATION_LOCKED", 409],
+    ["STALE_OUTLINE", 409], ["INVALID_SOURCE_REFERENCE", 400], ["RATE_LIMITED", 429],
   ] as const)("maps %s to %i", async (code, status) => {
     serviceMocks.ingestUrlSource.mockRejectedValue(new ContentPipelineError(code, "source failed"));
     const response = await ingestUrl(new Request("http://localhost", { method: "POST", body: "{}" }));
     expect(response.status).toBe(status); expect(response.headers.get("Cache-Control")).toBe("no-store");
+  });
+
+  it("does not echo arbitrary service details in an error envelope", async () => {
+    serviceMocks.ingestUrlSource.mockRejectedValue(new ContentPipelineError("FETCH_FAILED", "source failed", {
+      sourceDocumentId: 21,
+      providerBody: "secret provider body",
+      storagePath: "private/path",
+    }));
+    const response = await ingestUrl(new Request("http://localhost", { method: "POST", body: "{}" }));
+    await expect(response.json()).resolves.toEqual({
+      success: false,
+      error: { code: "FETCH_FAILED", message: "source failed", sourceDocumentId: 21 },
+    });
   });
 
   it("initializes one ordered set and exposes attach/detach/recovery operations", async () => {

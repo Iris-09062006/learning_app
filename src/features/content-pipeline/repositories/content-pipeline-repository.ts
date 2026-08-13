@@ -69,6 +69,12 @@ interface SourceMetadataRow {
   authority_score: number | null;
 }
 
+export interface CourseImportCompatibilityDiagnostic {
+  code: "MISSING_BRIDGE" | "ANCHOR_DRIFT" | "DUPLICATE_SOURCE_MEMBERSHIP" | "INVALID_PROVENANCE_JOIN";
+  jobId?: number;
+  sourceDocumentId?: number;
+}
+
 interface LessonDraftRow {
   id: number;
   source_document_id: number;
@@ -583,6 +589,54 @@ async function loadCourseImportSourceMap(jobIds: number[]): Promise<Map<number, 
 
 export async function listCourseImportSources(jobId: number): Promise<CourseImportSourceSummary[]> {
   return (await loadCourseImportSourceMap([jobId])).get(jobId) ?? [];
+}
+
+export async function getCourseImportCompatibilityDiagnostics(): Promise<CourseImportCompatibilityDiagnostic[]> {
+  const supabase = adminClient();
+  const [jobResult, bridgeResult, sourceResult, metadataResult] = await Promise.all([
+    supabase.from("course_import_jobs").select("id, source_document_id"),
+    supabase.from("course_import_job_sources").select("job_id, source_document_id, source_order"),
+    supabase.from("source_documents").select("id"),
+    supabase.from("source_document_metadata").select("source_document_id"),
+  ]);
+  if (jobResult.error || bridgeResult.error || sourceResult.error || metadataResult.error) {
+    throw new Error("DATABASE_ERROR");
+  }
+  const jobs = (jobResult.data ?? []) as Array<{ id: number; source_document_id: number }>;
+  const bridges = (bridgeResult.data ?? []) as Array<{
+    job_id: number; source_document_id: number; source_order: number;
+  }>;
+  const documentIds = new Set(((sourceResult.data ?? []) as Array<{ id: number }>).map((row) => row.id));
+  const metadataIds = new Set(((metadataResult.data ?? []) as Array<{ source_document_id: number }>)
+    .map((row) => row.source_document_id));
+  const diagnostics: CourseImportCompatibilityDiagnostic[] = [];
+
+  for (const job of jobs) {
+    const membership = bridges.filter((bridge) => bridge.job_id === job.id);
+    if (!membership.length) diagnostics.push({ code: "MISSING_BRIDGE", jobId: job.id, sourceDocumentId: job.source_document_id });
+    const anchor = membership.find((bridge) => bridge.source_order === 0);
+    if (membership.length && anchor?.source_document_id !== job.source_document_id) {
+      diagnostics.push({ code: "ANCHOR_DRIFT", jobId: job.id, sourceDocumentId: job.source_document_id });
+    }
+  }
+
+  const membershipsBySource = new Map<number, number[]>();
+  for (const bridge of bridges) {
+    membershipsBySource.set(bridge.source_document_id, [
+      ...(membershipsBySource.get(bridge.source_document_id) ?? []), bridge.job_id,
+    ]);
+    if (!documentIds.has(bridge.source_document_id) || !metadataIds.has(bridge.source_document_id)
+      || !jobs.some((job) => job.id === bridge.job_id)) {
+      diagnostics.push({ code: "INVALID_PROVENANCE_JOIN", jobId: bridge.job_id,
+        sourceDocumentId: bridge.source_document_id });
+    }
+  }
+  for (const [sourceDocumentId, jobIds] of membershipsBySource) {
+    if (new Set(jobIds).size > 1) diagnostics.push({ code: "DUPLICATE_SOURCE_MEMBERSHIP", sourceDocumentId });
+  }
+  return diagnostics.sort((left, right) => left.code.localeCompare(right.code)
+    || (left.jobId ?? 0) - (right.jobId ?? 0)
+    || (left.sourceDocumentId ?? 0) - (right.sourceDocumentId ?? 0));
 }
 
 export async function getCourseImportGenerationContext(jobId: number) {

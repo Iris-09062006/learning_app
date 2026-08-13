@@ -1,5 +1,21 @@
 # Decisions
 
+## ADR-Topic-001 — Additive multi-source evidence in the existing Course-import pipeline
+
+**Status:** Accepted
+
+Topic research remains stateless until selection. Selected URLs/files become immutable private
+evidence attached through an ordered exclusive bridge while the singular order-zero anchor remains
+for compatibility. Source-qualified refs map through request-local provider refs to canonical
+chunk IDs. Continue remains the evidence lock; publication remains atomic/idempotent; learner and
+Exercise architecture remains separate.
+
+Rollout order is migration/backfill -> bridge-aware app -> multi-source generation -> manual
+URL/file ingestion -> topic research. Rollback retains additive schema, snapshots, bridge rows,
+and immutable revisions; research and URL entry paths can be disabled independently. Crawlers,
+research-session tables, embeddings/vector storage, redesign, and destructive down-migration are
+not part of this decision.
+
 ## 1. Mục đích
 
 Tài liệu này lưu các quyết định quan trọng của dự án.

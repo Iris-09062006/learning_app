@@ -181,7 +181,7 @@ export function ModerationDetailView({ id }: ModerationDetailViewProps) {
 
         <div className="mt-4 grid grid-cols-1 gap-4 border-y border-slate-200 py-4 text-sm text-slate-600 dark:border-slate-800 dark:text-slate-400 sm:grid-cols-2 lg:grid-cols-4">
           <div>
-            <span className="block text-xs font-semibold uppercase tracking-wide text-slate-400 dark:text-slate-500">
+            <span className="block text-xs font-semibold uppercase tracking-wide text-slate-600 dark:text-slate-300">
               Type
             </span>
             <span className="mt-1 block font-medium capitalize text-slate-900 dark:text-white">
@@ -189,7 +189,7 @@ export function ModerationDetailView({ id }: ModerationDetailViewProps) {
             </span>
           </div>
           <div>
-            <span className="block text-xs font-semibold uppercase tracking-wide text-slate-400 dark:text-slate-500">
+            <span className="block text-xs font-semibold uppercase tracking-wide text-slate-600 dark:text-slate-300">
               Difficulty
             </span>
             <span className="mt-1 block font-medium capitalize text-slate-900 dark:text-white">
@@ -197,7 +197,7 @@ export function ModerationDetailView({ id }: ModerationDetailViewProps) {
             </span>
           </div>
           <div>
-            <span className="block text-xs font-semibold uppercase tracking-wide text-slate-400 dark:text-slate-500">
+            <span className="block text-xs font-semibold uppercase tracking-wide text-slate-600 dark:text-slate-300">
               AI Provider
             </span>
             <span className="mt-1 block font-medium capitalize text-slate-900 dark:text-white">
@@ -205,7 +205,7 @@ export function ModerationDetailView({ id }: ModerationDetailViewProps) {
             </span>
           </div>
           <div>
-            <span className="block text-xs font-semibold uppercase tracking-wide text-slate-400 dark:text-slate-500">
+            <span className="block text-xs font-semibold uppercase tracking-wide text-slate-600 dark:text-slate-300">
               Created At
             </span>
             <span className="mt-1 block font-medium text-slate-900 dark:text-white">
@@ -219,7 +219,7 @@ export function ModerationDetailView({ id }: ModerationDetailViewProps) {
             <h3 className="text-sm font-bold text-slate-900 dark:text-white">
               Exercise Payload (JSON)
             </h3>
-            <span className="rounded-full bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-500 dark:bg-slate-800 dark:text-slate-400">
+            <span className="rounded-full bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-700 dark:bg-slate-800 dark:text-slate-300">
               {JSON.stringify(item.content).length.toLocaleString()} bytes
             </span>
           </div>
