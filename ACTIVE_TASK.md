@@ -1,12 +1,22 @@
 # Active Task Queue
 
-- **Active task:** `TASK-066` — Normalize Single-Chunk Lesson Citations
-- **Status:** `IN_PROGRESS`
+- **Active task:** `TASK-067` — Topic-Based Multi-Source Course Creation: Phase 1
+- **Status:** `VERIFIED`
 - **Owner / Reviewer:** Codex
 - **Deferred design task:** `TASK-047` (`DRAFT`)
 - **Previous blocked task:** `TASK-044` — external Supabase Redirect URL verification
 
 ## Current objective
+
+Implement only the additive database/repository compatibility phase in
+`specs/001-topic-course-research/tasks.md`; Phase 2–5 are excluded.
+
+Phase 1 T001–T031 is verified. Migration, PostgreSQL concurrency/invariant checks, focused and
+full tests, legacy PDF browser E2E, lint, typecheck, and build pass. Evidence is recorded in
+`reports/TASK-067-implementation.md`, `reports/TASK-067-test.md`, and
+`reports/TASK-067-review.md`.
+
+## Previous active external verification
 
 Normalize provider Lesson-section citations when the server has exactly one possible source chunk,
 while preserving strict multi-chunk ownership validation and generic client errors.

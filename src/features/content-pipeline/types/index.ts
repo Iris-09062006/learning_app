@@ -110,19 +110,56 @@ export interface CourseImportLessonDraft {
   status: "ready" | "failed";
   provider: string;
   model: string | null;
-  citations: Array<{ sectionIndex: number; chunkIndex: number; quote: string }>;
+  citations: Array<{
+    sectionIndex: number;
+    chunkIndex: number;
+    quote: string;
+    documentChunkId?: number;
+    sourceDocumentId?: number;
+    sourceOrder?: number;
+    sourceTitle?: string;
+    sourceDomain?: string | null;
+    sourceUrl?: string | null;
+  }>;
 }
 
 export interface CourseImportOutlineLesson extends CourseOutlineLesson {
   id: number;
   lessonOrder: number;
+  sourceChunks?: Array<{
+    documentChunkId: number;
+    sourceDocumentId: number;
+    sourceOrder: number;
+    chunkIndex: number;
+  }>;
   contentDraft: CourseImportLessonDraft | null;
+}
+
+export type CourseImportSourceType = "file" | "web_page";
+export type CourseImportIngestionMethod = "uploaded" | "manual_url" | "discovered";
+
+export interface CourseImportSourceSummary {
+  sourceDocumentId: number;
+  sourceOrder: number;
+  sourceType: CourseImportSourceType;
+  ingestionMethod: CourseImportIngestionMethod;
+  title: string;
+  filename: string;
+  sourceUrl: string | null;
+  canonicalUrl: string | null;
+  domain: string | null;
+  authorityScore: number | null;
+  relevanceScore: number | null;
+  status: SourceDocumentStatus;
+  errorCode: string | null;
+  chunkCount: number;
 }
 
 export interface CourseImportDraft {
   jobId: number;
   sourceDocumentId: number;
   sourceFilename: string;
+  sources: CourseImportSourceSummary[];
   status: CourseImportStatus;
   errorCode: string | null;
   outlineRevision: number;
@@ -141,6 +178,30 @@ export interface PersistCourseOutlineResult {
   sourceDocumentId: number;
   outlineRevision: number;
   status: "outline_review";
+  sourceDocumentIds?: number[];
+}
+
+export interface CourseImportMutationResult {
+  jobId?: number | null;
+  sourceDocumentId: number;
+  sourceDocumentIds?: number[];
+  sourceOrder?: number;
+  anchorSourceDocumentId?: number;
+  status?: CourseImportStatus | SourceDocumentStatus;
+  attached?: boolean;
+  removed?: boolean;
+  outlineStale?: boolean;
+  storageBucket?: string;
+  storagePath?: string;
+}
+
+export interface PublishCourseImportResult {
+  jobId: number;
+  sourceDocumentId: number;
+  sourceDocumentIds: number[];
+  courseId: number;
+  status: "published";
+  lessonIds: number[];
 }
 
 export interface CourseDraftGenerationRequest {

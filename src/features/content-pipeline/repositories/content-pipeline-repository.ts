@@ -5,6 +5,8 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import type {
   CourseImportDraft,
   CourseImportLessonDraft,
+  CourseImportMutationResult,
+  CourseImportSourceSummary,
   CourseDraftBatch,
   CreateCourseDraftBatchResult,
   ContentChapterTarget,
@@ -15,6 +17,7 @@ import type {
   LessonDraftRecord,
   LessonDraftReviewDecision,
   PersistCourseOutlineResult,
+  PublishCourseImportResult,
   PublishLessonDraftResult,
   ReviewCourseDraftBatchResult,
   SourceDocumentRecord,
@@ -28,6 +31,7 @@ import { createServerSupabaseClient } from "@/lib/supabase/server";
 
 interface SourceDocumentRow {
   id: number;
+  uploaded_by: string;
   original_filename: string;
   storage_bucket: string;
   storage_path: string;
@@ -36,12 +40,32 @@ interface SourceDocumentRow {
   status: SourceDocumentRecord["status"];
   error_code: string | null;
   created_at: string;
+  initialize_import_job: boolean;
 }
 
 interface DocumentChunkRow {
   id: number;
+  source_document_id?: number;
   chunk_index: number;
   content: string;
+}
+
+interface CourseImportBridgeRow {
+  job_id: number;
+  source_document_id: number;
+  source_order: number;
+  relevance_score: number | null;
+}
+
+interface SourceMetadataRow {
+  source_document_id: number;
+  source_type: CourseImportSourceSummary["sourceType"];
+  ingestion_method: CourseImportSourceSummary["ingestionMethod"];
+  source_url: string | null;
+  canonical_url: string | null;
+  title: string;
+  domain: string | null;
+  authority_score: number | null;
 }
 
 interface LessonDraftRow {
@@ -106,6 +130,24 @@ function mapDraft(row: LessonDraftRow): LessonDraftRecord {
   };
 }
 
+function parseCourseImportMutation(data: unknown): CourseImportMutationResult {
+  if (!data || typeof data !== "object") throw new Error("DATABASE_ERROR");
+  const result = data as CourseImportMutationResult;
+  if (!Number.isSafeInteger(result.sourceDocumentId) || result.sourceDocumentId <= 0) {
+    throw new Error("DATABASE_ERROR");
+  }
+  if (result.jobId !== undefined && result.jobId !== null
+    && (!Number.isSafeInteger(result.jobId) || result.jobId <= 0)) {
+    throw new Error("DATABASE_ERROR");
+  }
+  if (result.sourceDocumentIds !== undefined && (
+    !Array.isArray(result.sourceDocumentIds)
+    || result.sourceDocumentIds.length < 1
+    || result.sourceDocumentIds.some((id) => !Number.isSafeInteger(id) || id <= 0)
+  )) throw new Error("DATABASE_ERROR");
+  return result;
+}
+
 export async function createSourceDocument(input: {
   uploadedBy: string;
   originalFilename: string;
@@ -123,6 +165,107 @@ export async function createSourceDocument(input: {
   }).select("*").single();
   if (error || !data) throw new Error("DATABASE_ERROR");
   return mapSource(data as SourceDocumentRow);
+}
+
+export async function materializeCourseImportSource(input: {
+  originalFilename: string;
+  storagePath: string;
+  mimeType: SupportedSourceMimeType;
+  sizeBytes: number;
+  sourceType: CourseImportSourceSummary["sourceType"];
+  ingestionMethod: CourseImportSourceSummary["ingestionMethod"];
+  sourceUrl?: string | null;
+  canonicalUrl?: string | null;
+  title?: string | null;
+  domain?: string | null;
+  authorityScore?: number | null;
+  discoveredFromSourceDocumentId?: number | null;
+  fetchedAt?: string | null;
+}): Promise<CourseImportMutationResult> {
+  const supabase = await client();
+  const { data, error } = await supabase.rpc("materialize_course_import_source", {
+    p_original_filename: input.originalFilename,
+    p_storage_path: input.storagePath,
+    p_mime_type: input.mimeType,
+    p_size_bytes: input.sizeBytes,
+    p_source_type: input.sourceType,
+    p_ingestion_method: input.ingestionMethod,
+    p_source_url: input.sourceUrl ?? null,
+    p_canonical_url: input.canonicalUrl ?? null,
+    p_title: input.title ?? null,
+    p_domain: input.domain ?? null,
+    p_authority_score: input.authorityScore ?? null,
+    p_discovered_from_source_document_id: input.discoveredFromSourceDocumentId ?? null,
+    p_fetched_at: input.fetchedAt ?? null,
+  });
+  if (error) throw new Error("DATABASE_ERROR");
+  return parseCourseImportMutation(data);
+}
+
+export async function initializeCourseImportFromSources(input: {
+  initializationKey: string;
+  sources: Array<{ sourceDocumentId: number; relevanceScore?: number | null }>;
+}): Promise<CourseImportMutationResult> {
+  const supabase = await client();
+  const { data, error } = await supabase.rpc("initialize_course_import_from_sources", {
+    p_initialization_key: input.initializationKey,
+    p_sources: input.sources,
+  });
+  if (error) throw new Error("DATABASE_ERROR");
+  const result = parseCourseImportMutation(data);
+  if (!Number.isSafeInteger(result.jobId) || !result.sourceDocumentIds?.length
+    || result.sourceDocumentIds[0] !== result.sourceDocumentId) throw new Error("DATABASE_ERROR");
+  return result;
+}
+
+export async function attachCourseImportSource(input: {
+  jobId: number;
+  sourceDocumentId: number;
+  relevanceScore?: number | null;
+}): Promise<CourseImportMutationResult> {
+  const supabase = await client();
+  const { data, error } = await supabase.rpc("attach_course_import_source", {
+    p_job_id: input.jobId,
+    p_source_document_id: input.sourceDocumentId,
+    p_relevance_score: input.relevanceScore ?? null,
+  });
+  if (error) throw new Error("DATABASE_ERROR");
+  const result = parseCourseImportMutation(data);
+  if (result.jobId !== input.jobId || result.sourceDocumentId !== input.sourceDocumentId
+    || result.attached !== true || !Number.isSafeInteger(result.sourceOrder)) throw new Error("DATABASE_ERROR");
+  return result;
+}
+
+export async function detachCourseImportSource(input: {
+  jobId: number;
+  sourceDocumentId: number;
+}): Promise<CourseImportMutationResult> {
+  const supabase = await client();
+  const { data, error } = await supabase.rpc("detach_course_import_source", {
+    p_job_id: input.jobId,
+    p_source_document_id: input.sourceDocumentId,
+  });
+  if (error) throw new Error("DATABASE_ERROR");
+  const result = parseCourseImportMutation(data);
+  if (result.jobId !== input.jobId || result.sourceDocumentId !== input.sourceDocumentId
+    || !result.sourceDocumentIds?.length || result.sourceDocumentIds[0] !== result.anchorSourceDocumentId) {
+    throw new Error("DATABASE_ERROR");
+  }
+  return result;
+}
+
+export async function removeStagedCourseImportSource(
+  sourceDocumentId: number
+): Promise<CourseImportMutationResult> {
+  const supabase = await client();
+  const { data, error } = await supabase.rpc("remove_staged_course_import_source", {
+    p_source_document_id: sourceDocumentId,
+  });
+  if (error) throw new Error("DATABASE_ERROR");
+  const result = parseCourseImportMutation(data);
+  if (result.sourceDocumentId !== sourceDocumentId || result.removed !== true
+    || !result.storageBucket || !result.storagePath) throw new Error("DATABASE_ERROR");
+  return result;
 }
 
 export async function uploadSourceObject(path: string, file: File): Promise<void> {
@@ -325,6 +468,103 @@ export async function persistCourseOutline(input: {
   return result;
 }
 
+export async function persistCourseOutlineForJob(input: {
+  jobId: number;
+  outline: Omit<StructuredCourseOutline, "lessons"> & {
+    lessons: Array<Omit<StructuredCourseOutline["lessons"][number], "sourceChunkIndexes"> & {
+      sourceChunkIds: number[];
+    }>;
+  };
+  provider: string;
+  model: string | null;
+}): Promise<PersistCourseOutlineResult> {
+  const supabase = await client();
+  const { data, error } = await supabase.rpc("create_course_outline_for_job", {
+    p_job_id: input.jobId,
+    p_outline: input.outline,
+    p_provider: input.provider,
+    p_model: input.model,
+  });
+  if (error || !data || typeof data !== "object") throw new Error("DATABASE_ERROR");
+  const result = data as unknown as PersistCourseOutlineResult;
+  if (result.jobId !== input.jobId || result.status !== "outline_review"
+    || !result.sourceDocumentIds?.length || result.sourceDocumentIds[0] !== result.sourceDocumentId) {
+    throw new Error("DATABASE_ERROR");
+  }
+  return result;
+}
+
+async function loadCourseImportSourceMap(jobIds: number[]): Promise<Map<number, CourseImportSourceSummary[]>> {
+  const result = new Map<number, CourseImportSourceSummary[]>();
+  if (!jobIds.length) return result;
+  const supabase = adminClient();
+  const bridgeResult = await supabase.from("course_import_job_sources")
+    .select("job_id, source_document_id, source_order, relevance_score")
+    .in("job_id", jobIds).order("source_order");
+  if (bridgeResult.error) throw new Error("DATABASE_ERROR");
+  const bridges = (bridgeResult.data ?? []) as CourseImportBridgeRow[];
+  const sourceIds = [...new Set(bridges.map((bridge) => bridge.source_document_id))];
+  if (!sourceIds.length) return result;
+  const [sourceResult, metadataResult, chunkResult] = await Promise.all([
+    supabase.from("source_documents")
+      .select("id, uploaded_by, original_filename, storage_bucket, storage_path, mime_type, size_bytes, status, error_code, created_at, initialize_import_job")
+      .in("id", sourceIds),
+    supabase.from("source_document_metadata").select("*").in("source_document_id", sourceIds),
+    supabase.from("document_chunks").select("id, source_document_id").in("source_document_id", sourceIds),
+  ]);
+  if (sourceResult.error || metadataResult.error || chunkResult.error) throw new Error("DATABASE_ERROR");
+  const documents = (sourceResult.data ?? []) as SourceDocumentRow[];
+  const metadata = (metadataResult.data ?? []) as SourceMetadataRow[];
+  const chunks = (chunkResult.data ?? []) as Array<{ id: number; source_document_id: number }>;
+  for (const bridge of bridges.sort((left, right) => left.source_order - right.source_order)) {
+    const document = documents.find((item) => item.id === bridge.source_document_id);
+    const provenance = metadata.find((item) => item.source_document_id === bridge.source_document_id);
+    if (!document || !provenance) throw new Error("DATABASE_ERROR");
+    const source: CourseImportSourceSummary = {
+      sourceDocumentId: document.id,
+      sourceOrder: bridge.source_order,
+      sourceType: provenance.source_type,
+      ingestionMethod: provenance.ingestion_method,
+      title: provenance.title,
+      filename: document.original_filename,
+      sourceUrl: provenance.source_url,
+      canonicalUrl: provenance.canonical_url,
+      domain: provenance.domain,
+      authorityScore: provenance.authority_score,
+      relevanceScore: bridge.relevance_score,
+      status: document.status,
+      errorCode: document.error_code,
+      chunkCount: chunks.filter((chunk) => chunk.source_document_id === document.id).length,
+    };
+    result.set(bridge.job_id, [...(result.get(bridge.job_id) ?? []), source]);
+  }
+  return result;
+}
+
+export async function listCourseImportSources(jobId: number): Promise<CourseImportSourceSummary[]> {
+  return (await loadCourseImportSourceMap([jobId])).get(jobId) ?? [];
+}
+
+export async function getCourseImportGenerationContext(jobId: number) {
+  const sources = await listCourseImportSources(jobId);
+  if (!sources.length) return null;
+  const supabase = adminClient();
+  const sourceIds = sources.map((source) => source.sourceDocumentId);
+  const { data, error } = await supabase.from("document_chunks")
+    .select("id, source_document_id, chunk_index, content")
+    .in("source_document_id", sourceIds)
+    .order("source_document_id")
+    .order("chunk_index");
+  if (error) throw new Error("DATABASE_ERROR");
+  const sourceOrder = new Map(sources.map((source) => [source.sourceDocumentId, source.sourceOrder]));
+  const chunks = ((data ?? []) as Required<DocumentChunkRow>[]).sort((left, right) =>
+    (sourceOrder.get(left.source_document_id) ?? Number.MAX_SAFE_INTEGER)
+      - (sourceOrder.get(right.source_document_id) ?? Number.MAX_SAFE_INTEGER)
+    || left.chunk_index - right.chunk_index
+  );
+  return { jobId, sources, chunks };
+}
+
 interface RawImportJob {
   id: number;
   source_document_id: number;
@@ -335,14 +575,13 @@ interface RawImportJob {
   published_course_id: number | null;
   created_at: string;
   updated_at: string;
-  source_documents: { original_filename: string };
 }
 
 async function loadCourseImports(jobId?: number): Promise<CourseImportDraft[]> {
   const supabase = adminClient();
   let jobQuery = supabase
     .from("course_import_jobs")
-    .select("*, source_documents!inner(original_filename)")
+    .select("*")
     .order("created_at", { ascending: false });
   if (jobId) jobQuery = jobQuery.eq("id", jobId);
   else jobQuery = jobQuery.in("status", ["outline_review", "generating_content", "content_review", "ready_to_publish", "failed"]);
@@ -351,7 +590,10 @@ async function loadCourseImports(jobId?: number): Promise<CourseImportDraft[]> {
   const jobs = (jobResult.data ?? []) as unknown as RawImportJob[];
   if (!jobs.length) return [];
   const jobIds = jobs.map((job) => job.id);
-  const draftResult = await supabase.from("course_drafts").select("*").in("job_id", jobIds);
+  const [draftResult, sourceMap] = await Promise.all([
+    supabase.from("course_drafts").select("*").in("job_id", jobIds),
+    loadCourseImportSourceMap(jobIds),
+  ]);
   if (draftResult.error) throw new Error("DATABASE_ERROR");
   const allDrafts = (draftResult.data ?? []) as Array<{
     id: number; job_id: number; revision: number; title: string; description: string;
@@ -374,14 +616,15 @@ async function loadCourseImports(jobId?: number): Promise<CourseImportDraft[]> {
   const [lessonObjectiveResult, sourceResult, contentResult] = outlineLessonIds.length
     ? await Promise.all([
         supabase.from("course_outline_lesson_objectives").select("*").in("outline_lesson_id", outlineLessonIds).order("objective_order"),
-        supabase.from("course_outline_lesson_sources").select("outline_lesson_id, source_order, document_chunks!inner(chunk_index)").in("outline_lesson_id", outlineLessonIds).order("source_order"),
+        supabase.from("course_outline_lesson_sources").select("outline_lesson_id, source_order, document_chunk_id, document_chunks!inner(id, source_document_id, chunk_index)").in("outline_lesson_id", outlineLessonIds).order("source_order"),
         supabase.from("lesson_content_drafts").select("*").in("outline_lesson_id", outlineLessonIds).order("revision", { ascending: false }),
       ])
     : [{ data: [], error: null }, { data: [], error: null }, { data: [], error: null }];
   if (lessonObjectiveResult.error || sourceResult.error || contentResult.error) throw new Error("DATABASE_ERROR");
   const lessonObjectives = (lessonObjectiveResult.data ?? []) as Array<{ outline_lesson_id: number; objective_order: number; objective: string }>;
   const sources = (sourceResult.data ?? []) as unknown as Array<{
-    outline_lesson_id: number; source_order: number; document_chunks: { chunk_index: number };
+    outline_lesson_id: number; source_order: number; document_chunk_id: number;
+    document_chunks: { id: number; source_document_id: number; chunk_index: number };
   }>;
   const contents = (contentResult.data ?? []) as Array<{
     id: number; outline_lesson_id: number; revision: number; title: string; summary: string;
@@ -391,22 +634,24 @@ async function loadCourseImports(jobId?: number): Promise<CourseImportDraft[]> {
   const contentIds = contents.map((content) => content.id);
   const citationResult = contentIds.length
     ? await supabase.from("lesson_content_draft_citations")
-        .select("lesson_content_draft_id, section_index, quote, document_chunks!inner(chunk_index)")
+        .select("lesson_content_draft_id, section_index, document_chunk_id, quote, document_chunks!inner(id, source_document_id, chunk_index)")
         .in("lesson_content_draft_id", contentIds).order("section_index")
     : { data: [], error: null };
   if (citationResult.error) throw new Error("DATABASE_ERROR");
   const citations = (citationResult.data ?? []) as unknown as Array<{
-    lesson_content_draft_id: number; section_index: number; quote: string;
-    document_chunks: { chunk_index: number };
+    lesson_content_draft_id: number; section_index: number; document_chunk_id: number; quote: string;
+    document_chunks: { id: number; source_document_id: number; chunk_index: number };
   }>;
 
   return jobs.flatMap((job) => {
     const draft = currentDrafts.find((item) => item.job_id === job.id);
-    if (!draft) return [];
+    const jobSources = sourceMap.get(job.id) ?? [];
+    if (!draft || !jobSources.length || jobSources[0].sourceDocumentId !== job.source_document_id) return [];
     return [{
       jobId: job.id,
       sourceDocumentId: job.source_document_id,
-      sourceFilename: job.source_documents.original_filename,
+      sourceFilename: jobSources[0].filename,
+      sources: jobSources,
       status: job.status,
       errorCode: job.error_code,
       outlineRevision: job.current_outline_revision,
@@ -433,6 +678,16 @@ async function loadCourseImports(jobId?: number): Promise<CourseImportDraft[]> {
               sectionIndex: citation.section_index,
               chunkIndex: citation.document_chunks.chunk_index,
               quote: citation.quote,
+              documentChunkId: citation.document_chunk_id,
+              sourceDocumentId: citation.document_chunks.source_document_id,
+              sourceOrder: jobSources.find((source) =>
+                source.sourceDocumentId === citation.document_chunks.source_document_id)?.sourceOrder,
+              sourceTitle: jobSources.find((source) =>
+                source.sourceDocumentId === citation.document_chunks.source_document_id)?.title,
+              sourceDomain: jobSources.find((source) =>
+                source.sourceDocumentId === citation.document_chunks.source_document_id)?.domain,
+              sourceUrl: jobSources.find((source) =>
+                source.sourceDocumentId === citation.document_chunks.source_document_id)?.canonicalUrl,
             })),
           } : null;
           return {
@@ -445,6 +700,15 @@ async function loadCourseImports(jobId?: number): Promise<CourseImportDraft[]> {
               .sort((a, b) => a.objective_order - b.objective_order).map((item) => item.objective),
             sourceChunkIndexes: sources.filter((item) => item.outline_lesson_id === lesson.id)
               .sort((a, b) => a.source_order - b.source_order).map((item) => item.document_chunks.chunk_index),
+            sourceChunks: sources.filter((item) => item.outline_lesson_id === lesson.id)
+              .sort((a, b) => a.source_order - b.source_order).map((item) => ({
+                documentChunkId: item.document_chunk_id,
+                sourceDocumentId: item.document_chunks.source_document_id,
+                sourceOrder: jobSources.find((source) =>
+                  source.sourceDocumentId === item.document_chunks.source_document_id)?.sourceOrder
+                  ?? Number.MAX_SAFE_INTEGER,
+                chunkIndex: item.document_chunks.chunk_index,
+              })),
             contentDraft,
           };
         }),
@@ -498,6 +762,29 @@ export async function persistCourseLessonContent(input: {
   if (error) throw new Error("DATABASE_ERROR");
 }
 
+export async function persistCourseLessonContentForJob(input: {
+  jobId: number;
+  outlineLessonId: number;
+  draft: StructuredLessonDraft;
+  citations: Array<{ sectionIndex: number; documentChunkId: number }>;
+  provider: string;
+  model: string;
+}): Promise<void> {
+  const supabase = await client();
+  const { error } = await supabase.rpc("persist_lesson_content_draft_for_job", {
+    p_job_id: input.jobId,
+    p_outline_lesson_id: input.outlineLessonId,
+    p_title: input.draft.title,
+    p_summary: input.draft.summary,
+    p_estimated_minutes: input.draft.estimatedMinutes,
+    p_sections: input.draft.sections,
+    p_citations: input.citations,
+    p_provider: input.provider,
+    p_model: input.model,
+  });
+  if (error) throw new Error("DATABASE_ERROR");
+}
+
 export async function failCourseImport(jobId: number, errorCode: string): Promise<void> {
   const supabase = await client();
   const { error } = await supabase.rpc("fail_course_import_job", { p_job_id: jobId, p_error_code: errorCode });
@@ -525,13 +812,19 @@ export async function reviewCourseImport(jobId: number, decision: string, commen
   return data as unknown as { status: string };
 }
 
-export async function publishCourseImport(jobId: number, courseSlug: string): Promise<ReviewCourseDraftBatchResult> {
+export async function publishCourseImport(jobId: number, courseSlug: string): Promise<PublishCourseImportResult> {
   const supabase = await client();
   const { data, error } = await supabase.rpc("publish_course_import_job", {
     p_job_id: jobId, p_course_slug: courseSlug,
   });
   if (error || !data || typeof data !== "object") throw new Error("DATABASE_ERROR");
-  return data as unknown as ReviewCourseDraftBatchResult;
+  const result = data as unknown as PublishCourseImportResult;
+  if (result.jobId !== jobId || result.status !== "published"
+    || !Number.isSafeInteger(result.courseId) || result.courseId <= 0
+    || !Array.isArray(result.lessonIds) || result.lessonIds.length < 1
+    || !Array.isArray(result.sourceDocumentIds) || result.sourceDocumentIds.length < 1
+    || result.sourceDocumentIds[0] !== result.sourceDocumentId) throw new Error("DATABASE_ERROR");
+  return result;
 }
 
 export async function persistGeneratedDraft(input: {
