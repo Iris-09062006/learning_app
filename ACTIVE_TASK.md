@@ -8,7 +8,9 @@
 
 ## Current objective
 
-Phase 5 task `TASK-071` is verified locally. No deployment or push was performed.
+TASK-072 is verified locally: a resolved Course import now starts the next Admin source session
+cleanly while published source evidence remains in the database. Phase 5 task `TASK-071` remains
+verified locally. No deployment or push was performed.
 
 Phase 1 T001–T031 is verified. Migration, PostgreSQL concurrency/invariant checks, focused and
 full tests, legacy PDF browser E2E, lint, typecheck, and build pass. Evidence is recorded in

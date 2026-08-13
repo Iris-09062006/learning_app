@@ -339,6 +339,28 @@ describe("content pipeline Admin", () => {
 
   it("publishes atomically and removes the resolved item after refresh", async () => {
     let resolved = false;
+    sessionStorage.setItem("learningapp.course-outline-generation", JSON.stringify({
+      version: 2,
+      topic: "Python async",
+      selectedCandidateKeys: ["candidate-1"],
+      candidates: [researchCandidate(1)],
+      researchCursor: "next-page",
+      researchHasMore: true,
+      initializationKey: "33333333-3333-4333-8333-333333333333",
+      jobId: 61,
+      pendingAction: null,
+      attempts: [{
+        clientKey: "source-1",
+        idempotencyKey: "22222222-2222-4222-8222-222222222222",
+        kind: "discovered",
+        label: "Attached Python source",
+        url: "https://source1.example/guide",
+        sourceDocumentId: 9,
+        status: "extracted",
+        attached: true,
+        candidateKey: "candidate-1",
+      }],
+    }));
     vi.spyOn(globalThis, "fetch").mockImplementation(async (input) => {
       const url = String(input);
       if (url === "/api/admin/course-drafts") return json({ success: true, data: { items: resolved ? [] : [importItem("content_review")] } });
@@ -347,9 +369,60 @@ describe("content pipeline Admin", () => {
       throw new Error(`Unexpected request: ${url}`);
     });
     render(<ContentPipelineAdmin />);
+    expect(await screen.findByText("Attached Python source")).toBeInTheDocument();
+    expect(screen.getByLabelText("Chủ đề Course")).toHaveValue("Python async");
     fireEvent.click(await screen.findByRole("button", { name: "Publish Course" }));
     expect(await screen.findByText("Hàng chờ trống.")).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "Mở Course" })).toHaveAttribute("href", "/courses/31");
+    await waitFor(() => {
+      expect(screen.queryByText("Attached Python source")).not.toBeInTheDocument();
+      expect(screen.queryByText("Research Source 1")).not.toBeInTheDocument();
+      expect(screen.getByLabelText("Chủ đề Course")).toHaveValue("");
+      expect(sessionStorage.getItem("learningapp.course-outline-generation")).toBeNull();
+    });
+  });
+
+  it("keeps the source workflow recoverable when publication fails", async () => {
+    sessionStorage.setItem("learningapp.course-outline-generation", JSON.stringify({
+      version: 2,
+      topic: "Python errors",
+      selectedCandidateKeys: [],
+      candidates: [],
+      researchCursor: null,
+      researchHasMore: false,
+      initializationKey: "33333333-3333-4333-8333-333333333333",
+      jobId: 61,
+      pendingAction: null,
+      attempts: [{
+        clientKey: "source-1",
+        idempotencyKey: "22222222-2222-4222-8222-222222222222",
+        kind: "manual_url",
+        label: "Recoverable Python source",
+        url: "https://example.com/python",
+        sourceDocumentId: 9,
+        status: "extracted",
+        attached: true,
+      }],
+    }));
+    vi.spyOn(globalThis, "fetch").mockImplementation(async (input) => {
+      const url = String(input);
+      if (url === "/api/admin/course-drafts") return json({ success: true, data: { items: [importItem("content_review")] } });
+      if (url === "/api/admin/content-targets") return json({ success: true, data: { items: [] } });
+      if (url === "/api/admin/course-drafts/61/reviews") {
+        return json({ success: false, error: { message: "Không thể publish Course." } }, 500);
+      }
+      throw new Error(`Unexpected request: ${url}`);
+    });
+
+    render(<ContentPipelineAdmin />);
+    expect(await screen.findByText("Recoverable Python source")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Publish Course" }));
+
+    expect(await screen.findByText("Không thể publish Course.")).toBeInTheDocument();
+    expect(screen.getByText("Recoverable Python source")).toBeInTheDocument();
+    expect(screen.getByLabelText("Chủ đề Course")).toHaveValue("Python errors");
+    expect(decodePipelineCheckpoint(sessionStorage.getItem("learningapp.course-outline-generation")))
+      .toMatchObject({ jobId: 61, topic: "Python errors" });
   });
 
   it("moves exercise generation out of the Course/PDF pipeline", async () => {

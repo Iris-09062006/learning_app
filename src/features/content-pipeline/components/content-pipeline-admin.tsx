@@ -218,6 +218,21 @@ export function ContentPipelineAdmin() {
     setImports((current) => current.map((item) => item.jobId === selectedJobId ? updater(item) : item));
   }
 
+  function clearResolvedSourceWorkflow(jobId: number) {
+    if (sourceReviewJobId !== jobId) return;
+    storeCheckpoint(null);
+    setSourceAttempts([]);
+    setTopic("");
+    setResearchCandidates([]);
+    setSelectedCandidateKeys([]);
+    setResearchCursor(null);
+    setResearchHasMore(false);
+    setResearchError(null);
+    setInitializationKey(crypto.randomUUID());
+    setSourceReviewJobId(null);
+    setPendingSourceAction(null);
+  }
+
   async function runOutlineGeneration(value: PendingGeneration) {
     await requestPipelineApi(`/api/admin/content-sources/${value.sourceDocumentId}/course-outline`, { method: "POST" });
     storeCheckpoint(null); setPendingGeneration(null); await refresh();
@@ -574,6 +589,7 @@ export function ContentPipelineAdmin() {
         method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ decision, comment: reviewComment }),
       });
       setPublished(decision === "published" ? result as ReviewCourseDraftBatchResult : null);
+      if (decision !== "needs_revision") clearResolvedSourceWorkflow(selectedImport.jobId);
       setSelectedOutlineLessonId(null); setReviewComment(""); await refresh();
       setMessage(decision === "published" ? "Course và toàn bộ Lessons đã được publish nguyên tử."
         : decision === "rejected" ? "Course import đã bị từ chối và quyết định đã persist."
