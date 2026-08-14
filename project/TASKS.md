@@ -13,9 +13,10 @@
 
 `TASK-078` is verified: the T039 failure was isolated to a Vitest `jsdom`/native-fetch
 `AbortSignal` realm mismatch, the server-only smoke now runs under Node, and one final real Basic
-Markdown Extract passed normalization/snapshot/chunk checks. Vercel Production still requires the
-server-only key before a separately authorized deployment; no push, deployment, migration, or
-remote mutation occurred.
+Markdown Extract passed normalization/snapshot/chunk checks. T001–T047 are complete and T047's
+final non-live gate passes. Deployment readiness is CONDITIONAL GO: Vercel Production still
+requires the server-only key, redeploy, and production smoke under separate authorization; no
+push, deployment, migration, or remote mutation occurred.
 
 `TASK-077` is verified: Phase C proves stored evidence and file/PDF workflows remain independent
 of Tavily after acquisition, locks security/privacy boundaries, and verifies the retained legacy

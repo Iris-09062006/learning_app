@@ -6,7 +6,8 @@
 and regression work pass. T039's earlier `UPSTREAM` was a local test-runtime defect: Vitest `jsdom`
 created a cross-realm `AbortSignal` that native Node fetch rejected before HTTP dispatch. The smoke
 now runs in the Node environment and its one final Basic Markdown adapter call passed. Feature 002
-is verified; production deployment remains separately blocked on Vercel `TAVILY_API_KEY` setup.
+is verified; deployment readiness is a conditional GO pending Vercel `TAVILY_API_KEY`, redeploy,
+and a post-deploy production smoke under separate authorization.
 
 ## Implementation
 
@@ -57,3 +58,14 @@ successful Basic extractions and no charge for failed extractions.
 Controlled diagnostics used one non-Extract `/usage` request, one direct Basic Extract request,
 and one final adapter smoke request. No retry, fan-out, secret, raw content, raw response, request
 ID, Authorization header, database write, or Storage write occurred.
+
+## Final Phase D closure
+
+- T001–T047 are synchronized as complete; T039 and T047 are VERIFIED.
+- The final closure reran lint, typecheck, the complete non-live unit suite, keyless build, OpenAPI
+  validation, and all 15 Playwright tests. The live smoke skipped by default and no additional
+  Tavily request occurred.
+- The 41-point final requirement audit found no contradiction. No production code, package,
+  Playwright configuration, migration, protected feature-001 artifact, or external state changed.
+- Supabase precondition: READY from existing read-only evidence. Feature-002 migration: not
+  required. Production key, redeploy, and production smoke remain release prerequisites.

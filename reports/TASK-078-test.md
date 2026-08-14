@@ -37,7 +37,7 @@
 
 - `npm run lint` — PASS, zero warnings.
 - `npm run typecheck` — PASS.
-- `npm run test` — PASS: full repository suite; one live integration test skipped by default.
+- `npm run test` — PASS: 107 files / 802 tests; one live integration test skipped by default.
 - `npm run test:e2e` — PASS on isolated local port 3001: 15/15 Playwright tests, including all 10
   critical flows. `playwright.config.ts` was restored and has no diff.
 - `$env:TAVILY_API_KEY=''; npm run build` — PASS: 32 static pages and complete build traces.
@@ -55,5 +55,18 @@
 
 Feature 002 adds no migration, so a new destructive local reset was not required. The previously
 verified TASK-071 clean PostgreSQL rehearsal applied 001–030 and tested backfill/RLS/RPC invariants;
-the full current migration contract suite also passed inside the 801-test gate. Remote status was
+the full current migration contract suite also passed inside the 802-test gate. Remote status was
 rechecked read-only and confirms migration 030 is now applied.
+
+## Final non-live closure rerun
+
+- `npm run lint` — PASS, zero warnings.
+- `npm run typecheck` — PASS.
+- `npm run test` with `TAVILY_EXTRACT_SMOKE` disabled — PASS: 107 files / 802 tests; the live
+  Tavily test skipped by default and closure made zero provider calls.
+- `$env:TAVILY_API_KEY=''; npm run build` — PASS: 32 static pages and complete traces.
+- `npm run test:e2e` — PASS: 15/15 on isolated port 3001 after port 3000 was found occupied.
+  The temporary port-only Playwright edit was restored and has zero diff.
+- OpenAPI validator — PASS: OpenAPI 3.1, 1 path, 21 local refs, 0 unresolved.
+- `git diff --check`, tracked-secret scan, client-bundle key scan, migration/feature-001/package
+  scope checks, DTO/direct-fetch/temporary-diagnostic scans — PASS.

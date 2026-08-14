@@ -25,8 +25,10 @@ TASK-077 is verified. T026–T035 from `specs/002-tavily-web-ingestion/tasks.md`
 stored-evidence generation, provider-outage isolation, file/PDF independence, URL security,
 untrusted-content framing, privacy, and inactive legacy direct-fetch classification.
 
-Phase D is verified under TASK-078; configuration, deployment, push, and remote Supabase mutation
-remain separate and out of scope.
+Phase D is closed and verified under TASK-078: T001–T047 are complete, including T039 and T047.
+Implementation verdict is VERIFIED. Deployment readiness is CONDITIONAL GO pending the server-only
+Vercel `TAVILY_API_KEY`, redeploy, and production smoke; configuration, deployment, push, and
+remote Supabase mutation remain separate and out of scope.
 
 TASK-076 is verified. T010–T025 from `specs/002-tavily-web-ingestion/tasks.md` switch confirmed
 discovered/manual URL acquisition to the verified provider-backed extraction boundary while
