@@ -35,6 +35,8 @@ Call 5: Independently re-review the complete merged Lesson
 
 Worst path: **5 calls per Lesson**, with exactly one correction pass.
 
+Every call in this feature uses a dedicated model identity, **`gemini-3.6-flash`**. The existing 9Router endpoint and credential configuration remain reusable, but the new pedagogical methods do not inherit an environment-selected alternate model. Each semantic stage invocation makes exactly one outbound HTTP request and fails closed on malformed output, provider error, timeout, or an explicitly reported different response model; there is no transport retry or model fallback. Therefore the normal path is exactly three outbound model requests and the correction path is at most five, never six.
+
 **Rationale**:
 
 - Synthesis and blueprint are tightly coupled reasoning artifacts: the blueprint cannot be valid without immediately binding each section to synthesized evidence. One schema can express both without mixing prose generation into the decision.
@@ -143,12 +145,16 @@ approved CourseSourceChunk.documentChunkId
 - The existing historical `LessonDraftProvider` remains intact for its compatibility path.
 - A future benchmark provider can implement four bounded operations without changing orchestration or persistence.
 - Reusing the current class/config/transport avoids a dependency, SDK migration, or provider replacement.
+- The new stage methods use a dedicated internal `gemini-3.6-flash` model constant rather than the generic environment-selected model used by legacy methods. Endpoint and credentials stay configurable.
+- If the optional OpenAI-compatible response `model` field is present and differs from `gemini-3.6-flash`, the stage fails through the existing provider-response-invalid behavior. It does not retry, request an alternate model, or fall back; an omitted field is allowed because the outbound request itself remains locked.
 
 **Alternatives considered**:
 
 - **Add optional methods to the existing interface only**: easy initially, but optionality invites silent fallback and makes the new pipeline's required capability unclear.
 - **One interface per stage**: maximally narrow but over-engineered for one concrete provider and makes injection/tests noisy.
 - **Generic prompt/schema client framework**: unnecessary abstraction outside the bounded feature.
+- **Environment-selected pedagogical model or provider-reported substitution**: rejected because it weakens the locked single-model experiment and could hide routing/fallback behavior.
+- **Automatic retry after malformed output, provider error, timeout, or model mismatch**: rejected because it could exceed the three/five-call budget and create an unobservable sixth HTTP request.
 
 ## Decision 7 — Section purpose persistence
 
@@ -181,5 +187,7 @@ approved CourseSourceChunk.documentChunkId
 - Section purpose persistence: transient.
 - Database migration: none.
 - Provider replacement/benchmarking: not part of feature `003`.
+- Pedagogical model: dedicated `gemini-3.6-flash` lock for Calls 1-5; configurable endpoint, no environment-selected alternate model.
+- HTTP attempt budget: exactly one outbound request per stage invocation; three normal, at most five after correction, with no hidden retry or fallback.
 
 No unresolved architecture question remains for task decomposition.

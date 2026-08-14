@@ -18,7 +18,7 @@ Every stage uses request-local integer evidence references derived by the server
 
 **Language/Version**: TypeScript 5.7 on Node.js 22
 
-**Primary Dependencies**: Next.js 15 App Router, React 19, Supabase JS 2.111, existing OpenAI-compatible HTTP transport through 9Router to Gemini 3.6 Flash; no new runtime dependency planned
+**Primary Dependencies**: Next.js 15 App Router, React 19, Supabase JS 2.111, existing OpenAI-compatible HTTP transport through 9Router; every new pedagogical-stage request uses the dedicated locked model `gemini-3.6-flash`; no new runtime dependency planned
 
 **Storage**: Existing Supabase PostgreSQL tables and JSONB `lesson_content_drafts.sections`; transient pedagogical artifacts remain in server memory
 
@@ -30,7 +30,7 @@ Every stage uses request-local integer evidence references derived by the server
 
 **Performance Goals**: At most three concurrent Lesson pipelines/provider calls per Course job; 45 seconds maximum per provider call; normal path three calls per Lesson; worst path five calls per Lesson; Course orchestration stops new stage work at 240 seconds and settles to success or a recoverable failure before the route ceiling
 
-**Constraints**: Preserve the exact approved Lesson evidence set; every intermediate/final reference must be valid and source-qualified; every final section has at least one citation; one correction pass maximum; no fallback to one-shot generation; no database migration; no public request/response, Admin editor, publication, learner Markdown, progress, or Exercise change
+**Constraints**: Preserve the exact approved Lesson evidence set; every intermediate/final reference must be valid and source-qualified; every final section has at least one citation; one correction pass maximum; no fallback to one-shot generation, alternate model, or hidden transport retry; the configurable endpoint remains unchanged but the new pedagogical stages do not use an environment-selected alternate model; no database migration; no public request/response, Admin editor, publication, learner Markdown, progress, or Exercise change
 
 **Scale/Scope**: Existing Course outline supports 2–20 Lessons, 1–8 attached sources, and final Lesson drafts support 1–12 sections; retries skip already persisted Lesson revisions
 
@@ -97,6 +97,8 @@ tests/e2e/critical-flows.spec.ts
 
 - Introduce a narrow `PedagogicalLessonProvider` interface with four operations: synthesize-and-blueprint, generate all planned sections, review the complete candidate, and correct targeted findings.
 - Let the existing NineRouter/Gemini-compatible concrete provider implement this sibling interface while reusing its current server-only configuration, structured-output transport, 45-second timeout, XML escaping, and response parsing conventions.
+- Use a dedicated internal pedagogical model constant equal to `gemini-3.6-flash` for Calls 1-5. The endpoint and credentials remain configurable, but generic `AI_PROVIDER_MODEL` selection applies only to existing legacy behavior and cannot substitute the model used by the new stage methods.
+- Send exactly one outbound HTTP request for each stage invocation. A malformed response, provider error, timeout, or model mismatch fails that stage immediately without retry, alternate-model routing, or fallback. If an OpenAI-compatible response reports a `model`, accept it only when it exactly equals `gemini-3.6-flash`; a different reported model is rejected through the existing provider-response-invalid failure category. An omitted optional response-model field does not authorize substitution because the outbound request remains locked.
 - Keep `LessonDraftProvider.generateLessonDraft` unchanged for the historical one-Lesson compatibility path; Course-import generation must not silently fall back to it.
 - Keep structural JSON schemas within Gemini's supported subset and enforce length, cardinality, enum membership, uniqueness, ordering, evidence ownership, and semantic invariants in server parsers.
 
@@ -105,12 +107,12 @@ tests/e2e/critical-flows.spec.ts
 ```text
 approved canonical chunks
   → immutable request-local evidence map
-  → Call 1: EvidenceSynthesis + LessonBlueprint
-  → Call 2: purpose-aware generation of all sections
+  → Call 1: EvidenceSynthesis + LessonBlueprint (`gemini-3.6-flash`)
+  → Call 2: purpose-aware generation of all sections (`gemini-3.6-flash`)
   → deterministic structural/evidence validation
-  → Call 3: independent LessonQualityReview
+  → Call 3: independent LessonQualityReview (`gemini-3.6-flash`)
       → pass: final validation
-      → correctable: Call 4 targeted correction → Call 5 independent re-review
+      → correctable: Call 4 targeted correction (`gemini-3.6-flash`) → Call 5 independent re-review (`gemini-3.6-flash`)
       → reject/unresolved: recoverable failure, no new draft
   → normalize to existing StructuredLessonDraft
   → map refs to canonical documentChunkId citations
@@ -123,9 +125,10 @@ approved canonical chunks
 2. Assign deterministic request-local refs `0..n-1` in approved source order and use that same immutable map for every stage.
 3. Require every synthesis item (except an explicitly represented coverage gap) to cite one or more allowed refs.
 4. Require every blueprint section and generated section to cite non-empty allowed refs; a blueprint cannot expand beyond synthesized evidence.
-5. Require reviewer findings about unsupported content to identify the affected section and, when applicable, the evidence refs involved; findings never create new refs.
-6. Resolve final section refs through the immutable map to canonical `documentChunkId`; preserve existing `citationChunkIndexes` and optional `citationSourceRefs` normalization.
-7. Pass the unchanged draft plus canonical citation rows to the existing RPC, which remains the final ownership/completeness authority.
+5. Limit deterministic validation to reference identity, approved-Lesson membership, uniqueness/ambiguity, required citation coverage, section-level structural permission, and canonical mapping. It does not decide whether prose claims are semantically supported or overstate the evidence.
+6. Require the independent quality reviewer to decide semantic claim support and overstatement. Findings about unsupported content identify the affected section and, when applicable, the evidence refs involved; findings never create new refs.
+7. Resolve final section refs through the immutable map to canonical `documentChunkId`; preserve existing `citationChunkIndexes` and optional `citationSourceRefs` normalization.
+8. Pass the unchanged draft plus canonical citation rows to the existing RPC, which remains the final ownership/completeness authority.
 
 ### Concurrency, timeout, and recovery
 
@@ -146,6 +149,8 @@ approved canonical chunks
 | Section-generation transport/schema failure | Reject immediately; no old one-shot fallback. |
 | Empty/duplicate/foreign final section refs | Reject before review or persistence. |
 | Review transport/schema failure | Reject immediately; quality cannot be assumed. |
+| Structurally valid citations attached to unsupported or overstated prose | Deterministic citation validation passes; quality review returns `correctable` or `reject`. If the claim remains unsupported after the single correction/re-review allowance, fail recoverably with no persistence. |
+| Provider reports a model other than `gemini-3.6-flash` | Reject as an existing provider-response-invalid failure; do not retry, reroute, or fall back. |
 | Review returns non-correctable rejection | Fail without correction or persistence. |
 | Review returns correctable findings | Run exactly one targeted correction and exactly one re-review. |
 | Re-review still fails or correction is malformed | Fail without persistence; correction budget is exhausted. |
@@ -183,9 +188,9 @@ approved canonical chunks
 
 ## Test Strategy
 
-- **Provider contract tests**: strict schemas, Gemini-compatible structural subset, untrusted-text escaping, malformed JSON, unsupported fields, invalid taxonomy, duplicate/foreign refs, timeout, and provider failure.
+- **Provider contract tests**: strict schemas, Gemini-compatible structural subset, untrusted-text escaping, malformed JSON, unsupported fields, invalid taxonomy, duplicate/foreign refs, timeout, and provider failure. For each of Calls 1-5, assert the outbound model is exactly `gemini-3.6-flash`, one stage invocation produces exactly one HTTP request, an explicitly different reported response model is rejected, and malformed output/provider error/timeout produces no retry or alternate-model request.
 - **Pedagogical fixtures**: at least one conceptual networking Lesson and one procedural `cp`/`mv` Lesson; assert different justified structures rather than a fixed template.
-- **Orchestration tests**: exact call order, three calls on pass, five on one correction, no sixth call, no old-generator fallback, worker concurrency never above three, deadline stops new work, and one failure preserves completed drafts while skipping queued Lessons.
+- **Orchestration tests**: exact call order, three semantic calls and exactly three outbound HTTP requests on pass, five semantic calls and at most five outbound HTTP requests on one correction, no hidden sixth request, no retry/model/old-generator fallback, worker concurrency never above three, deadline stops new work, and one failure preserves completed drafts while skipping queued Lessons.
 - **Quality tests**: detect all required review categories; distinguish correctable section findings from non-correctable/global rejection; re-review the full merged Lesson.
 - **Citation tests**: refs survive synthesis → blueprint → sections → review/correction → canonical mapping; every final section has at least one citation; single- and multi-source local-index collisions remain safe.
 - **Compatibility tests**: final object equals `StructuredLessonDraft`; unchanged persistence RPC receives the same draft/citation shape; regeneration creates a new immutable revision; publication produces the same ordered Markdown; Admin editing restrictions remain; learner, enrollment/progress, and Exercise flows remain unaffected.
