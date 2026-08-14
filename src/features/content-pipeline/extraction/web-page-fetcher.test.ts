@@ -1,4 +1,5 @@
 import { EventEmitter } from "node:events";
+import type { LookupAddress, LookupOptions } from "node:dns";
 import type { RequestOptions } from "node:http";
 import { Readable } from "node:stream";
 import { gzipSync } from "node:zlib";
@@ -26,6 +27,33 @@ function requester(responses: Array<{ status?: number; headers?: Record<string, 
 }
 
 const publicDns = async () => [{ address: "93.184.216.34", family: 4 as const }];
+
+function nodeAllLookupRequester(expected: LookupAddress) {
+  return (url: URL, options: RequestOptions) => {
+    const request = new EventEmitter() as EventEmitter & { end(): void; destroy(error?: Error): void };
+    request.end = () => queueMicrotask(() => {
+      const lookup = options.lookup;
+      if (!lookup) return request.emit("error", new Error("missing bound lookup"));
+      lookup(url.hostname, { all: true } as LookupOptions, (error, addresses) => {
+        if (error) return request.emit("error", error);
+        if (!Array.isArray(addresses) || addresses.length !== 1 ||
+          addresses[0].address !== expected.address || addresses[0].family !== expected.family) {
+          const invalidAddress = new TypeError("Invalid IP address: undefined") as TypeError & { code: string };
+          invalidAddress.code = "ERR_INVALID_IP_ADDRESS";
+          return request.emit("error", invalidAddress);
+        }
+        const incoming = Readable.from([Buffer.from("Controlled public HTTPS evidence ".repeat(5))]) as Readable & {
+          statusCode: number; headers: Record<string, string>;
+        };
+        incoming.statusCode = 200;
+        incoming.headers = { "content-type": "text/html; charset=utf-8" };
+        request.emit("response", incoming);
+      });
+    });
+    request.destroy = (error) => { if (error) request.emit("error", error); request.emit("close"); };
+    return request as never;
+  };
+}
 
 describe("web-page fetch security", () => {
   it.each(["file:///etc/passwd", "ftp://example.com/a", "https://user:pass@example.com", "http://127.0.0.1", "http://[::1]", "https://example.com:8443"])(
@@ -66,6 +94,47 @@ describe("web-page fetch security", () => {
     const lookup = captured?.lookup as (_h: string, _o: unknown, cb: (e: null, a: string, f: number) => void) => void;
     let connected = ""; lookup("example.com", {}, (_error, address) => { connected = address; });
     expect(connected).toBe("93.184.216.34");
+  });
+
+  it.each([
+    ["IPv4", { address: "93.184.216.34", family: 4 as const }],
+    ["IPv6", { address: "2606:2800:220:1:248:1893:25c8:1946", family: 6 as const }],
+  ])("returns a bound public %s address in Node's all-address lookup shape", async (_label, selected) => {
+    const result = await fetchWebPage("https://example.com/evidence", {
+      resolver: async () => [selected],
+      requester: nodeAllLookupRequester(selected),
+    });
+
+    expect(result).toMatchObject({
+      canonicalUrl: "https://example.com/evidence",
+      contentType: "text/html",
+    });
+    expect(result.body.length).toBeGreaterThan(0);
+  });
+
+  it("preserves the original HTTPS hostname and certificate validation defaults", async () => {
+    let requestedHostname = "";
+    let captured: (RequestOptions & { rejectUnauthorized?: boolean }) | undefined;
+    const base = requester([{ headers: { "content-type": "text/html" } }]);
+
+    await fetchWebPage("https://example.com/secure", {
+      resolver: publicDns,
+      requester: (url, options) => {
+        requestedHostname = url.hostname;
+        captured = options;
+        return base(url, options);
+      },
+    });
+
+    expect(requestedHostname).toBe("example.com");
+    expect(captured?.rejectUnauthorized).not.toBe(false);
+    const lookup = captured?.lookup;
+    expect(lookup).toBeTypeOf("function");
+    let bound: LookupAddress[] | undefined;
+    lookup?.("example.com", { all: true } as LookupOptions, (_error, addresses) => {
+      bound = addresses as LookupAddress[];
+    });
+    expect(bound).toEqual([{ address: "93.184.216.34", family: 4 }]);
   });
 
   it("enforces MIME and declared/decompressed size limits", async () => {

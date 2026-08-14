@@ -1,12 +1,18 @@
 # Active Task Queue
 
-- **Active task:** `TASK-073` — Replace Default Brave Search with Tavily
+- **Active task:** `TASK-074` — Repair URL Safe-Fetch Runtime Compatibility
 - **Status:** `VERIFIED`
 - **Owner / Reviewer:** Codex
 - **Deferred design task:** `TASK-047` (`DRAFT`)
 - **Previous blocked task:** `TASK-044` — external Supabase Redirect URL verification
 
 ## Current objective
+
+TASK-074 is verified. The connection-bound safe fetcher now returns Node's required address-array
+shape when the runtime requests `all: true`; real `https://example.com` capture, the complete
+Phase 3 focused gates, full unit/build gates, and URL/Phase 4/PDF browser regressions pass. The
+approved SSRF/TLS design is preserved, with no search-provider, schema, migration, deployment, or
+Supabase changes.
 
 TASK-073 is verified: Brave is replaced by optional, server-only Tavily Search as the default Phase 4 provider.
 The change preserves the verified vendor-neutral research and selected-only ingestion flow, does

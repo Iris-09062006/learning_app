@@ -41,6 +41,9 @@ const mocks = vi.hoisted(() => ({
   removeSourceObject: vi.fn(),
   downloadSourceObject: vi.fn(),
   replaceDocumentChunks: vi.fn(),
+  fetchWebPage: vi.fn(),
+  extractWebPage: vi.fn(),
+  serializeWebSnapshot: vi.fn(),
 }));
 
 vi.mock("@/features/content-pipeline/repositories/content-pipeline-repository", () => ({
@@ -89,6 +92,19 @@ vi.mock("@/features/content-pipeline/extraction/document-extractor", () => {
   throw new Error("Document extractor must be loaded lazily.");
 });
 
+vi.mock("@/features/content-pipeline/extraction/web-page-fetcher", async (importOriginal) => ({
+  ...await importOriginal<typeof import("@/features/content-pipeline/extraction/web-page-fetcher")>(),
+  fetchWebPage: mocks.fetchWebPage,
+}));
+
+vi.mock("@/features/content-pipeline/extraction/web-page-extractor", () => ({
+  extractWebPage: mocks.extractWebPage,
+}));
+
+vi.mock("@/features/content-pipeline/extraction/web-snapshot", () => ({
+  serializeWebSnapshot: mocks.serializeWebSnapshot,
+}));
+
 vi.mock("@/lib/supabase/server", () => ({
   createServerSupabaseClient: mocks.createServerSupabaseClient,
 }));
@@ -109,6 +125,7 @@ import {
   getCourseDraftQueue,
   submitCourseDraftReview,
   getContentTargets,
+  ingestUrlSource,
   uploadStagedContentSource,
   initializeCourseImport,
   attachSourceToCourseImport,
@@ -154,6 +171,52 @@ describe("Phase 3 source staging and initialization", () => {
     await expect(uploadStagedContentSource(file, "22222222-2222-4222-8222-222222222222"))
       .resolves.toMatchObject({ sourceDocumentId: 21, attached: false });
     expect(mocks.uploadSourceObject).not.toHaveBeenCalled();
+  });
+
+  it("takes a valid public page through extraction and immutable snapshot materialization", async () => {
+    mocks.getSourceDocumentByStoragePath.mockResolvedValue(null);
+    mocks.fetchWebPage.mockResolvedValue({
+      body: Buffer.from("<html><body>Public evidence</body></html>"),
+      contentType: "text/html",
+      charset: "utf-8",
+      canonicalUrl: "https://example.com/",
+      fetchedAt: "2026-08-14T00:00:00.000Z",
+      redirectCount: 0,
+    });
+    mocks.extractWebPage.mockReturnValue({
+      title: "Example Domain",
+      byline: null,
+      excerpt: "Public evidence",
+      textContent: "Public evidence ".repeat(20),
+      contentMarkdown: "Public evidence ".repeat(20),
+      language: "en",
+    });
+    mocks.serializeWebSnapshot.mockReturnValue("# Example Domain\n\nPublic evidence");
+    mocks.uploadSourceObject.mockResolvedValue(undefined);
+    mocks.materializeCourseImportSource.mockResolvedValue({ sourceDocumentId: 22, status: "uploaded" });
+    mocks.getSourceDocument.mockResolvedValue({ id: 22, status: "extracted" });
+    mocks.getSourceDocumentChunkCount.mockResolvedValue(1);
+
+    await expect(ingestUrlSource({
+      url: "https://example.com",
+      discovery: "manual_url",
+      idempotencyKey: "44444444-4444-4444-8444-444444444444",
+    })).resolves.toMatchObject({ sourceDocumentId: 22, status: "extracted", chunkCount: 1 });
+
+    expect(mocks.fetchWebPage).toHaveBeenCalledWith("https://example.com");
+    expect(mocks.extractWebPage).toHaveBeenCalledWith(expect.objectContaining({
+      contentType: "text/html",
+      url: "https://example.com/",
+    }));
+    expect(mocks.serializeWebSnapshot).toHaveBeenCalledWith(expect.objectContaining({
+      title: "Example Domain",
+      canonicalUrl: "https://example.com/",
+    }));
+    expect(mocks.uploadSourceObject).toHaveBeenCalledWith(
+      expect.stringMatching(/\/snapshot\.md$/),
+      expect.objectContaining({ type: "text/markdown" }),
+    );
+    expect(mocks.getSourceDocumentChunkCount).toHaveBeenCalledWith(22);
   });
 
   it("does not delete a deterministic object after an ambiguous storage failure", async () => {

@@ -152,7 +152,10 @@ export async function fetchWebPage(value: string, dependencies?: { resolver?: Re
         agent: false,
         maxHeaderSize: MAX_RESPONSE_HEADER_BYTES,
         headers: { Accept: "text/html,text/plain;q=0.9", "Accept-Encoding": "gzip, deflate, br", "User-Agent": "LearningApp-SourceFetcher/1.0" },
-        lookup: (_hostname, _options, callback) => callback(null, selected.address, selected.family),
+        lookup: (_hostname, options, callback) => {
+          if (options.all) callback(null, [selected]);
+          else callback(null, selected.address, selected.family);
+        },
       });
       const timer = setTimeout(() => request.destroy(new WebPageFetchError("FETCH_TIMEOUT")), remaining);
       const rejectRequest = (error: unknown) => { clearTimeout(timer); reject(error); };
