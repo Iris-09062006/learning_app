@@ -204,6 +204,12 @@ function providerSourceContext(chunks: ProviderSourceChunk[]) {
   ).join("\n\n");
 }
 
+function legacySourceContext(chunks: Array<{ chunkIndex: number; content: string }>) {
+  return chunks.map((chunk) =>
+    `<source_chunk index="${chunk.chunkIndex}">\n${escapeXml(chunk.content)}\n</source_chunk>`
+  ).join("\n\n");
+}
+
 function parseDraft(value: string, allowedChunkIndexes: Set<number>): StructuredLessonDraft {
   let payload: unknown;
   try {
@@ -485,7 +491,7 @@ export class NineRouterLessonDraftProvider implements LessonDraftProvider {
     const sourceQualified = providerChunks !== null;
     const sourceContext = providerChunks
       ? providerSourceContext(providerChunks)
-      : legacyChunks!.map((chunk) => `<source_chunk index="${chunk.chunkIndex}">\n${chunk.content}\n</source_chunk>`).join("\n\n");
+      : legacySourceContext(legacyChunks!);
     const soleChunkCitation = request.chunks.length === 1
       ? sourceQualified
         ? ` The sole supplied source ref is ${providerChunks![0].sourceRef}; every citationSourceRefs array must use exactly [${providerChunks![0].sourceRef}].`
@@ -541,9 +547,7 @@ export class NineRouterLessonDraftProvider implements LessonDraftProvider {
     }
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), 45_000);
-    const sourceContext = request.chunks
-      .map((chunk) => `<source_chunk index="${chunk.chunkIndex}">\n${chunk.content}\n</source_chunk>`)
-      .join("\n\n");
+    const sourceContext = legacySourceContext(request.chunks);
     try {
       const response = await fetch(this.endpoint, {
         method: "POST",
@@ -614,7 +618,7 @@ export class NineRouterLessonDraftProvider implements LessonDraftProvider {
     const sourceQualified = providerChunks !== null;
     const sourceContext = providerChunks
       ? providerSourceContext(providerChunks)
-      : legacyChunks!.map((chunk) => `<source_chunk index="${chunk.chunkIndex}">\n${chunk.content}\n</source_chunk>`).join("\n\n");
+      : legacySourceContext(legacyChunks!);
     const correction = correctionAttempt
       ? ` This is a correction attempt after an invalid response. Return 2 to 20 Lessons with unique non-empty clientKey values. Course and every Lesson must contain at least one learning objective. Every Lesson must reference at least one supplied integer ${sourceQualified ? "source_ref in sourceRefs" : "chunk index in sourceChunkIndexes"}, copying the exact value from source_chunk. When the source is exercise-oriented, infer the underlying teachable concepts and prerequisite knowledge without reproducing questions, tasks, answers, or solutions.`
       : "";

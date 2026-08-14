@@ -11,7 +11,7 @@ function jsonResponse(body: unknown, status = 200) {
   return new Response(JSON.stringify(body), { status, headers: { "Content-Type": "application/json" } });
 }
 
-afterEach(() => vi.unstubAllEnvs());
+afterEach(() => { vi.unstubAllEnvs(); vi.restoreAllMocks(); });
 
 describe("TavilyWebContentExtractionProvider", () => {
   it("uses exactly one server-authenticated Basic full-page Markdown request", async () => {
@@ -118,5 +118,27 @@ describe("TavilyWebContentExtractionProvider", () => {
     await expect(new TavilyWebContentExtractionProvider({ apiKey: "secret", fetchImpl: networkFetch }).extract(request))
       .rejects.toMatchObject({ code: "UPSTREAM", message: "Web extraction provider request failed." });
     expect(networkFetch).toHaveBeenCalledTimes(1);
+  });
+
+  it("emits no credentials, provider bodies, URLs, or extracted content to logs", async () => {
+    const logSpies = [
+      vi.spyOn(console, "info").mockImplementation(() => undefined),
+      vi.spyOn(console, "warn").mockImplementation(() => undefined),
+      vi.spyOn(console, "error").mockImplementation(() => undefined),
+    ];
+    const fetchMock = vi.fn().mockResolvedValue(new Response(
+      "raw-provider-response private-markdown request_id=private-id",
+      { status: 500 },
+    ));
+    const provider = new TavilyWebContentExtractionProvider({
+      apiKey: "private-tavily-key", fetchImpl: fetchMock,
+    });
+
+    await expect(provider.extract({
+      sourceUrl: "https://private.example/evidence", capturedAt: request.capturedAt,
+    })).rejects.toMatchObject({ code: "UPSTREAM" });
+    for (const spy of logSpies) expect(spy).not.toHaveBeenCalled();
+    expect(JSON.stringify(logSpies.flatMap((spy) => spy.mock.calls)))
+      .not.toMatch(/private-tavily-key|raw-provider-response|private-markdown|private-id|private\.example/);
   });
 });

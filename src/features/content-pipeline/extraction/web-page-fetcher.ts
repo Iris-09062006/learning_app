@@ -62,6 +62,11 @@ export function validateWebUrl(value: string, previous?: URL) {
   if (url.username || url.password) throw new WebPageFetchError("UNSAFE_URL", "URL credentials are not allowed.");
   const hostname = url.hostname.replace(/^\[|\]$/g, "");
   if (isIP(hostname)) throw new WebPageFetchError("UNSAFE_URL", "IP-literal destinations are not allowed.");
+  const normalizedHostname = hostname.toLowerCase().replace(/\.$/u, "");
+  if (normalizedHostname === "localhost" || normalizedHostname.endsWith(".localhost")
+    || normalizedHostname.endsWith(".local") || normalizedHostname.endsWith(".internal")) {
+    throw new WebPageFetchError("UNSAFE_URL", "Local hostnames are not allowed.");
+  }
   const port = url.port || (url.protocol === "https:" ? "443" : "80");
   if (!((url.protocol === "http:" && port === "80") || (url.protocol === "https:" && port === "443"))) {
     throw new WebPageFetchError("UNSAFE_URL", "The destination port is not allowed.");

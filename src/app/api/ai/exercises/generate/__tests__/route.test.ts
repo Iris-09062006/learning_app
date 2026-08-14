@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { afterEach, describe, it, expect, vi, beforeEach } from "vitest";
 import { NextRequest } from "next/server";
 
 import { POST } from "../route";
@@ -56,6 +56,7 @@ describe("POST /api/ai/exercises/generate", () => {
   beforeEach(() => {
     vi.clearAllMocks();
   });
+  afterEach(() => vi.unstubAllEnvs());
 
   describe("Validation", () => {
     it("should return 400 for invalid JSON body", async () => {
@@ -114,6 +115,7 @@ describe("POST /api/ai/exercises/generate", () => {
 
   describe("Service Interaction", () => {
     it("should return 201 and generatedExercise on success", async () => {
+      vi.stubEnv("TAVILY_API_KEY", "");
       vi.mocked(aiService.generateExercise).mockResolvedValue({
         generatedExercise: MOCK_GENERATED_EXERCISE,
       });
@@ -138,6 +140,7 @@ describe("POST /api/ai/exercises/generate", () => {
         learningObjective: "Biến số trong JS",
         topicHint: "Từ khóa let",
       });
+      expect(JSON.stringify(data)).not.toMatch(/Tavily|raw_content|request_id/i);
     });
 
     it("should map UNAUTHENTICATED to 401", async () => {

@@ -11,6 +11,10 @@
 
 ## Active Task
 
+`TASK-077` is verified: Phase C proves stored evidence and file/PDF workflows remain independent
+of Tavily after acquisition, locks security/privacy boundaries, and verifies the retained legacy
+direct-fetch code is inactive without starting Phase D.
+
 `TASK-076` is verified: Phase B switches confirmed discovered/manual URL acquisition to the
 verified Tavily Extract provider boundary and reuses the existing snapshot/source/chunk/Course-import
 lifecycle without database changes.
@@ -39,6 +43,7 @@ Supabase Auth Redirect URLs wildcard and a fresh confirmation email.
 
 | Task ID | Title | Status | Phase | Evidence |
 |---|---|---|---|---|
+| `TASK-077` | Tavily Web Ingestion Phase C Hardening | VERIFIED | Tavily web ingestion Phase C | `reports/TASK-077-implementation.md`, `reports/TASK-077-review.md`, `reports/TASK-077-test.md` |
 | `TASK-076` | Tavily Web Ingestion Phase B Active Path | VERIFIED | Tavily web ingestion Phase B | `reports/TASK-076-implementation.md`, `reports/TASK-076-review.md`, `reports/TASK-076-test.md` |
 | `TASK-074` | Repair URL Safe-Fetch Runtime Compatibility | VERIFIED | Course research Phase 3 hotfix | `reports/TASK-074-implementation.md`, `reports/TASK-074-review.md`, `reports/TASK-074-test.md` |
 | `TASK-073` | Replace Default Brave Search with Tavily | VERIFIED | Course research Phase 4 provider | `reports/TASK-073-implementation.md`, `reports/TASK-073-review.md`, `reports/TASK-073-test.md` |
@@ -105,7 +110,6 @@ Supabase Auth Redirect URLs wildcard and a fresh confirmation email.
 
 | Task ID | Title | Status | Phase | Dependency |
 |---|---|---|---|---|
-| `TASK-076` | Tavily Web Ingestion Phase B Active Path | READY_FOR_REVIEW | Tavily web ingestion Phase B | Verified TASK-075 / Phase A gate |
 | `TASK-071` | Topic-Based Multi-Source Course Creation: Phase 5 | IN_PROGRESS | Course research Phase 5 | Verified Phases 1–4 |
 | `TASK-066` | Normalize Single-Chunk Lesson Citations | IN_PROGRESS | Content operations hotfix | CI and production verification |
 

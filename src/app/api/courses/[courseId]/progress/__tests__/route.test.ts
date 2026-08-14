@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { GET } from "../route";
 import {
   getCourseProgress,
@@ -22,6 +22,7 @@ describe("GET /api/courses/[courseId]/progress", () => {
   beforeEach(() => {
     vi.clearAllMocks();
   });
+  afterEach(() => vi.unstubAllEnvs());
 
   it("returns 400 when courseId is invalid", async () => {
     const request = new Request("http://localhost");
@@ -42,6 +43,7 @@ describe("GET /api/courses/[courseId]/progress", () => {
   });
 
   it("returns 200 with progress data on success", async () => {
+    vi.stubEnv("TAVILY_API_KEY", "");
     const mockProgress = {
       courseId: 1,
       completedLessons: 2,
@@ -62,6 +64,7 @@ describe("GET /api/courses/[courseId]/progress", () => {
       success: true,
       data: mockProgress,
     });
+    expect(JSON.stringify(body)).not.toMatch(/Tavily|raw_content|request_id/i);
   });
 
   it("returns 401 when unauthorized", async () => {

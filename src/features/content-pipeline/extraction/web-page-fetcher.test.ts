@@ -56,8 +56,14 @@ function nodeAllLookupRequester(expected: LookupAddress) {
 }
 
 describe("web-page fetch security", () => {
-  it.each(["file:///etc/passwd", "ftp://example.com/a", "https://user:pass@example.com", "http://127.0.0.1", "http://[::1]", "https://example.com:8443"])(
+  it.each(["file:///etc/passwd", "ftp://example.com/a", "javascript:alert(1)", "not a url",
+    "https://user:pass@example.com", "http://localhost/path", "http://service.local/path",
+    "http://service.internal/path", "http://127.0.0.1", "http://[::1]", "https://example.com:8443"])(
     "rejects unsafe URL %s", (url) => expect(() => validateWebUrl(url)).toThrowError(expect.objectContaining({ code: "UNSAFE_URL" }))
+  );
+
+  it.each(["https://example.com/path#part", "http://example.com/path"])(
+    "accepts approved public URL syntax %s", (url) => expect(validateWebUrl(url).hash).toBe("")
   );
 
   it("blocks private, loopback, link-local, CGNAT, multicast, documentation, reserved and mapped addresses", () => {

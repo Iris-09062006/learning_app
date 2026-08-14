@@ -460,6 +460,7 @@ export async function ingestUrlSource(body: unknown, dependencies: UrlSourceInge
 
   let materializedId: number | null = null;
   let objectUploaded = false;
+  let failureStage = "provider_extraction";
   try {
     const [{ TavilyWebContentExtractionProvider }, { normalizeWebContentExtraction }, { serializeNormalizedWebExtractionSnapshot }] = await Promise.all([
       import("@/features/content-pipeline/providers/tavily-web-content-extraction-provider"),
@@ -469,12 +470,15 @@ export async function ingestUrlSource(body: unknown, dependencies: UrlSourceInge
     const provider = dependencies.extractionProvider ?? new TavilyWebContentExtractionProvider();
     const capturedAt = (dependencies.now ?? (() => new Date()))().toISOString();
     const providerResult = await provider.extract({ sourceUrl: input.url, capturedAt });
+    failureStage = "response_normalization";
     const normalized = normalizeWebContentExtraction(providerResult, {
       title: typeof input.title === "string" ? input.title : undefined,
     });
     const title = documentTitleFromWebSource(normalized.title, normalized.canonicalUrl);
+    failureStage = "snapshot_serialization";
     const snapshot = serializeNormalizedWebExtractionSnapshot({ ...normalized, title });
     const file = new File([snapshot], "snapshot.md", { type: "text/markdown" });
+    failureStage = "snapshot_upload";
     const concurrent = await uploadDeterministicObject(storagePath, file);
     if (concurrent) {
       materializedId = concurrent.id;
@@ -482,6 +486,7 @@ export async function ingestUrlSource(body: unknown, dependencies: UrlSourceInge
       return { sourceDocumentId: materializedId, status: extraction.status, chunkCount: extraction.chunkCount, attached: false, reused: true };
     }
     objectUploaded = true;
+    failureStage = "materialization";
     const materialized = await materializeCourseImportSource({
       originalFilename: `${sanitizeFilename(title)}.md`, storagePath, mimeType: "text/markdown",
       sizeBytes: file.size, sourceType: "web_page", ingestionMethod: input.discovery,
@@ -489,6 +494,7 @@ export async function ingestUrlSource(body: unknown, dependencies: UrlSourceInge
       domain: new URL(normalized.canonicalUrl).hostname, authorityScore, fetchedAt: normalized.capturedAt,
     });
     materializedId = materialized.sourceDocumentId;
+    failureStage = "stored_snapshot_chunking";
     const extraction = await extractContentSource(materializedId);
     if (extraction.chunkCount < 1) throw new ContentPipelineError("EXTRACTION_ERROR", "The page produced no usable evidence.");
     emitContentPipelineSignal({
@@ -505,7 +511,7 @@ export async function ingestUrlSource(body: unknown, dependencies: UrlSourceInge
       : error instanceof WebContentExtractionProviderError ? error.code
         : "EXTRACTION_FAILED";
     emitContentPipelineSignal({
-      event: "fetch", outcome: "failure", stage: materializedId ? "snapshot_extraction" : "provider_extraction",
+      event: "fetch", outcome: "failure", stage: failureStage,
       code: stableCode, actorId: adminId, sourceDocumentId: materializedId ?? undefined,
       durationMs: Date.now() - startedAt,
     });

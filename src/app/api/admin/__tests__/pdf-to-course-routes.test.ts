@@ -120,6 +120,8 @@ describe("Phase 3 source routes", () => {
     const stagedForm = new FormData(); stagedForm.set("file", file); stagedForm.set("idempotencyKey", "22222222-2222-4222-8222-222222222222");
     await uploadSource({ formData: async () => stagedForm } as unknown as Request);
     expect(serviceMocks.uploadStagedContentSource).toHaveBeenCalledWith(expect.any(File), "22222222-2222-4222-8222-222222222222");
+    expect(serviceMocks.researchCourseSources).not.toHaveBeenCalled();
+    expect(serviceMocks.ingestUrlSource).not.toHaveBeenCalled();
   });
 
   it.each([
@@ -152,6 +154,32 @@ describe("Phase 3 source routes", () => {
       },
     });
     expect(JSON.stringify(body)).not.toMatch(/secret|raw body|vendor-id|Tavily/i);
+  });
+
+  it.each([
+    ["CONFIGURATION", "WEB_EXTRACTION_UNAVAILABLE", 503],
+    ["AUTHENTICATION", "WEB_EXTRACTION_UNAVAILABLE", 503],
+    ["QUOTA", "WEB_EXTRACTION_UNAVAILABLE", 503],
+    ["TIMEOUT", "WEB_EXTRACTION_UNAVAILABLE", 503],
+    ["UPSTREAM", "WEB_EXTRACTION_UNAVAILABLE", 503],
+    ["INVALID_RESPONSE", "EXTRACTION_ERROR", 422],
+  ] as const)("keeps provider category %s internal for generic %s", async (category, code, status) => {
+    serviceMocks.ingestUrlSource.mockRejectedValue(new ContentPipelineError(
+      code, code === "WEB_EXTRACTION_UNAVAILABLE"
+        ? "Web extraction is temporarily unavailable. Retry or use a file."
+        : "The web source did not produce usable evidence.",
+      { extractionCategory: category, providerBody: "private provider response", requestId: "private-id" },
+    ));
+    const response = await ingestUrl(new Request("http://localhost", {
+      method: "POST", body: JSON.stringify({
+        url: "https://example.com", discovery: "manual_url",
+        idempotencyKey: "22222222-2222-4222-8222-222222222222",
+      }),
+    }));
+    const payload = await response.json();
+    expect(response.status).toBe(status);
+    expect(payload.error.code).toBe(code);
+    expect(JSON.stringify(payload)).not.toMatch(/CONFIGURATION|AUTHENTICATION|QUOTA|TIMEOUT|UPSTREAM|INVALID_RESPONSE|private provider|private-id|Tavily/);
   });
 
   it("does not echo arbitrary service details in an error envelope", async () => {

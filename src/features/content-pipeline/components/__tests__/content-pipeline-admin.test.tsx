@@ -325,6 +325,8 @@ describe("content pipeline Admin", () => {
     expect(calls).toContain("/api/admin/content-sources/9/course-outline");
     expect(calls.some((url) => url.endsWith("/generate"))).toBe(false);
     expect(calls.some((url) => url.includes("/api/ai/exercises"))).toBe(false);
+    expect(calls.some((url) => url === "/api/admin/course-research")).toBe(false);
+    expect(calls.some((url) => url === "/api/admin/content-sources/url")).toBe(false);
   });
 
   it("preserves a successful URL when another fails and initializes only usable evidence", async () => {

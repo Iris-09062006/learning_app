@@ -1,12 +1,17 @@
 # Active Task Queue
 
-- **Active task:** `TASK-076` — Tavily Web Ingestion Phase B Active Path
+- **Active task:** `TASK-077` — Tavily Web Ingestion Phase C Hardening
 - **Status:** `VERIFIED`
 - **Owner / Reviewer:** Codex
 - **Deferred design task:** `TASK-047` (`DRAFT`)
 - **Previous blocked task:** `TASK-044` — external Supabase Redirect URL verification
 
 ## Current objective
+
+TASK-077 is verified. T026–T035 from `specs/002-tavily-web-ingestion/tasks.md` harden immutable
+stored-evidence generation, provider-outage isolation, file/PDF independence, URL security,
+untrusted-content framing, privacy, and inactive legacy direct-fetch classification. Phase D,
+migrations, deployment, push, and remote Supabase operations remain out of scope.
 
 TASK-076 is verified. T010–T025 from `specs/002-tavily-web-ingestion/tasks.md` switch confirmed
 discovered/manual URL acquisition to the verified provider-backed extraction boundary while

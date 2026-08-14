@@ -295,7 +295,7 @@ test("recovers an existing unpublished import and retries publication idempotent
   expect(attempts).toBe(2);
 });
 
-test("recovers a partial-failure manual URL and file source-review flow without duplicates", async ({ page }) => {
+test("recovers a partial Tavily-unavailable manual URL with stored file evidence without duplicates", async ({ page }) => {
   type Stage = "empty" | "processing" | "outline" | "stale" | "content" | "published";
   let stage: Stage = "empty";
   const fixtureResponse = await page.request.get("http://127.0.0.1:54321/__e2e/fixtures/phase3-source-review");
@@ -347,7 +347,7 @@ test("recovers a partial-failure manual URL and file source-review flow without 
     if (pathname === "/api/admin/content-sources/url") {
       const body = request.postDataJSON() as { url: string };
       return body.url.includes("failed")
-        ? route.fulfill({ status: 422, contentType: "application/json", body: JSON.stringify({ success: false, error: { code: "EXTRACTION_ERROR", message: "Trang không có nội dung đọc được." } }) })
+        ? route.fulfill({ status: 503, contentType: "application/json", body: JSON.stringify({ success: false, error: { code: "WEB_EXTRACTION_UNAVAILABLE", message: "Web extraction is temporarily unavailable. Retry or use a file." } }) })
         : respond({ sourceDocumentId: 23, status: "extracted", chunkCount: 1, attached: false }, 201);
     }
     if (pathname === "/api/admin/content-sources" && request.method() === "POST") return respond({ sourceDocumentId: 22, status: "uploaded", attached: false }, 201);
@@ -364,7 +364,7 @@ test("recovers a partial-failure manual URL and file source-review flow without 
   await loginAs(page, "admin"); await page.goto("/admin/content");
   await page.getByLabel("URL thủ công").fill("https://failed.example/article");
   await page.getByRole("button", { name: "Ingest URL" }).click();
-  await expect(page.getByText("Trang không có nội dung đọc được.")).toBeVisible();
+  await expect(page.getByText("Dịch vụ tạm thời quá tải hoặc hết thời gian chờ. Vui lòng thử lại.")).toBeVisible();
   await page.getByLabel("Tài liệu tùy chọn").setInputFiles({ name: "guide.md", mimeType: "text/markdown", buffer: Buffer.from("Evidence") });
   await page.getByRole("button", { name: "Ingest file" }).click();
   await expect(page.getByText(/Tài liệu đã sẵn sàng/u)).toBeVisible();
@@ -522,10 +522,14 @@ test("researches a topic, preserves Research More selection, and ingests only co
   await expectNoSeriousA11yViolations(page);
 });
 
-test("reviews and publishes a multi-source Course with distinct colliding chunk refs", async ({ page }) => {
+test("regenerates and publishes a stored multi-source Course while Tavily is unavailable", async ({ page }) => {
   let stage: "outline" | "content" | "published" = "outline";
   let revision = 1;
   let savedOutline: Record<string, unknown> | null = null;
+  let tavilySearchCalls = 0;
+  let tavilyExtractCalls = 0;
+  let outlineRegenerations = 0;
+  let lessonRegenerations = 0;
   const fixtureResponse = await page.request.get(
     "http://127.0.0.1:54321/__e2e/fixtures/multi-source-course-import"
   );
@@ -579,6 +583,24 @@ test("reviews and publishes a multi-source Course with distinct colliding chunk 
     if (pathname === "/api/admin/course-drafts") {
       return respond({ items: stage === "published" ? [] : [job()] });
     }
+    if (pathname === "/api/admin/course-research") {
+      tavilySearchCalls += 1;
+      return route.fulfill({ status: 503, contentType: "application/json", body: JSON.stringify({
+        success: false, error: { code: "SEARCH_PROVIDER_UNAVAILABLE", message: "Search unavailable" },
+      }) });
+    }
+    if (pathname === "/api/admin/content-sources/url") {
+      tavilyExtractCalls += 1;
+      return route.fulfill({ status: 503, contentType: "application/json", body: JSON.stringify({
+        success: false, error: { code: "WEB_EXTRACTION_UNAVAILABLE", message: "Extraction unavailable" },
+      }) });
+    }
+    if (pathname === "/api/admin/course-drafts/61/outline/regenerate") {
+      outlineRegenerations += 1;
+      revision += 1;
+      return respond({ jobId: 61, sourceDocumentId: 9, sourceDocumentIds: [9, 10],
+        outlineRevision: revision, status: "outline_review" });
+    }
     if (pathname === "/api/admin/course-drafts/61/outline" && request.method() === "PATCH") {
       savedOutline = request.postDataJSON() as Record<string, unknown>;
       revision = 2;
@@ -588,6 +610,10 @@ test("reviews and publishes a multi-source Course with distinct colliding chunk 
     if (pathname === "/api/admin/course-drafts/61/lessons/generate") {
       stage = "content";
       return respond({ jobId: 61, status: "content_review" }, 201);
+    }
+    if (pathname === "/api/admin/course-drafts/61/lessons/72/regenerate") {
+      lessonRegenerations += 1;
+      return respond({ jobId: 61, outlineLessonId: 72, status: "content_review" }, 201);
     }
     if (pathname === "/api/admin/course-drafts/61/reviews") {
       stage = "published";
@@ -600,6 +626,8 @@ test("reviews and publishes a multi-source Course with distinct colliding chunk 
   await loginAs(page, "admin");
   await page.goto("/admin/content");
   await expect(page.getByText("Nguồn evidence (2)")).toBeVisible();
+  await page.getByRole("button", { name: "Regenerate outline" }).click();
+  await expect.poll(() => outlineRegenerations).toBe(1);
   await page.getByRole("button", { name: "Di chuyển xuống" }).first().click();
   await page.getByRole("button", { name: "Thêm Lesson" }).click();
   await expect(page.getByRole("textbox", { name: "Lesson 3 title" })).toHaveValue("Lesson mới");
@@ -611,8 +639,12 @@ test("reviews and publishes a multi-source Course with distinct colliding chunk 
   await page.getByRole("button", { name: "Continue: sinh Lesson contents" }).click();
   await page.getByRole("button", { name: /Lesson nguồn B/u }).click();
   await expect(page.getByText(/Nguồn B · b\.test · chunk 0: Trích dẫn Nguồn B/u)).toBeVisible();
+  await page.getByRole("button", { name: "Regenerate Lesson này" }).click();
+  await expect.poll(() => lessonRegenerations).toBe(1);
   await page.getByRole("button", { name: "Publish Course" }).click();
   await expect(page.getByText("Hàng chờ trống.")).toBeVisible();
   await expect(page.getByRole("link", { name: "Mở Course" })).toHaveAttribute("href", "/courses/31");
+  expect(tavilySearchCalls).toBe(0);
+  expect(tavilyExtractCalls).toBe(0);
   await expectNoSeriousA11yViolations(page);
 });
