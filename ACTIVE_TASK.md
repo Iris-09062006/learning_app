@@ -1,12 +1,22 @@
 # Active Task Queue
 
-- **Active task:** `TASK-078` — Tavily Web Ingestion Phase D Readiness
+- **Active task:** `TASK-079` — Recover Failed Lesson Content Generation
 - **Status:** `VERIFIED`
 - **Owner / Reviewer:** Codex
 - **Deferred design task:** `TASK-047` (`DRAFT`)
 - **Previous blocked task:** `TASK-044` — external Supabase Redirect URL verification
 
 ## Current objective
+
+TASK-079 repairs only the Admin browser recovery path after Lesson-content generation failure:
+bounded waiting, persisted-state refresh before retry, and a local start-new-workflow reset. The
+Supabase state machine already accepts retry from `failed`; no schema, RPC, provider, publication,
+deployment, push, or remote-data mutation is in scope.
+
+Implementation, focused/full tests, lint, typecheck, build, diff review, and security review pass.
+No production job was retried and no deployment or push was performed.
+
+## Previous verified objective
 
 TASK-078 implements only T036–T047 from `specs/002-tavily-web-ingestion/tasks.md`: contract
 validation, one explicitly gated real Tavily Basic Extract smoke, full feature/browser regression,

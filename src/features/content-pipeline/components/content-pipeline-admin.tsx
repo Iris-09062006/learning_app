@@ -45,19 +45,31 @@ interface PipelineCheckpointV2 {
 }
 
 const CHECKPOINT_KEY = "learningapp.course-outline-generation";
+export const LESSON_GENERATION_REQUEST_TIMEOUT_MS = 60_000;
 
-export async function requestPipelineApi<T>(url: string, init?: RequestInit): Promise<T> {
-  const response = await fetch(url, init);
-  const payload = await response.json().catch(() => null) as ApiEnvelope<T> | null;
-  if (!response.ok || !payload?.success) {
-    if ([502, 503, 504].includes(response.status)) {
-      throw new Error("Dịch vụ tạm thời quá tải hoặc hết thời gian chờ. Vui lòng thử lại.");
+export async function requestPipelineApi<T>(url: string, init?: RequestInit, timeoutMs?: number): Promise<T> {
+  const controller = timeoutMs ? new AbortController() : null;
+  const timeout = controller ? setTimeout(() => controller.abort(), timeoutMs) : null;
+  try {
+    const response = await fetch(url, controller ? { ...init, signal: controller.signal } : init);
+    const payload = await response.json().catch(() => null) as ApiEnvelope<T> | null;
+    if (!response.ok || !payload?.success) {
+      if ([502, 503, 504].includes(response.status)) {
+        throw new Error("Dịch vụ tạm thời quá tải hoặc hết thời gian chờ. Vui lòng thử lại.");
+      }
+      const error = new Error(payload?.error?.message ?? payload?.message ?? "Không thể xử lý yêu cầu.") as PipelineRequestError;
+      if (Number.isSafeInteger(payload?.error?.sourceDocumentId)) error.sourceDocumentId = payload?.error?.sourceDocumentId;
+      throw error;
     }
-    const error = new Error(payload?.error?.message ?? payload?.message ?? "Không thể xử lý yêu cầu.") as PipelineRequestError;
-    if (Number.isSafeInteger(payload?.error?.sourceDocumentId)) error.sourceDocumentId = payload?.error?.sourceDocumentId;
+    return payload.data;
+  } catch (error) {
+    if (controller?.signal.aborted) {
+      throw new Error("Yêu cầu sinh Lesson mất quá nhiều thời gian. Hệ thống đang kiểm tra trạng thái để bạn có thể tiếp tục an toàn.");
+    }
     throw error;
+  } finally {
+    if (timeout) clearTimeout(timeout);
   }
-  return payload.data;
 }
 
 export function decodePipelineCheckpoint(value: string | null): PendingGeneration | PipelineCheckpointV2 | null {
@@ -218,9 +230,9 @@ export function ContentPipelineAdmin() {
     setImports((current) => current.map((item) => item.jobId === selectedJobId ? updater(item) : item));
   }
 
-  function clearResolvedSourceWorkflow(jobId: number) {
-    if (sourceReviewJobId !== jobId) return;
+  function resetLocalSourceWorkflow() {
     storeCheckpoint(null);
+    setPendingGeneration(null);
     setSourceAttempts([]);
     setTopic("");
     setResearchCandidates([]);
@@ -231,6 +243,20 @@ export function ContentPipelineAdmin() {
     setInitializationKey(crypto.randomUUID());
     setSourceReviewJobId(null);
     setPendingSourceAction(null);
+  }
+
+  function clearResolvedSourceWorkflow(jobId: number) {
+    if (sourceReviewJobId !== jobId) return;
+    resetLocalSourceWorkflow();
+  }
+
+  function startNewWorkflow() {
+    resetLocalSourceWorkflow();
+    setSelectedJobId(null);
+    setSelectedOutlineLessonId(null);
+    setPublished(null);
+    setError(null);
+    setMessage("Đã mở workflow mới. Các Course import đã lưu vẫn còn trong hàng chờ.");
   }
 
   async function runOutlineGeneration(value: PendingGeneration) {
@@ -552,9 +578,14 @@ export function ContentPipelineAdmin() {
     if (!selectedImport) return;
     setBusy(true); setError(null); setMessage("Đang sinh nội dung riêng cho từng Lesson...");
     try {
-      await requestPipelineApi(`/api/admin/course-drafts/${selectedImport.jobId}/lessons/generate`, { method: "POST" });
+      await requestPipelineApi(`/api/admin/course-drafts/${selectedImport.jobId}/lessons/generate`, { method: "POST" }, LESSON_GENERATION_REQUEST_TIMEOUT_MS);
       await refresh(); setMessage("Nội dung Lesson đã sẵn sàng để review.");
-    } catch (cause) { setError(cause instanceof Error ? cause.message : "Không thể sinh nội dung Lesson."); }
+    } catch (cause) {
+      const failureMessage = cause instanceof Error ? cause.message : "Không thể sinh nội dung Lesson.";
+      try { await refresh(); }
+      catch { setMessage("Không thể đồng bộ trạng thái Course import. Hãy làm mới trang trước khi thử lại."); }
+      setError(failureMessage);
+    }
     finally { setBusy(false); }
   }
 
@@ -616,8 +647,12 @@ export function ContentPipelineAdmin() {
       </div> : null}
     </section>
 
-    <section className="rounded-2xl border border-blue-200 bg-blue-50 p-6" aria-labelledby="source-review-title">
-      <h2 id="source-review-title" className="text-xl font-semibold text-slate-950">Nguồn cho Course đa nguồn</h2>
+    <section key={initializationKey} className="rounded-2xl border border-blue-200 bg-blue-50 p-6" aria-labelledby="source-review-title">
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <h2 id="source-review-title" className="text-xl font-semibold text-slate-950">Nguồn cho Course đa nguồn</h2>
+        <button className="rounded border border-blue-600 bg-white px-3 py-1.5 text-sm font-semibold text-blue-800 disabled:opacity-50"
+          type="button" onClick={startNewWorkflow} disabled={busy || researchBusy}>Bắt đầu workflow mới</button>
+      </div>
       <p className="mt-2 text-sm text-slate-700">Thêm URL công khai và/hoặc tài liệu tùy chọn. Chỉ nguồn trích xuất thành công mới có thể trở thành evidence.</p>
       <form className="mt-5 rounded-lg border border-blue-200 bg-white p-4" onSubmit={researchTopic}>
         <label className="text-sm font-medium text-slate-800" htmlFor="course-research-topic">Chủ đề Course</label>
@@ -786,6 +821,8 @@ export function ContentPipelineAdmin() {
             <button className="rounded bg-emerald-700 px-4 py-2 text-sm font-semibold text-white" type="button" onClick={continueToLessons} disabled={busy || selectedImport.outlineStale}>Continue: sinh Lesson contents</button>
           </div> : null}
           {selectedImport.status === "failed" ? <button className="rounded bg-amber-700 px-4 py-2 text-sm font-semibold text-white" type="button" onClick={selectedImport.approvedOutlineRevision ? continueToLessons : regenerateOutline} disabled={busy}>Thử lại bước bị lỗi</button> : null}
+          {selectedImport.status === "generating_content" ? <button className="rounded border border-blue-500 px-4 py-2 text-sm font-semibold text-blue-800" type="button"
+            onClick={() => { setError(null); refresh().catch((cause: unknown) => setError(cause instanceof Error ? cause.message : "Không thể làm mới trạng thái.")); }} disabled={busy}>Làm mới trạng thái</button> : null}
           {canReviewContent ? <div className="space-y-3">
             <label className="block text-sm font-medium">Ghi chú review<textarea className="mt-1 w-full rounded border p-2" value={reviewComment} onChange={(event) => setReviewComment(event.target.value)} /></label>
             <div className="flex flex-wrap gap-3">

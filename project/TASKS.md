@@ -11,6 +11,10 @@
 
 ## Active Task
 
+`TASK-079` is verified: failed Lesson-content generation now refreshes persisted job state, supports
+safe retry, bounds the browser wait, and can reset into a new local workflow without mutating stored
+jobs or evidence. No database, deployment, push, or remote-data change occurred.
+
 `TASK-078` is verified: the T039 failure was isolated to a Vitest `jsdom`/native-fetch
 `AbortSignal` realm mismatch, the server-only smoke now runs under Node, and one final real Basic
 Markdown Extract passed normalization/snapshot/chunk checks. T001–T047 are complete and T047's
@@ -36,6 +40,7 @@ Recently verified supporting hotfixes:
 
 | Task ID | Title | Status | Phase | Dependency |
 |---|---|---|---|---|
+| `TASK-079` | Recover Failed Lesson Content Generation | VERIFIED | Content operations hotfix | Existing retryable Course-import state machine |
 | `TASK-075` | Tavily Web Ingestion Phase A Provider Boundary | VERIFIED | Tavily web ingestion Phase A | T001–T009 and Phase A gate pass |
 | `TASK-045` | Reduce Page Navigation Latency | VERIFIED | Performance hotfix | None |
 | `TASK-046` | Stabilize AI Content Pipeline and New Lesson Targets | VERIFIED | Content operations hotfix | `TASK-043` |

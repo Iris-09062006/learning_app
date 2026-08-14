@@ -2,7 +2,12 @@ import { fireEvent, render, screen, waitFor, within } from "@testing-library/rea
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { CourseImportDraft, ResearchCandidate } from "../../types";
-import { ContentPipelineAdmin, decodePipelineCheckpoint, mergeResearchCandidates, requestPipelineApi } from "../content-pipeline-admin";
+import {
+  ContentPipelineAdmin,
+  decodePipelineCheckpoint,
+  mergeResearchCandidates,
+  requestPipelineApi,
+} from "../content-pipeline-admin";
 
 describe("pipeline checkpoint recovery", () => {
   it("decodes the legacy v1 checkpoint", () => {
@@ -130,13 +135,25 @@ function researchCandidate(index: number, overrides: Partial<ResearchCandidate> 
 
 describe("content pipeline Admin", () => {
   beforeEach(() => sessionStorage.clear());
-  afterEach(() => { vi.restoreAllMocks(); sessionStorage.clear(); });
+  afterEach(() => { vi.useRealTimers(); vi.restoreAllMocks(); sessionStorage.clear(); });
 
   it("does not expose JSON parser errors for an HTML gateway timeout", async () => {
     vi.spyOn(globalThis, "fetch").mockResolvedValue(new Response("<html>timeout</html>", { status: 504 }));
     await expect(requestPipelineApi("/api/admin/course-drafts")).rejects.toThrow(
       "Dịch vụ tạm thời quá tải hoặc hết thời gian chờ. Vui lòng thử lại."
     );
+  });
+
+  it("aborts a non-settling Lesson-generation request with a recoverable message", async () => {
+    vi.useFakeTimers();
+    vi.spyOn(globalThis, "fetch").mockImplementation((_input, init) => new Promise((_resolve, reject) => {
+      init?.signal?.addEventListener("abort", () => reject(new DOMException("Aborted", "AbortError")));
+    }));
+
+    const request = requestPipelineApi("/api/admin/course-drafts/61/lessons/generate", { method: "POST" }, 50);
+    const rejection = expect(request).rejects.toThrow("Yêu cầu sinh Lesson mất quá nhiều thời gian");
+    await vi.advanceTimersByTimeAsync(50);
+    await rejection;
   });
 
   it("merges Research More deterministically without duplicates or displacing selected candidates", () => {
@@ -382,6 +399,70 @@ describe("content pipeline Admin", () => {
     fireEvent.click(await screen.findByRole("button", { name: "Continue: sinh Lesson contents" }));
     expect(await screen.findByText("Nội dung Lesson đã sẵn sàng để review.")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Publish Course" })).toBeInTheDocument();
+  });
+
+  it("refreshes a failed Lesson-generation job and retries the failed step", async () => {
+    let generationAttempts = 0;
+    const failedImport = {
+      ...importItem("failed"),
+      errorCode: "LESSON_GENERATION_FAILED",
+      approvedOutlineRevision: 1,
+      lessons: importItem("outline_review").lessons,
+    };
+    vi.spyOn(globalThis, "fetch").mockImplementation(async (input) => {
+      const url = String(input);
+      if (url === "/api/admin/course-drafts") {
+        const item = generationAttempts === 0
+          ? importItem("outline_review")
+          : generationAttempts === 1 ? failedImport : importItem("content_review");
+        return json({ success: true, data: { items: [item] } });
+      }
+      if (url === "/api/admin/course-drafts/61/lessons/generate") {
+        generationAttempts += 1;
+        return generationAttempts === 1
+          ? json({ success: false, error: { message: "Unable to generate all Lesson contents." } }, 502)
+          : json({ success: true, data: { status: "content_review" } }, 201);
+      }
+      throw new Error(`Unexpected request: ${url}`);
+    });
+
+    render(<ContentPipelineAdmin />);
+    fireEvent.click(await screen.findByRole("button", { name: "Continue: sinh Lesson contents" }));
+    expect(await screen.findByRole("button", { name: "Thử lại bước bị lỗi" })).toBeInTheDocument();
+    expect(screen.getByRole("alert")).toHaveTextContent("Dịch vụ tạm thời quá tải hoặc hết thời gian chờ");
+
+    fireEvent.click(screen.getByRole("button", { name: "Thử lại bước bị lỗi" }));
+    expect(await screen.findByText("Nội dung Lesson đã sẵn sàng để review.")).toBeInTheDocument();
+    expect(generationAttempts).toBe(2);
+  });
+
+  it("starts a new local workflow without removing persisted Course imports", async () => {
+    sessionStorage.setItem("learningapp.course-outline-generation", JSON.stringify({
+      version: 2,
+      topic: "Python async",
+      selectedCandidateKeys: [],
+      candidates: [],
+      initializationKey: "33333333-3333-4333-8333-333333333333",
+      jobId: 61,
+      pendingAction: null,
+      attempts: [],
+    }));
+    vi.spyOn(globalThis, "fetch").mockImplementation(async (input) => {
+      if (String(input) === "/api/admin/course-drafts") {
+        return json({ success: true, data: { items: [importItem("failed")] } });
+      }
+      throw new Error(`Unexpected request: ${String(input)}`);
+    });
+
+    render(<ContentPipelineAdmin />);
+    expect(await screen.findByDisplayValue("Python async")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Bắt đầu workflow mới" }));
+
+    expect(screen.getByLabelText("Chủ đề Course")).toHaveValue("");
+    expect(screen.getByText("Chọn một Course import.")).toBeInTheDocument();
+    expect(screen.getByText("Đã mở workflow mới. Các Course import đã lưu vẫn còn trong hàng chờ.")).toBeInTheDocument();
+    expect(sessionStorage.getItem("learningapp.course-outline-generation")).toBeNull();
+    expect(screen.getByRole("button", { name: /Python nền tảng/ })).toBeInTheDocument();
   });
 
   it("publishes atomically and removes the resolved item after refresh", async () => {
