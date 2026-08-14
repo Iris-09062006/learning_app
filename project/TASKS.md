@@ -21,6 +21,7 @@ Recently verified supporting hotfixes:
 
 | Task ID | Title | Status | Phase | Dependency |
 |---|---|---|---|---|
+| `TASK-075` | Tavily Web Ingestion Phase A Provider Boundary | VERIFIED | Tavily web ingestion Phase A | T001–T009 and Phase A gate pass |
 | `TASK-045` | Reduce Page Navigation Latency | VERIFIED | Performance hotfix | None |
 | `TASK-046` | Stabilize AI Content Pipeline and New Lesson Targets | VERIFIED | Content operations hotfix | `TASK-043` |
 

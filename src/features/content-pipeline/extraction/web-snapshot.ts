@@ -3,6 +3,7 @@ import "server-only";
 import { createHash } from "node:crypto";
 
 import { normalizeDocumentText } from "./document-extractor";
+import type { NormalizedWebExtractionResult } from "../providers/web-content-extraction-provider";
 
 function yamlString(value: string) {
   return JSON.stringify(value.normalize("NFC"));
@@ -37,4 +38,15 @@ export function serializeWebSnapshot(input: {
 
 export function hashWebSnapshot(snapshot: string) {
   return createHash("sha256").update(snapshot, "utf8").digest("hex");
+}
+
+export function serializeNormalizedWebExtractionSnapshot(
+  input: NormalizedWebExtractionResult & { title: string },
+) {
+  return serializeWebSnapshot({
+    title: input.title,
+    canonicalUrl: input.canonicalUrl,
+    fetchedAt: input.capturedAt,
+    text: input.markdown,
+  });
 }

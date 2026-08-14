@@ -13,6 +13,7 @@ export function contentPipelineErrorResponse(error: unknown) {
                 : ["INVALID_SOURCE", "FETCH_FAILED", "EXTRACTION_ERROR", "EXTRACTION_FAILED"].includes(error.code) ? 422
                   : error.code === "INVALID_SOURCE_REFERENCE" ? 400
             : error.code.startsWith("SEARCH_PROVIDER_") ? 503
+            : error.code === "WEB_EXTRACTION_UNAVAILABLE" ? 503
             : error.code === "RATE_LIMITED" ? 429
             : error.code === "VALIDATION_ERROR" ? 400
               : 500;

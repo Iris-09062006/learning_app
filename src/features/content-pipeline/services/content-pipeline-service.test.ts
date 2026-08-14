@@ -130,9 +130,11 @@ import {
   initializeCourseImport,
   attachSourceToCourseImport,
   researchCourseSources,
+  mapWebContentExtractionError,
   submitCourseImportReview,
 } from "./content-pipeline-service";
 import { WebSearchProviderError } from "@/features/content-pipeline/providers/web-search-provider";
+import { WebContentExtractionProviderError } from "@/features/content-pipeline/providers/web-content-extraction-provider";
 
 function mockActiveAdmin() {
   vi.spyOn(console, "info").mockImplementation(() => undefined);
@@ -400,6 +402,37 @@ describe("Phase 4 stateless course research", () => {
     } finally {
       vi.unstubAllEnvs();
     }
+  });
+});
+
+describe("Phase A web extraction error boundary", () => {
+  it.each([
+    ["CONFIGURATION", "WEB_EXTRACTION_UNAVAILABLE"],
+    ["AUTHENTICATION", "WEB_EXTRACTION_UNAVAILABLE"],
+    ["QUOTA", "WEB_EXTRACTION_UNAVAILABLE"],
+    ["TIMEOUT", "WEB_EXTRACTION_UNAVAILABLE"],
+    ["UPSTREAM", "WEB_EXTRACTION_UNAVAILABLE"],
+    ["FAILED_RESULT", "EXTRACTION_ERROR"],
+    ["INVALID_RESPONSE", "EXTRACTION_ERROR"],
+    ["INVALID_CANONICAL_URL", "EXTRACTION_ERROR"],
+    ["UNUSABLE_CONTENT", "EXTRACTION_ERROR"],
+    ["CHUNKLESS_CONTENT", "EXTRACTION_ERROR"],
+    ["CONTENT_TOO_LARGE", "PAYLOAD_TOO_LARGE"],
+  ] as const)("maps %s to provider-neutral %s", (providerCode, applicationCode) => {
+    expect(() => mapWebContentExtractionError(
+      new WebContentExtractionProviderError(providerCode, "raw provider detail"),
+    )).toThrowError(expect.objectContaining({
+      code: applicationCode,
+      details: { extractionCategory: providerCode },
+    }));
+  });
+
+  it("maps unknown failures to the same generic availability boundary", () => {
+    expect(() => mapWebContentExtractionError(new Error("secret detail")))
+      .toThrowError(expect.objectContaining({
+        code: "WEB_EXTRACTION_UNAVAILABLE",
+        message: "Web extraction is temporarily unavailable. Retry or use a file.",
+      }));
   });
 });
 

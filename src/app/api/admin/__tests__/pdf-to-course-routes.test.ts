@@ -116,10 +116,31 @@ describe("Phase 3 source routes", () => {
     ["FETCH_FAILED", 422], ["EXTRACTION_FAILED", 422], ["INVALID_SOURCE", 422],
     ["SOURCE_LIMIT_EXCEEDED", 409], ["SOURCE_CONFLICT", 409], ["SOURCE_MUTATION_LOCKED", 409],
     ["STALE_OUTLINE", 409], ["INVALID_SOURCE_REFERENCE", 400], ["RATE_LIMITED", 429],
+    ["WEB_EXTRACTION_UNAVAILABLE", 503],
   ] as const)("maps %s to %i", async (code, status) => {
     serviceMocks.ingestUrlSource.mockRejectedValue(new ContentPipelineError(code, "source failed"));
     const response = await ingestUrl(new Request("http://localhost", { method: "POST", body: "{}" }));
     expect(response.status).toBe(status); expect(response.headers.get("Cache-Control")).toBe("no-store");
+  });
+
+  it("returns a provider-neutral, secret-safe extraction-unavailable envelope", async () => {
+    serviceMocks.ingestUrlSource.mockRejectedValue(new ContentPipelineError(
+      "WEB_EXTRACTION_UNAVAILABLE",
+      "Web extraction is temporarily unavailable. Retry or use a file.",
+      { extractionCategory: "AUTHENTICATION", apiKey: "secret", providerBody: "raw body", requestId: "vendor-id" },
+    ));
+    const response = await ingestUrl(new Request("http://localhost", { method: "POST", body: "{}" }));
+    expect(response.status).toBe(503);
+    expect(response.headers.get("Retry-After")).toBeNull();
+    const body = await response.json();
+    expect(body).toEqual({
+      success: false,
+      error: {
+        code: "WEB_EXTRACTION_UNAVAILABLE",
+        message: "Web extraction is temporarily unavailable. Retry or use a file.",
+      },
+    });
+    expect(JSON.stringify(body)).not.toMatch(/secret|raw body|vendor-id|Tavily/i);
   });
 
   it("does not echo arbitrary service details in an error envelope", async () => {

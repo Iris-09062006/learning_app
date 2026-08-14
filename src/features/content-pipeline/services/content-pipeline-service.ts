@@ -5,6 +5,7 @@ import { createHash, randomUUID } from "node:crypto";
 import { NineRouterLessonDraftProvider, type LessonDraftProvider } from "@/features/content-pipeline/providers/lesson-draft-provider";
 import { TavilyWebSearchProvider } from "@/features/content-pipeline/providers/tavily-web-search-provider";
 import { WebSearchProviderError, type WebSearchProvider } from "@/features/content-pipeline/providers/web-search-provider";
+import { WebContentExtractionProviderError } from "@/features/content-pipeline/providers/web-content-extraction-provider";
 import { planResearchQueries } from "@/features/content-pipeline/research/course-research";
 import { normalizeSearchResults } from "@/features/content-pipeline/research/normalize-search-results";
 import { rankSearchResults } from "@/features/content-pipeline/research/rank-search-results";
@@ -98,6 +99,7 @@ export type ContentPipelineErrorCode =
   | "SEARCH_PROVIDER_QUOTA"
   | "SEARCH_PROVIDER_TIMEOUT"
   | "SEARCH_PROVIDER_UNAVAILABLE"
+  | "WEB_EXTRACTION_UNAVAILABLE"
   | "DATABASE_ERROR";
 
 export interface ContentPipelineOperationalSignal {
@@ -199,6 +201,32 @@ function searchProviderErrorCode(error: unknown): ContentPipelineErrorCode {
 function mapSearchProviderError(error: unknown): never {
   throw new ContentPipelineError(searchProviderErrorCode(error),
     "Web research is temporarily unavailable. Retry or use a manual URL or file.");
+}
+
+export function mapWebContentExtractionError(error: unknown): never {
+  if (error instanceof WebContentExtractionProviderError) {
+    if (error.code === "CONTENT_TOO_LARGE") {
+      throw new ContentPipelineError("PAYLOAD_TOO_LARGE", "The extracted source is too large.", {
+        extractionCategory: error.code,
+      });
+    }
+    if (["CONFIGURATION", "AUTHENTICATION", "QUOTA", "TIMEOUT", "UPSTREAM"].includes(error.code)) {
+      throw new ContentPipelineError(
+        "WEB_EXTRACTION_UNAVAILABLE",
+        "Web extraction is temporarily unavailable. Retry or use a file.",
+        { extractionCategory: error.code },
+      );
+    }
+    throw new ContentPipelineError(
+      "EXTRACTION_ERROR",
+      "The web source did not produce usable evidence.",
+      { extractionCategory: error.code },
+    );
+  }
+  throw new ContentPipelineError(
+    "WEB_EXTRACTION_UNAVAILABLE",
+    "Web extraction is temporarily unavailable. Retry or use a file.",
+  );
 }
 
 export async function researchCourseSources(

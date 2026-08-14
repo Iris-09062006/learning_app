@@ -1,12 +1,18 @@
 # Active Task Queue
 
-- **Active task:** `TASK-074` — Repair URL Safe-Fetch Runtime Compatibility
+- **Active task:** `TASK-075` — Tavily Web Ingestion Phase A Provider Boundary
 - **Status:** `VERIFIED`
 - **Owner / Reviewer:** Codex
 - **Deferred design task:** `TASK-047` (`DRAFT`)
 - **Previous blocked task:** `TASK-044` — external Supabase Redirect URL verification
 
 ## Current objective
+
+TASK-075 is verified. T001–T009 from `specs/002-tavily-web-ingestion/tasks.md` add the
+vendor-neutral extraction contract, server-only Tavily Basic Extract adapter, deterministic
+normalization/eligibility, and provider-neutral error mapping. The Phase A gate, focused
+URL/Search/PDF regressions, lint, typecheck, full unit suite, and keyless build pass. Active URL
+ingestion remains unchanged; no migration, deployment, push, or Supabase operation was performed.
 
 TASK-074 is verified. The connection-bound safe fetcher now returns Node's required address-array
 shape when the runtime requests `all: true`; real `https://example.com` capture, the complete
