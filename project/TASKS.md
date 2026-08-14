@@ -11,6 +11,12 @@
 
 ## Active Task
 
+`TASK-081` is verified for only T009–T016 of pedagogical Lesson generation: purpose-aware
+all-section generation, exact blueprint adherence, structural citation ownership, and transient
+normalization to the unchanged final draft contract. Quality review/correction, integration,
+persistence, migration, push, and deployment are out of scope. The focused Phase A/B gate, lint,
+typecheck, diff review, and protected-scope checks pass.
+
 `TASK-080` is verified for only T001–T008 of pedagogical Lesson generation: transient approved
 evidence, synthesis and blueprint contracts plus the single locked-model first stage. No final prose,
 quality review, integration, persistence, migration, push, or deployment is in scope.

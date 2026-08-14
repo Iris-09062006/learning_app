@@ -2,7 +2,11 @@ import "server-only";
 
 import { createHash, randomUUID } from "node:crypto";
 
-import { NineRouterLessonDraftProvider, type LessonDraftProvider } from "@/features/content-pipeline/providers/lesson-draft-provider";
+import {
+  NineRouterLessonDraftProvider,
+  type LessonDraftProvider,
+  type PedagogicalLessonProvider,
+} from "@/features/content-pipeline/providers/lesson-draft-provider";
 import { TavilyWebSearchProvider } from "@/features/content-pipeline/providers/tavily-web-search-provider";
 import { WebSearchProviderError, type WebSearchProvider } from "@/features/content-pipeline/providers/web-search-provider";
 import {
@@ -65,6 +69,8 @@ import {
   type CourseSourceChunk,
   type CourseSourceRef,
   type EvidenceRefMap,
+  type GeneratedLessonCandidate,
+  type LessonBlueprint,
   type ProviderStructuredCourseOutline,
   type ProviderStructuredLessonDraft,
   type StructuredCourseOutline,
@@ -922,6 +928,128 @@ export function buildApprovedLessonEvidenceBoundary(
     chunks: frozenChunks,
   });
   return Object.freeze({ evidence, evidenceRefMap });
+}
+
+export function normalizePedagogicalLessonCandidate(
+  candidate: GeneratedLessonCandidate,
+  blueprint: LessonBlueprint,
+  evidenceRefMap: EvidenceRefMap,
+  includeCitationSourceRefs: boolean
+): { draft: StructuredLessonDraft; citations: Array<{ sectionIndex: number; documentChunkId: number }> } {
+  if (!candidate || typeof candidate !== "object" || !candidate.title?.trim() ||
+    candidate.title.trim().length > 150 || !candidate.summary?.trim() ||
+    !Number.isInteger(candidate.estimatedMinutes) || candidate.estimatedMinutes < 1 ||
+    candidate.estimatedMinutes > 180 || !Array.isArray(candidate.sections) ||
+    candidate.sections.length !== blueprint.sections.length || candidate.sections.length < 1 ||
+    candidate.sections.length > 12) {
+    throw new ContentPipelineError("VALIDATION_ERROR", "Generated Lesson candidate is invalid.");
+  }
+  const refs = new Map<number, EvidenceRefMap[number]>();
+  const canonicalIds = new Set<number>();
+  const sourceQualifiedKeys = new Set<string>();
+  for (const [index, entry] of evidenceRefMap.entries()) {
+    const sourceKey = `${entry.sourceDocumentId}:${entry.chunkIndex}`;
+    if (entry.sourceRef !== index || refs.has(entry.sourceRef) ||
+      !Number.isInteger(entry.documentChunkId) || entry.documentChunkId < 1 ||
+      !Number.isInteger(entry.sourceDocumentId) || entry.sourceDocumentId < 1 ||
+      !Number.isInteger(entry.chunkIndex) || entry.chunkIndex < 0 ||
+      canonicalIds.has(entry.documentChunkId) || sourceQualifiedKeys.has(sourceKey)) {
+      throw new ContentPipelineError("INVALID_SOURCE_REFERENCE", "Lesson evidence mapping is invalid.");
+    }
+    refs.set(entry.sourceRef, entry);
+    canonicalIds.add(entry.documentChunkId);
+    sourceQualifiedKeys.add(sourceKey);
+  }
+  if (refs.size < 1) {
+    throw new ContentPipelineError("INVALID_SOURCE_REFERENCE", "Lesson evidence mapping is empty.");
+  }
+
+  const citations: Array<{ sectionIndex: number; documentChunkId: number }> = [];
+  const seenSectionKeys = new Set<string>();
+  const sections = candidate.sections.map((section, sectionIndex) => {
+    const planned = blueprint.sections[sectionIndex];
+    if (!planned || !section || typeof section !== "object" || !section.sectionKey?.trim() ||
+      seenSectionKeys.has(section.sectionKey) || section.sectionKey !== planned.sectionKey ||
+      section.purpose !== planned.purpose || !section.heading?.trim() ||
+      section.heading !== planned.heading || !section.bodyMarkdown?.trim() ||
+      !Array.isArray(section.citationEvidenceRefs) || section.citationEvidenceRefs.length < 1 ||
+      !section.citationEvidenceRefs.every(Number.isInteger) ||
+      new Set(section.citationEvidenceRefs).size !== section.citationEvidenceRefs.length) {
+      throw new ContentPipelineError("VALIDATION_ERROR", "Generated Lesson sections do not match the blueprint.");
+    }
+    const permittedRefs = new Set(planned.evidenceRefs);
+    const resolved = section.citationEvidenceRefs.map((sourceRef) => refs.get(sourceRef));
+    if (resolved.some((entry) => entry === undefined) ||
+      !section.citationEvidenceRefs.every((sourceRef) => permittedRefs.has(sourceRef))) {
+      throw new ContentPipelineError("INVALID_SOURCE_REFERENCE", "Lesson contains an invalid source citation.");
+    }
+    const owned = resolved.filter((entry): entry is EvidenceRefMap[number] => entry !== undefined);
+    if (new Set(owned.map((entry) => entry.documentChunkId)).size !== owned.length) {
+      throw new ContentPipelineError("INVALID_SOURCE_REFERENCE", "Lesson contains an ambiguous source citation.");
+    }
+    for (const entry of owned) {
+      citations.push({ sectionIndex, documentChunkId: entry.documentChunkId });
+    }
+    seenSectionKeys.add(section.sectionKey);
+    return {
+      heading: section.heading.trim(),
+      bodyMarkdown: section.bodyMarkdown.trim(),
+      citationChunkIndexes: owned.map((entry) => entry.chunkIndex),
+      citationSourceRefs: includeCitationSourceRefs
+        ? owned.map((entry) => ({ sourceDocumentId: entry.sourceDocumentId, chunkIndex: entry.chunkIndex }))
+        : undefined,
+    };
+  });
+  return {
+    draft: {
+      title: candidate.title.trim(),
+      summary: candidate.summary.trim(),
+      estimatedMinutes: candidate.estimatedMinutes,
+      sections,
+    },
+    citations,
+  };
+}
+
+export async function generatePedagogicalLessonSections(
+  job: CourseImportDraft,
+  outlineLessonId: number,
+  chunks: readonly CourseSourceChunk[],
+  provider: PedagogicalLessonProvider
+) {
+  const { evidence, evidenceRefMap } = buildApprovedLessonEvidenceBoundary(
+    job,
+    outlineLessonId,
+    chunks
+  );
+  const planned = await provider.synthesizeEvidenceAndBlueprint({
+    lessonTitle: evidence.lessonTitle,
+    learningObjectives: evidence.learningObjectives,
+    evidenceRefMap,
+  });
+  const generated = await provider.generateLessonSections({
+    lessonTitle: evidence.lessonTitle,
+    learningObjectives: evidence.learningObjectives,
+    evidenceRefMap,
+    synthesis: planned.synthesis,
+    blueprint: planned.blueprint,
+  });
+  const normalized = normalizePedagogicalLessonCandidate(
+    generated.result,
+    planned.blueprint,
+    evidenceRefMap,
+    job.sources.length > 1
+  );
+  return {
+    ...normalized,
+    evidence,
+    evidenceRefMap,
+    synthesis: planned.synthesis,
+    blueprint: planned.blueprint,
+    candidate: generated.result,
+    provider: generated.provider,
+    model: generated.model,
+  };
 }
 
 function resolveJobOutline(

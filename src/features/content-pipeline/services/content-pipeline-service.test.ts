@@ -264,13 +264,220 @@ import {
   mapWebContentExtractionError,
   submitCourseImportReview,
   buildApprovedLessonEvidenceBoundary,
+  generatePedagogicalLessonSections,
+  normalizePedagogicalLessonCandidate,
 } from "./content-pipeline-service";
-import type { CourseImportDraft, CourseSourceChunk } from "@/features/content-pipeline/types";
+import type {
+  CourseImportDraft,
+  CourseSourceChunk,
+  EvidenceSynthesis,
+  GeneratedLessonCandidate,
+  LessonBlueprint,
+} from "@/features/content-pipeline/types";
+import type { PedagogicalLessonProvider } from "@/features/content-pipeline/providers/lesson-draft-provider";
 import { WebSearchProviderError } from "@/features/content-pipeline/providers/web-search-provider";
 import { WebContentExtractionProviderError } from "@/features/content-pipeline/providers/web-content-extraction-provider";
 import { resetRateLimitBuckets } from "@/lib/rate-limiter";
 
 afterEach(() => { vi.unstubAllEnvs(); resetRateLimitBuckets(); });
+
+describe("Phase B pedagogical section normalization", () => {
+  const chunks: CourseSourceChunk[] = [
+    { documentChunkId: 101, sourceDocumentId: 10, sourceOrder: 0, sourceTitle: "Network guide",
+      sourceUrl: null, sourceDomain: null, chunkIndex: 0, content: "Networks connect devices." },
+    { documentChunkId: 202, sourceDocumentId: 20, sourceOrder: 1, sourceTitle: "Example guide",
+      sourceUrl: "https://example.test", sourceDomain: "example.test", chunkIndex: 0,
+      content: "Home Wi-Fi is a LAN example." },
+  ];
+  const synthesis: EvidenceSynthesis = {
+    items: [
+      { itemKey: "network", kind: "concept", statement: "Networks connect devices.", evidenceRefs: [0] },
+      { itemKey: "example", kind: "example", statement: "Home Wi-Fi is a LAN.", evidenceRefs: [1] },
+    ], coverageGaps: [],
+  };
+  const blueprint: LessonBlueprint = {
+    progressionRationale: "Explain the concept, then ground it in an example.",
+    sections: [
+      { sectionKey: "concept", order: 0, purpose: "concept", heading: "Mạng là gì?",
+        teachingObjective: "Build network intuition.", synthesisItemKeys: ["network"], evidenceRefs: [0],
+        expectedElements: ["intuition", "definition"] },
+      { sectionKey: "example", order: 1, purpose: "example", heading: "Wi-Fi gia đình",
+        teachingObjective: "Connect a scenario to the concept.", synthesisItemKeys: ["example"], evidenceRefs: [1],
+        expectedElements: ["scenario", "concept connection"] },
+    ],
+  };
+  const candidate: GeneratedLessonCandidate = {
+    title: "Nhập môn Mạng máy tính", summary: "Giải thích mạng qua ví dụ Wi-Fi gia đình.", estimatedMinutes: 12,
+    sections: [
+      { sectionKey: "concept", purpose: "concept", heading: "Mạng là gì?",
+        bodyMarkdown: "Mạng kết nối các thiết bị.", citationEvidenceRefs: [0] },
+      { sectionKey: "example", purpose: "example", heading: "Wi-Fi gia đình",
+        bodyMarkdown: "Wi-Fi gia đình minh họa một LAN.", citationEvidenceRefs: [1] },
+    ],
+  };
+
+  function courseJob(): CourseImportDraft {
+    return {
+      jobId: 61, sourceDocumentId: 10, sourceFilename: "networking", outlineStale: false,
+      sources: [
+        { sourceDocumentId: 10, sourceOrder: 0, sourceType: "file", ingestionMethod: "uploaded",
+          title: "Network guide", filename: "network.md", sourceUrl: null, canonicalUrl: null, domain: null,
+          authorityScore: null, relevanceScore: null, status: "ready_for_review", errorCode: null, chunkCount: 1 },
+        { sourceDocumentId: 20, sourceOrder: 1, sourceType: "web_page", ingestionMethod: "manual_url",
+          title: "Example guide", filename: "example.html", sourceUrl: "https://example.test",
+          canonicalUrl: "https://example.test", domain: "example.test", authorityScore: null,
+          relevanceScore: null, status: "ready_for_review", errorCode: null, chunkCount: 1 },
+      ],
+      status: "outline_review", errorCode: null, outlineRevision: 1, approvedOutlineRevision: 1,
+      title: "Course", description: "Description", learningObjectives: ["Learn"],
+      lessons: [{ id: 71, lessonOrder: 0, clientKey: "network", title: candidate.title,
+        summary: candidate.summary, learningObjectives: ["Explain networks"], sourceChunkIndexes: [0, 0],
+        sourceRefs: [{ sourceDocumentId: 10, chunkIndex: 0 }, { sourceDocumentId: 20, chunkIndex: 0 }],
+        sourceChunks: [
+          { documentChunkId: 101, sourceDocumentId: 10, sourceOrder: 0, chunkIndex: 0 },
+          { documentChunkId: 202, sourceDocumentId: 20, sourceOrder: 1, chunkIndex: 0 },
+        ], contentDraft: null }],
+      publishedCourseId: null, createdAt: "2026-08-14T00:00:00.000Z", updatedAt: "2026-08-14T00:00:00.000Z",
+    };
+  }
+
+  it("normalizes only the unchanged StructuredLessonDraft fields and canonical citation rows", () => {
+    const boundary = buildApprovedLessonEvidenceBoundary(courseJob(), 71, chunks);
+    const result = normalizePedagogicalLessonCandidate(candidate, blueprint, boundary.evidenceRefMap, true);
+    expect(result).toEqual({
+      draft: {
+        title: candidate.title, summary: candidate.summary, estimatedMinutes: 12,
+        sections: [
+          { heading: "Mạng là gì?", bodyMarkdown: "Mạng kết nối các thiết bị.", citationChunkIndexes: [0],
+            citationSourceRefs: [{ sourceDocumentId: 10, chunkIndex: 0 }] },
+          { heading: "Wi-Fi gia đình", bodyMarkdown: "Wi-Fi gia đình minh họa một LAN.", citationChunkIndexes: [0],
+            citationSourceRefs: [{ sourceDocumentId: 20, chunkIndex: 0 }] },
+        ],
+      },
+      citations: [
+        { sectionIndex: 0, documentChunkId: 101 },
+        { sectionIndex: 1, documentChunkId: 202 },
+      ],
+    });
+    expect(JSON.stringify(result)).not.toMatch(/sectionKey|purpose|synthesis|blueprint|teachingObjective|review/);
+  });
+
+  it("keeps the single-source draft contract without required source-qualified fields", () => {
+    const singleBlueprint: LessonBlueprint = { ...blueprint, sections: [blueprint.sections[0]] };
+    const singleCandidate: GeneratedLessonCandidate = { ...candidate, sections: [candidate.sections[0]] };
+    const boundary = buildApprovedLessonEvidenceBoundary({ ...courseJob(), sources: [courseJob().sources[0]],
+      lessons: [{ ...courseJob().lessons[0], sourceChunkIndexes: [0],
+        sourceRefs: [{ sourceDocumentId: 10, chunkIndex: 0 }],
+        sourceChunks: [{ documentChunkId: 101, sourceDocumentId: 10, sourceOrder: 0, chunkIndex: 0 }] }] },
+    71, [chunks[0]]);
+    expect(normalizePedagogicalLessonCandidate(singleCandidate, singleBlueprint, boundary.evidenceRefMap, false)
+      .draft.sections[0]).toEqual({ heading: "Mạng là gì?", bodyMarkdown: "Mạng kết nối các thiết bị.",
+        citationChunkIndexes: [0], citationSourceRefs: undefined });
+  });
+
+  it.each([
+    ["zero citations", (value: GeneratedLessonCandidate) => { value.sections[0].citationEvidenceRefs = []; }],
+    ["foreign ref", (value: GeneratedLessonCandidate) => { value.sections[0].citationEvidenceRefs = [99]; }],
+    ["malformed ref", (value: GeneratedLessonCandidate) => {
+      value.sections[0].citationEvidenceRefs = ["0"] as unknown as number[];
+    }],
+    ["section-disallowed ref", (value: GeneratedLessonCandidate) => { value.sections[0].citationEvidenceRefs = [1]; }],
+    ["duplicate refs", (value: GeneratedLessonCandidate) => { value.sections[0].citationEvidenceRefs = [0, 0]; }],
+    ["missing planned section", (value: GeneratedLessonCandidate) => { value.sections.pop(); }],
+    ["unplanned section", (value: GeneratedLessonCandidate) => { value.sections.push({ ...value.sections[0], sectionKey: "extra" }); }],
+    ["reordered section", (value: GeneratedLessonCandidate) => { value.sections.reverse(); }],
+  ])("rejects %s without persistence", (_name, mutate) => {
+    const invalid = structuredClone(candidate);
+    mutate(invalid);
+    const boundary = buildApprovedLessonEvidenceBoundary(courseJob(), 71, chunks);
+    expect(() => normalizePedagogicalLessonCandidate(invalid, blueprint, boundary.evidenceRefMap, true))
+      .toThrow(ContentPipelineError);
+    expect(mocks.persistCourseLessonContentForJob).not.toHaveBeenCalled();
+  });
+
+  it("rejects an ambiguous source-qualified ref map", () => {
+    const boundary = buildApprovedLessonEvidenceBoundary(courseJob(), 71, chunks);
+    const ambiguousMap = [boundary.evidenceRefMap[0], {
+      ...boundary.evidenceRefMap[1], sourceDocumentId: 10, chunkIndex: 0,
+    }];
+    expect(() => normalizePedagogicalLessonCandidate(candidate, blueprint, ambiguousMap, true))
+      .toThrow("Lesson evidence mapping is invalid");
+    expect(mocks.persistCourseLessonContentForJob).not.toHaveBeenCalled();
+  });
+
+  it("runs exactly synthesis then all-section generation and stops before review or persistence", async () => {
+    const callOrder: string[] = [];
+    const provider: PedagogicalLessonProvider = {
+      synthesizeEvidenceAndBlueprint: vi.fn(async () => {
+        callOrder.push("synthesis_blueprint");
+        return { synthesis, blueprint, provider: "fake", model: "gemini-3.6-flash" };
+      }),
+      generateLessonSections: vi.fn(async (
+        request: Parameters<PedagogicalLessonProvider["generateLessonSections"]>[0]
+      ) => {
+        callOrder.push("sections");
+        expect(request.evidenceRefMap.map((entry) => entry.documentChunkId)).toEqual([101, 202]);
+        return { result: candidate, provider: "fake", model: "gemini-3.6-flash" };
+      }),
+      reviewLessonCandidate: vi.fn(),
+      correctLessonCandidate: vi.fn(),
+    };
+    const result = await generatePedagogicalLessonSections(courseJob(), 71, chunks, provider);
+    expect(callOrder).toEqual(["synthesis_blueprint", "sections"]);
+    expect(result.draft.sections).toHaveLength(2);
+    expect(provider.reviewLessonCandidate).not.toHaveBeenCalled();
+    expect(provider.correctLessonCandidate).not.toHaveBeenCalled();
+    expect(mocks.persistCourseLessonContentForJob).not.toHaveBeenCalled();
+  });
+
+  it("allows a procedural fixture to use a meaningfully different two-stage structure", async () => {
+    const proceduralSynthesis: EvidenceSynthesis = {
+      items: [{ itemKey: "commands", kind: "procedure", statement: "cp copies and mv moves paths.", evidenceRefs: [0] }],
+      coverageGaps: [],
+    };
+    const proceduralBlueprint: LessonBlueprint = {
+      progressionRationale: "Demonstrate, work through, then practice the commands.",
+      sections: [
+        { sectionKey: "steps", order: 0, purpose: "procedure", heading: "Các bước với cp và mv",
+          teachingObjective: "Run the commands in order.", synthesisItemKeys: ["commands"], evidenceRefs: [0],
+          expectedElements: ["prerequisites", "ordered steps", "result"] },
+        { sectionKey: "worked", order: 1, purpose: "worked_example", heading: "Ví dụ từng bước",
+          teachingObjective: "Trace an operation.", synthesisItemKeys: ["commands"], evidenceRefs: [0],
+          expectedElements: ["setup", "reasoning", "result"] },
+        { sectionKey: "practice", order: 2, purpose: "practice", heading: "Tự thực hành",
+          teachingObjective: "Choose a command.", synthesisItemKeys: ["commands"], evidenceRefs: [0],
+          expectedElements: ["task", "hint"] },
+      ],
+    };
+    const proceduralCandidate: GeneratedLessonCandidate = {
+      title: "Sao chép và di chuyển tệp với cp và mv", summary: "Thực hành lệnh tệp theo từng bước.",
+      estimatedMinutes: 20, sections: proceduralBlueprint.sections.map((section) => ({
+        sectionKey: section.sectionKey, purpose: section.purpose, heading: section.heading,
+        bodyMarkdown: `Nội dung ${section.purpose}.`, citationEvidenceRefs: [0],
+      })),
+    };
+    const proceduralJob = courseJob();
+    proceduralJob.lessons[0] = {
+      ...proceduralJob.lessons[0], title: proceduralCandidate.title, learningObjectives: ["Use cp and mv"],
+    };
+    const provider: PedagogicalLessonProvider = {
+      synthesizeEvidenceAndBlueprint: vi.fn(async () => ({ synthesis: proceduralSynthesis,
+        blueprint: proceduralBlueprint, provider: "fake", model: "gemini-3.6-flash" })),
+      generateLessonSections: vi.fn(async () => ({ result: proceduralCandidate,
+        provider: "fake", model: "gemini-3.6-flash" })),
+      reviewLessonCandidate: vi.fn(), correctLessonCandidate: vi.fn(),
+    };
+    const result = await generatePedagogicalLessonSections(proceduralJob, 71, chunks, provider);
+    expect(result.candidate.sections.map((section) => section.purpose))
+      .toEqual(["procedure", "worked_example", "practice"]);
+    expect(result.candidate.sections.map((section) => section.purpose))
+      .not.toEqual(candidate.sections.map((section) => section.purpose));
+    expect(provider.synthesizeEvidenceAndBlueprint).toHaveBeenCalledTimes(1);
+    expect(provider.generateLessonSections).toHaveBeenCalledTimes(1);
+    expect(provider.reviewLessonCandidate).not.toHaveBeenCalled();
+    expect(mocks.persistCourseLessonContentForJob).not.toHaveBeenCalled();
+  });
+});
 
 function mockActiveAdmin() {
   vi.spyOn(console, "info").mockImplementation(() => undefined);

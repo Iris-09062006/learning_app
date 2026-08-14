@@ -1,12 +1,21 @@
 # Active Task Queue
 
-- **Active task:** `TASK-080` — Pedagogical Lesson Generation Phase A
+- **Active task:** `TASK-081` — Pedagogical Lesson Generation Phase B
 - **Status:** `VERIFIED`
 - **Owner / Reviewer:** Codex
 - **Deferred design task:** `TASK-047` (`DRAFT`)
 - **Previous blocked task:** `TASK-044` — external Supabase Redirect URL verification
 
 ## Current objective
+
+TASK-081 implements and verifies only T009–T016 of feature `003-pedagogical-lesson-generation`: one locked-model
+all-section request driven by the validated blueprint, purpose-aware instructions, deterministic
+blueprint/citation validation, and transient normalization to the unchanged `StructuredLessonDraft`.
+Quality Review, correction, Continue integration, persistence, migrations, push, and deploy remain
+out of scope. Focused Phase A/B tests, lint, typecheck, diff review, citation/security review, and
+zero-migration/feature-002 checks pass.
+
+## Previous verified objective
 
 TASK-080 implements and verifies only T001–T008 of feature `003-pedagogical-lesson-generation`: immutable
 approved-Lesson evidence identity, transient synthesis/blueprint contracts, strict structural

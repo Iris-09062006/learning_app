@@ -1,6 +1,11 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { SECTION_PURPOSES, type EvidenceRefMap } from "@/features/content-pipeline/types";
+import {
+  SECTION_PURPOSES,
+  type EvidenceRefMap,
+  type EvidenceSynthesis,
+  type LessonBlueprint,
+} from "@/features/content-pipeline/types";
 
 import { NineRouterLessonDraftProvider } from "./lesson-draft-provider";
 
@@ -653,6 +658,232 @@ describe("pedagogical synthesis and blueprint", () => {
     const pending = provider.synthesizeEvidenceAndBlueprint({
       lessonTitle: "Networking", learningObjectives: ["Compare devices"], evidenceRefMap,
     });
+    const assertion = expect(pending).rejects.toThrow("aborted");
+    await vi.advanceTimersByTimeAsync(45_000);
+    await assertion;
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe("purpose-aware Lesson section generation", () => {
+  const evidenceRefMap: EvidenceRefMap = [
+    {
+      sourceRef: 0, documentChunkId: 101, sourceDocumentId: 10, chunkIndex: 0,
+      sourceLabel: "Networking guide",
+      content: "A network connects devices for resource sharing. LAN and the Internet differ in scope.",
+    },
+    {
+      sourceRef: 1, documentChunkId: 202, sourceDocumentId: 20, chunkIndex: 0,
+      sourceLabel: "Network examples",
+      content: "A home Wi-Fi network is a LAN and connects devices to the Internet.",
+    },
+  ];
+  const synthesis: EvidenceSynthesis = {
+    items: [
+      { itemKey: "network", kind: "concept", statement: "Networks connect devices and share resources.", evidenceRefs: [0] },
+      { itemKey: "scope", kind: "comparison", statement: "LAN and Internet differ in scope.", evidenceRefs: [0] },
+      { itemKey: "home", kind: "example", statement: "Home Wi-Fi is a practical LAN example.", evidenceRefs: [1] },
+    ],
+    coverageGaps: [],
+  };
+  const conceptualBlueprint: LessonBlueprint = {
+    progressionRationale: "Build intuition, compare scope, apply the distinction, then synthesize.",
+    sections: [
+      { sectionKey: "concept", order: 0, purpose: "concept", heading: "Mạng kết nối thiết bị", teachingObjective: "Explain network intuition.", synthesisItemKeys: ["network"], evidenceRefs: [0], expectedElements: ["intuition", "definition"] },
+      { sectionKey: "compare", order: 1, purpose: "comparison", heading: "LAN và Internet", teachingObjective: "Compare scope and use.", synthesisItemKeys: ["scope"], evidenceRefs: [0], expectedElements: ["explicit contrast", "when each applies"] },
+      { sectionKey: "example", order: 2, purpose: "example", heading: "Mạng Wi-Fi gia đình", teachingObjective: "Connect the example to the concept.", synthesisItemKeys: ["home"], evidenceRefs: [1], expectedElements: ["scenario", "concept connection"] },
+      { sectionKey: "summary", order: 3, purpose: "summary", heading: "Tóm tắt", teachingObjective: "Reinforce the objectives.", synthesisItemKeys: ["network", "scope", "home"], evidenceRefs: [0, 1], expectedElements: ["concise synthesis", "no new concepts"] },
+    ],
+  };
+  const conceptualCandidate = {
+    title: "Nhập môn Mạng máy tính",
+    summary: "Bài học giải thích mạng, phân biệt LAN với Internet và liên hệ mạng Wi-Fi gia đình.",
+    estimatedMinutes: 18,
+    sections: [
+      { sectionKey: "concept", purpose: "concept", heading: "Mạng kết nối thiết bị", bodyMarkdown: "Hãy hình dung mạng như một cách để các thiết bị kết nối và chia sẻ tài nguyên. **Mạng máy tính** là tập hợp các thiết bị được kết nối.", citationEvidenceRefs: [0] },
+      { sectionKey: "compare", purpose: "comparison", heading: "LAN và Internet", bodyMarkdown: "LAN phục vụ phạm vi cục bộ, còn Internet kết nối các mạng trên phạm vi rộng. Dùng LAN cho kết nối trong nhà; dùng Internet để đi ra ngoài mạng cục bộ.", citationEvidenceRefs: [0] },
+      { sectionKey: "example", purpose: "example", heading: "Mạng Wi-Fi gia đình", bodyMarkdown: "Điện thoại và laptop cùng Wi-Fi tạo thành một LAN; ví dụ này cho thấy các thiết bị cục bộ cùng kết nối ra Internet.", citationEvidenceRefs: [1] },
+      { sectionKey: "summary", purpose: "summary", heading: "Tóm tắt", bodyMarkdown: "Mạng kết nối thiết bị và chia sẻ tài nguyên; LAN có phạm vi cục bộ, còn Internet kết nối rộng hơn.", citationEvidenceRefs: [0, 1] },
+    ],
+  };
+
+  function responseFor(content: unknown, model = "gemini-3.6-flash") {
+    return new Response(JSON.stringify({
+      model,
+      choices: [{ message: { content: typeof content === "string" ? content : JSON.stringify(content) } }],
+    }), { status: 200 });
+  }
+
+  function generate(candidate: unknown, blueprint = conceptualBlueprint) {
+    vi.spyOn(globalThis, "fetch").mockResolvedValue(responseFor(candidate));
+    return new NineRouterLessonDraftProvider("secret", "https://router.test", "fallback")
+      .generateLessonSections({
+        lessonTitle: "Nhập môn Mạng máy tính",
+        learningObjectives: ["Giải thích mạng", "Phân biệt LAN và Internet"],
+        evidenceRefMap,
+        synthesis,
+        blueprint,
+      });
+  }
+
+  it("generates every planned conceptual section in exact blueprint order in one call", async () => {
+    const result = await generate(conceptualCandidate);
+    expect(result.result.sections.map(({ sectionKey, purpose }) => ({ sectionKey, purpose }))).toEqual(
+      conceptualBlueprint.sections.map(({ sectionKey, purpose }) => ({ sectionKey, purpose }))
+    );
+    expect(result.result.sections.map((section) => section.bodyMarkdown)).toEqual([
+      expect.stringContaining("Hãy hình dung"),
+      expect.stringContaining("LAN phục vụ"),
+      expect.stringContaining("Điện thoại và laptop"),
+      expect.stringContaining("Mạng kết nối"),
+    ]);
+    expect(globalThis.fetch).toHaveBeenCalledTimes(1);
+  });
+
+  it.each([
+    ["a missing planned section", (value: typeof conceptualCandidate) => { value.sections.pop(); }],
+    ["an unplanned extra section", (value: typeof conceptualCandidate) => { value.sections.push({ ...value.sections[0], sectionKey: "extra" }); }],
+    ["a duplicate section key", (value: typeof conceptualCandidate) => { value.sections[1].sectionKey = "concept"; }],
+    ["reordered sections", (value: typeof conceptualCandidate) => { value.sections.reverse(); }],
+    ["a mismatched purpose", (value: typeof conceptualCandidate) => { value.sections[0].purpose = "procedure"; }],
+    ["a changed planned heading", (value: typeof conceptualCandidate) => { value.sections[0].heading = "Generic concept"; }],
+    ["an empty body", (value: typeof conceptualCandidate) => { value.sections[0].bodyMarkdown = " "; }],
+    ["a section with zero citations", (value: typeof conceptualCandidate) => { value.sections[0].citationEvidenceRefs = []; }],
+    ["a foreign citation", (value: typeof conceptualCandidate) => { value.sections[0].citationEvidenceRefs = [99]; }],
+    ["a citation outside its blueprint section", (value: typeof conceptualCandidate) => { value.sections[0].citationEvidenceRefs = [1]; }],
+    ["duplicate citations", (value: typeof conceptualCandidate) => { value.sections[0].citationEvidenceRefs = [0, 0]; }],
+    ["an empty title", (value: typeof conceptualCandidate) => { value.title = " "; }],
+    ["an overlong title", (value: typeof conceptualCandidate) => { value.title = "x".repeat(151); }],
+    ["an empty summary", (value: typeof conceptualCandidate) => { value.summary = " "; }],
+    ["a zero duration", (value: typeof conceptualCandidate) => { value.estimatedMinutes = 0; }],
+    ["an excessive duration", (value: typeof conceptualCandidate) => { value.estimatedMinutes = 181; }],
+  ])("rejects %s", async (_name, mutate) => {
+    const invalid = structuredClone(conceptualCandidate);
+    mutate(invalid);
+    await expect(generate(invalid)).rejects.toThrow("AI_RESPONSE_INVALID");
+  });
+
+  it("rejects unknown candidate fields", async () => {
+    const invalid = { ...structuredClone(conceptualCandidate), reviewerScore: 100 };
+    await expect(generate(invalid)).rejects.toThrow("AI_RESPONSE_INVALID");
+  });
+
+  it("uses distinct purpose instructions without padding unsupported purposes", async () => {
+    const fetchMock = vi.spyOn(globalThis, "fetch").mockResolvedValue(responseFor(conceptualCandidate));
+    await new NineRouterLessonDraftProvider("secret", "https://router.test", "fallback")
+      .generateLessonSections({
+        lessonTitle: "Nhập môn Mạng máy tính",
+        learningObjectives: ["Giải thích mạng", "Phân biệt LAN và Internet"],
+        evidenceRefMap, synthesis, blueprint: conceptualBlueprint,
+      });
+    const request = JSON.parse(String(fetchMock.mock.calls[0][1]?.body)) as {
+      model: string; messages: Array<{ content: string }>; response_format: unknown;
+    };
+    expect(request.model).toBe("gemini-3.6-flash");
+    expect(request.messages[0].content).toContain("CONCEPT: build intuition first");
+    expect(request.messages[0].content).toContain("COMPARISON: explicitly compare A versus B");
+    expect(request.messages[0].content).toContain("EXAMPLE: present a concrete scenario");
+    expect(request.messages[0].content).toContain("SUMMARY: provide a concise synthesis");
+    expect(request.messages[0].content).not.toContain("PROCEDURE: establish supported prerequisites");
+    expect(request.messages[0].content).toContain("Do not repeat earlier sections");
+    expect(request.messages[0].content).toContain("article structure");
+    expect(request.messages[0].content).toContain("Do not perform a quality review");
+    expect(JSON.stringify(request.response_format)).not.toMatch(/minItems|maxItems|uniqueItems|minimum|maximum/);
+  });
+
+  it("gives procedural purposes materially different writing jobs", async () => {
+    const proceduralSynthesis: EvidenceSynthesis = {
+      items: [
+        { itemKey: "commands", kind: "procedure", statement: "cp copies and mv moves files.", evidenceRefs: [0] },
+        { itemKey: "safety", kind: "best_practice", statement: "Interactive mode warns before overwrite.", evidenceRefs: [1] },
+      ], coverageGaps: [],
+    };
+    const proceduralBlueprint: LessonBlueprint = {
+      progressionRationale: "Demonstrate commands, work through a scenario, then let the learner practice safely.",
+      sections: [
+        { sectionKey: "procedure", order: 0, purpose: "procedure", heading: "Sao chép và di chuyển", teachingObjective: "Perform ordered file operations.", synthesisItemKeys: ["commands"], evidenceRefs: [0], expectedElements: ["prerequisites", "ordered steps", "expected result"] },
+        { sectionKey: "worked", order: 1, purpose: "worked_example", heading: "Ví dụ từng bước", teachingObjective: "Trace a file operation.", synthesisItemKeys: ["commands"], evidenceRefs: [0], expectedElements: ["setup", "reasoning", "result"] },
+        { sectionKey: "practice", order: 2, purpose: "practice", heading: "Tự thực hành", teachingObjective: "Choose and run a command.", synthesisItemKeys: ["commands"], evidenceRefs: [0], expectedElements: ["task", "hint"] },
+        { sectionKey: "best", order: 3, purpose: "best_practice", heading: "Tránh ghi đè", teachingObjective: "Use interactive mode safely.", synthesisItemKeys: ["safety"], evidenceRefs: [1], expectedElements: ["recommendation", "consequence"] },
+        { sectionKey: "recap", order: 4, purpose: "recap", heading: "Ôn lại", teachingObjective: "Reinforce command selection.", synthesisItemKeys: ["commands", "safety"], evidenceRefs: [0, 1], expectedElements: ["reinforcement", "no new information"] },
+      ],
+    };
+    const candidate = {
+      title: "Sao chép và di chuyển tệp với cp và mv", summary: "Thực hành cp, mv và chế độ an toàn.", estimatedMinutes: 22,
+      sections: proceduralBlueprint.sections.map((section) => ({
+        sectionKey: section.sectionKey, purpose: section.purpose, heading: section.heading,
+        bodyMarkdown: `Nội dung riêng cho ${section.purpose}.`, citationEvidenceRefs: section.evidenceRefs,
+      })),
+    };
+    const fetchMock = vi.spyOn(globalThis, "fetch").mockResolvedValue(responseFor(candidate));
+    const result = await new NineRouterLessonDraftProvider("secret", "https://router.test", "fallback")
+      .generateLessonSections({ lessonTitle: candidate.title, learningObjectives: ["Dùng cp và mv"], evidenceRefMap, synthesis: proceduralSynthesis, blueprint: proceduralBlueprint });
+    const request = JSON.parse(String(fetchMock.mock.calls[0][1]?.body)) as { messages: Array<{ content: string }> };
+    expect(result.result.sections.map((section) => section.purpose)).toEqual(["procedure", "worked_example", "practice", "best_practice", "recap"]);
+    expect(request.messages[0].content).toContain("ordered steps");
+    expect(request.messages[0].content).toContain("setup/problem, reasoning/process, intermediate steps, result");
+    expect(request.messages[0].content).toContain("do not reveal a full solution");
+    expect(request.messages[0].content).toContain("practical recommendation");
+    expect(request.messages[0].content).not.toContain("COMPARISON: explicitly compare");
+  });
+
+  it("defines a distinct writing job for every approved purpose", async () => {
+    const purposeGroups = [SECTION_PURPOSES.slice(0, 12), SECTION_PURPOSES.slice(12)];
+    const capturedInstructions: string[] = [];
+    for (const purposes of purposeGroups) {
+      const blueprint: LessonBlueprint = {
+        progressionRationale: "Exercise the complete approved taxonomy within the 12-section limit.",
+        sections: purposes.map((purpose, order) => ({
+          sectionKey: purpose, order, purpose, heading: `Heading ${purpose}`,
+          teachingObjective: `Teach ${purpose}.`, synthesisItemKeys: ["network"],
+          evidenceRefs: [0], expectedElements: [`Elements for ${purpose}`],
+        })),
+      };
+      const candidate = {
+        title: "Purpose fixture", summary: "Covers approved teaching jobs.", estimatedMinutes: 30,
+        sections: blueprint.sections.map((section) => ({ sectionKey: section.sectionKey, purpose: section.purpose,
+          heading: section.heading, bodyMarkdown: `Body for ${section.purpose}.`, citationEvidenceRefs: [0] })),
+      };
+      const fetchMock = vi.spyOn(globalThis, "fetch").mockResolvedValue(responseFor(candidate));
+      await new NineRouterLessonDraftProvider("secret", "https://router.test", "fallback")
+        .generateLessonSections({ lessonTitle: candidate.title, learningObjectives: ["Learn"], evidenceRefMap,
+          synthesis, blueprint });
+      const request = JSON.parse(String(fetchMock.mock.calls[0][1]?.body)) as { messages: Array<{ content: string }> };
+      capturedInstructions.push(request.messages[0].content);
+      vi.restoreAllMocks();
+    }
+    const instructions = capturedInstructions.join("\n");
+    for (const purpose of SECTION_PURPOSES) {
+      expect(instructions).toContain(`${purpose.toUpperCase()}:`);
+    }
+    expect(new Set(instructions.split("\n").filter((line) => /^[A-Z_]+:/.test(line))).size)
+      .toBe(SECTION_PURPOSES.length);
+  });
+
+  it.each([
+    ["malformed response", () => Promise.resolve(responseFor("not-json")), "AI_RESPONSE_INVALID"],
+    ["provider error", () => Promise.resolve(new Response("failed", { status: 503 })), "AI_PROVIDER_REQUEST_FAILED"],
+    ["model substitution", () => Promise.resolve(responseFor(conceptualCandidate, "gpt-fallback")), "AI_PROVIDER_RESPONSE_INVALID"],
+  ])("makes no hidden retry or fallback after %s", async (_name, implementation, errorCode) => {
+    const fetchMock = vi.spyOn(globalThis, "fetch").mockImplementation(implementation);
+    const provider = new NineRouterLessonDraftProvider("secret", "https://router.test", "fallback");
+    await expect(provider.generateLessonSections({
+      lessonTitle: "Networking", learningObjectives: ["Compare"], evidenceRefMap, synthesis,
+      blueprint: conceptualBlueprint,
+    })).rejects.toThrow(errorCode);
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    const request = JSON.parse(String(fetchMock.mock.calls[0][1]?.body)) as { model: string };
+    expect(request.model).toBe("gemini-3.6-flash");
+  });
+
+  it("times out with one outbound request and no fallback", async () => {
+    vi.useFakeTimers();
+    const fetchMock = vi.spyOn(globalThis, "fetch").mockImplementation((_input, init) =>
+      new Promise((_resolve, reject) => init?.signal?.addEventListener("abort", () => reject(new Error("aborted"))))
+    );
+    const pending = new NineRouterLessonDraftProvider("secret", "https://router.test", "fallback")
+      .generateLessonSections({ lessonTitle: "Networking", learningObjectives: ["Compare"], evidenceRefMap,
+        synthesis, blueprint: conceptualBlueprint });
     const assertion = expect(pending).rejects.toThrow("aborted");
     await vi.advanceTimersByTimeAsync(45_000);
     await assertion;
