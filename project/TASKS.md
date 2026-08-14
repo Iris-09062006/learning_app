@@ -11,6 +11,10 @@
 
 ## Active Task
 
+`TASK-076` is verified: Phase B switches confirmed discovered/manual URL acquisition to the
+verified Tavily Extract provider boundary and reuses the existing snapshot/source/chunk/Course-import
+lifecycle without database changes.
+
 `TASK-074` is verified: the Phase 3 connection-bound safe-fetch runtime callback is repaired
 without weakening SSRF/TLS controls or changing database state.
 `TASK-073` remains verified: Brave was replaced by optional Tavily Search as the default Phase 4 provider.
@@ -35,6 +39,7 @@ Supabase Auth Redirect URLs wildcard and a fresh confirmation email.
 
 | Task ID | Title | Status | Phase | Evidence |
 |---|---|---|---|---|
+| `TASK-076` | Tavily Web Ingestion Phase B Active Path | VERIFIED | Tavily web ingestion Phase B | `reports/TASK-076-implementation.md`, `reports/TASK-076-review.md`, `reports/TASK-076-test.md` |
 | `TASK-074` | Repair URL Safe-Fetch Runtime Compatibility | VERIFIED | Course research Phase 3 hotfix | `reports/TASK-074-implementation.md`, `reports/TASK-074-review.md`, `reports/TASK-074-test.md` |
 | `TASK-073` | Replace Default Brave Search with Tavily | VERIFIED | Course research Phase 4 provider | `reports/TASK-073-implementation.md`, `reports/TASK-073-review.md`, `reports/TASK-073-test.md` |
 | `TASK-072` | Clear Completed Course Source Workflow | VERIFIED | Content operations hotfix | `reports/TASK-072-implementation.md`, `reports/TASK-072-review.md`, `reports/TASK-072-test.md` |
@@ -100,6 +105,7 @@ Supabase Auth Redirect URLs wildcard and a fresh confirmation email.
 
 | Task ID | Title | Status | Phase | Dependency |
 |---|---|---|---|---|
+| `TASK-076` | Tavily Web Ingestion Phase B Active Path | READY_FOR_REVIEW | Tavily web ingestion Phase B | Verified TASK-075 / Phase A gate |
 | `TASK-071` | Topic-Based Multi-Source Course Creation: Phase 5 | IN_PROGRESS | Course research Phase 5 | Verified Phases 1–4 |
 | `TASK-066` | Normalize Single-Chunk Lesson Citations | IN_PROGRESS | Content operations hotfix | CI and production verification |
 

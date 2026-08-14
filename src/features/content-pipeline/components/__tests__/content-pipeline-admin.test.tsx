@@ -1,5 +1,5 @@
 import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { CourseImportDraft, ResearchCandidate } from "../../types";
 import { ContentPipelineAdmin, decodePipelineCheckpoint, mergeResearchCandidates, requestPipelineApi } from "../content-pipeline-admin";
@@ -129,6 +129,7 @@ function researchCandidate(index: number, overrides: Partial<ResearchCandidate> 
 }
 
 describe("content pipeline Admin", () => {
+  beforeEach(() => sessionStorage.clear());
   afterEach(() => { vi.restoreAllMocks(); sessionStorage.clear(); });
 
   it("does not expose JSON parser errors for an HTML gateway timeout", async () => {
@@ -149,6 +150,8 @@ describe("content pipeline Admin", () => {
 
   it("researches, selects/unselects, caps selection at eight, and ingests only explicitly selected candidates", async () => {
     const ingestBodies: Array<Record<string, unknown>> = [];
+    let extractInFlight = 0;
+    let maxExtractInFlight = 0;
     vi.spyOn(globalThis, "fetch").mockImplementation(async (input, init) => {
       const url = String(input);
       if (url === "/api/admin/course-drafts") return json({ success: true, data: { items: [] } });
@@ -157,8 +160,12 @@ describe("content pipeline Admin", () => {
         results: Array.from({ length: 9 }, (_, index) => researchCandidate(index)), cursor: null, hasMore: false,
       } });
       if (url === "/api/admin/content-sources/url") {
+        extractInFlight += 1;
+        maxExtractInFlight = Math.max(maxExtractInFlight, extractInFlight);
         const body = JSON.parse(String(init?.body)) as Record<string, unknown>;
         ingestBodies.push(body);
+        await Promise.resolve();
+        extractInFlight -= 1;
         return json({ success: true, data: { sourceDocumentId: ingestBodies.length, status: "extracted", chunkCount: 1 } }, 201);
       }
       throw new Error(`Unexpected request: ${url}`);
@@ -175,18 +182,22 @@ describe("content pipeline Admin", () => {
     expect(screen.getAllByText(/8\/8 nguồn đã chọn/u).length).toBeGreaterThan(0);
     expect(checkboxes[8]).toBeDisabled();
     fireEvent.click(checkboxes[0]);
+    expect(ingestBodies).toHaveLength(0);
     expect(checkboxes[8]).toBeEnabled();
     fireEvent.click(checkboxes[8]);
+    expect(ingestBodies).toHaveLength(0);
 
     fireEvent.click(screen.getByRole("button", { name: "Xác nhận và ingest nguồn đã chọn" }));
     await waitFor(() => expect(ingestBodies).toHaveLength(8));
     expect(ingestBodies.every((body) => body.discovery === "discovered" && typeof body.idempotencyKey === "string")).toBe(true);
     expect(ingestBodies.some((body) => body.url === researchCandidate(0).url)).toBe(false);
     expect(ingestBodies.some((body) => body.url === researchCandidate(8).url)).toBe(true);
+    expect(maxExtractInFlight).toBe(1);
   });
 
   it("appends unique Research More results while preserving selection and the 20-candidate cap", async () => {
     let round = 0;
+    let extractCalls = 0;
     vi.spyOn(globalThis, "fetch").mockImplementation(async (input) => {
       const url = String(input);
       if (url === "/api/admin/course-drafts") return json({ success: true, data: { items: [] } });
@@ -195,6 +206,10 @@ describe("content pipeline Admin", () => {
         return round === 1
           ? json({ success: true, data: { topic: "Python", queries: ["Python"], results: Array.from({ length: 15 }, (_, index) => researchCandidate(index)), cursor: "opaque", hasMore: true } })
           : json({ success: true, data: { topic: "Python", queries: ["Python"], results: Array.from({ length: 15 }, (_, index) => researchCandidate(10 + index)), cursor: null, hasMore: false } });
+      }
+      if (url === "/api/admin/content-sources/url") {
+        extractCalls += 1;
+        throw new Error("Extract must not run before confirmation.");
       }
       throw new Error(`Unexpected request: ${url}`);
     });
@@ -208,6 +223,36 @@ describe("content pipeline Admin", () => {
     expect(selected).toBeChecked();
     expect(screen.getAllByRole("checkbox")).toHaveLength(20);
     expect(screen.getAllByText("Research Source 10")).toHaveLength(1);
+    expect(extractCalls).toBe(0);
+  });
+
+  it("makes exactly one URL-ingestion call when one candidate is explicitly confirmed", async () => {
+    const extractBodies: Array<Record<string, unknown>> = [];
+    vi.spyOn(globalThis, "fetch").mockImplementation(async (input, init) => {
+      const url = String(input);
+      if (url === "/api/admin/course-drafts") return json({ success: true, data: { items: [] } });
+      if (url === "/api/admin/course-research") return json({ success: true, data: {
+        topic: "Python", queries: ["Python"], results: [researchCandidate(0), researchCandidate(1)], cursor: null, hasMore: false,
+      } });
+      if (url === "/api/admin/content-sources/url") {
+        extractBodies.push(JSON.parse(String(init?.body)) as Record<string, unknown>);
+        return json({ success: true, data: { sourceDocumentId: 21, status: "extracted", chunkCount: 1 } }, 201);
+      }
+      throw new Error(`Unexpected request: ${url}`);
+    });
+    render(<ContentPipelineAdmin />);
+    const topicInput = document.getElementById("course-research-topic") as HTMLInputElement;
+    fireEvent.change(topicInput, { target: { value: "Python" } });
+    fireEvent.click(topicInput.closest("form")!.querySelector("button[type='submit']")!);
+    fireEvent.click(await screen.findByRole("checkbox", { name: /Research Source 1/u }));
+    expect(extractBodies).toHaveLength(0);
+    fireEvent.click(screen.getAllByRole("button").find((button) =>
+      /ingest/u.test(button.textContent ?? "") && !/URL|file/u.test(button.textContent ?? ""))!);
+    await waitFor(() => expect(extractBodies).toEqual([expect.objectContaining({
+      url: researchCandidate(1).url,
+      discovery: "discovered",
+    })]));
+    expect(extractBodies.some((body) => body.url === researchCandidate(0).url)).toBe(false);
   });
 
   it("preserves topic, candidates, selection, and manual URL/file fallbacks after provider failure", async () => {

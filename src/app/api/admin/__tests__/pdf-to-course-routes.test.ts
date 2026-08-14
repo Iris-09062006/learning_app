@@ -90,12 +90,23 @@ describe("Phase 4 stateless research route", () => {
 describe("Phase 3 source routes", () => {
   beforeEach(() => vi.clearAllMocks());
 
-  it("returns a no-store staged URL envelope", async () => {
-    serviceMocks.ingestUrlSource.mockResolvedValue({ sourceDocumentId: 21, status: "extracted", chunkCount: 2, attached: false });
-    const body = { url: "https://example.com", discovery: "manual_url", idempotencyKey: "22222222-2222-4222-8222-222222222222" };
+  it.each(["manual_url", "discovered"] as const)("returns a provider-neutral no-store %s URL envelope", async (discovery) => {
+    serviceMocks.ingestUrlSource.mockResolvedValue({
+      sourceDocumentId: 21, status: "extracted", chunkCount: 2, attached: false, jobId: null, reused: false,
+    });
+    const body = {
+      url: "https://example.com", discovery,
+      ...(discovery === "discovered" ? { title: "Example" } : {}),
+      idempotencyKey: "22222222-2222-4222-8222-222222222222",
+    };
     const response = await ingestUrl(new Request("http://localhost", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) }));
     expect(response.status).toBe(201); expect(response.headers.get("Cache-Control")).toBe("no-store");
     expect(serviceMocks.ingestUrlSource).toHaveBeenCalledWith(body);
+    const payload = await response.json();
+    expect(payload).toEqual({ success: true, data: {
+      sourceDocumentId: 21, status: "extracted", chunkCount: 2, attached: false, jobId: null, reused: false,
+    } });
+    expect(JSON.stringify(payload)).not.toMatch(/Tavily|raw_content|extract_depth|request_id/i);
   });
 
   it("keeps legacy file upload immediate while idempotencyKey selects staged upload", async () => {

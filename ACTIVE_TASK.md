@@ -1,12 +1,18 @@
 # Active Task Queue
 
-- **Active task:** `TASK-075` — Tavily Web Ingestion Phase A Provider Boundary
+- **Active task:** `TASK-076` — Tavily Web Ingestion Phase B Active Path
 - **Status:** `VERIFIED`
 - **Owner / Reviewer:** Codex
 - **Deferred design task:** `TASK-047` (`DRAFT`)
 - **Previous blocked task:** `TASK-044` — external Supabase Redirect URL verification
 
 ## Current objective
+
+TASK-076 is verified. T010–T025 from `specs/002-tavily-web-ingestion/tasks.md` switch confirmed
+discovered/manual URL acquisition to the verified provider-backed extraction boundary while
+preserving immutable snapshots, existing
+materialization/chunking, atomic Course-import ownership, partial settlement, and retry/idempotency.
+Phase C/D, migrations, deployment, push, and remote Supabase operations remain out of scope.
 
 TASK-075 is verified. T001–T009 from `specs/002-tavily-web-ingestion/tasks.md` add the
 vendor-neutral extraction contract, server-only Tavily Basic Extract adapter, deterministic

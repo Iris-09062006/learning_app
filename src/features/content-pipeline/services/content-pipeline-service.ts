@@ -5,7 +5,10 @@ import { createHash, randomUUID } from "node:crypto";
 import { NineRouterLessonDraftProvider, type LessonDraftProvider } from "@/features/content-pipeline/providers/lesson-draft-provider";
 import { TavilyWebSearchProvider } from "@/features/content-pipeline/providers/tavily-web-search-provider";
 import { WebSearchProviderError, type WebSearchProvider } from "@/features/content-pipeline/providers/web-search-provider";
-import { WebContentExtractionProviderError } from "@/features/content-pipeline/providers/web-content-extraction-provider";
+import {
+  WebContentExtractionProviderError,
+  type WebContentExtractionProvider,
+} from "@/features/content-pipeline/providers/web-content-extraction-provider";
 import { planResearchQueries } from "@/features/content-pipeline/research/course-research";
 import { normalizeSearchResults } from "@/features/content-pipeline/research/normalize-search-results";
 import { rankSearchResults } from "@/features/content-pipeline/research/rank-search-results";
@@ -66,7 +69,7 @@ import {
   type StructuredLessonDraft,
   type SupportedSourceMimeType,
 } from "@/features/content-pipeline/types";
-import { documentTitleFromFilename } from "@/features/content-pipeline/utils/document-title";
+import { documentTitleFromFilename, documentTitleFromWebSource } from "@/features/content-pipeline/utils/document-title";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 import { checkRateLimit } from "@/lib/rate-limiter";
 
@@ -409,7 +412,12 @@ export async function uploadStagedContentSource(file: File, idempotencyKeyValue:
   }
 }
 
-export async function ingestUrlSource(body: unknown) {
+interface UrlSourceIngestionDependencies {
+  extractionProvider?: WebContentExtractionProvider;
+  now?: () => Date;
+}
+
+export async function ingestUrlSource(body: unknown, dependencies: UrlSourceIngestionDependencies = {}) {
   const adminId = await requireAdmin();
   const startedAt = Date.now();
   if (!body || typeof body !== "object" || Array.isArray(body)) throw new ContentPipelineError("VALIDATION_ERROR", "Request body is invalid.");
@@ -453,15 +461,19 @@ export async function ingestUrlSource(body: unknown) {
   let materializedId: number | null = null;
   let objectUploaded = false;
   try {
-    const [{ fetchWebPage }, { extractWebPage }, { serializeWebSnapshot }] = await Promise.all([
-      import("@/features/content-pipeline/extraction/web-page-fetcher"),
-      import("@/features/content-pipeline/extraction/web-page-extractor"),
+    const [{ TavilyWebContentExtractionProvider }, { normalizeWebContentExtraction }, { serializeNormalizedWebExtractionSnapshot }] = await Promise.all([
+      import("@/features/content-pipeline/providers/tavily-web-content-extraction-provider"),
+      import("@/features/content-pipeline/providers/web-content-extraction-normalizer"),
       import("@/features/content-pipeline/extraction/web-snapshot"),
     ]);
-    const fetched = await fetchWebPage(input.url);
-    const extracted = extractWebPage({ body: fetched.body, contentType: fetched.contentType, charset: fetched.charset, url: fetched.canonicalUrl });
-    const title = (typeof input.title === "string" && input.title.trim()) || extracted.title;
-    const snapshot = serializeWebSnapshot({ ...extracted, title, canonicalUrl: fetched.canonicalUrl, fetchedAt: fetched.fetchedAt });
+    const provider = dependencies.extractionProvider ?? new TavilyWebContentExtractionProvider();
+    const capturedAt = (dependencies.now ?? (() => new Date()))().toISOString();
+    const providerResult = await provider.extract({ sourceUrl: input.url, capturedAt });
+    const normalized = normalizeWebContentExtraction(providerResult, {
+      title: typeof input.title === "string" ? input.title : undefined,
+    });
+    const title = documentTitleFromWebSource(normalized.title, normalized.canonicalUrl);
+    const snapshot = serializeNormalizedWebExtractionSnapshot({ ...normalized, title });
     const file = new File([snapshot], "snapshot.md", { type: "text/markdown" });
     const concurrent = await uploadDeterministicObject(storagePath, file);
     if (concurrent) {
@@ -473,8 +485,8 @@ export async function ingestUrlSource(body: unknown) {
     const materialized = await materializeCourseImportSource({
       originalFilename: `${sanitizeFilename(title)}.md`, storagePath, mimeType: "text/markdown",
       sizeBytes: file.size, sourceType: "web_page", ingestionMethod: input.discovery,
-      sourceUrl: input.url, canonicalUrl: fetched.canonicalUrl, title,
-      domain: new URL(fetched.canonicalUrl).hostname, authorityScore, fetchedAt: fetched.fetchedAt,
+      sourceUrl: input.url, canonicalUrl: normalized.canonicalUrl, title,
+      domain: new URL(normalized.canonicalUrl).hostname, authorityScore, fetchedAt: normalized.capturedAt,
     });
     materializedId = materialized.sourceDocumentId;
     const extraction = await extractContentSource(materializedId);
@@ -482,19 +494,18 @@ export async function ingestUrlSource(body: unknown) {
     emitContentPipelineSignal({
       event: "fetch", outcome: "success", stage: "snapshot_extracted", code: "OK",
       actorId: adminId, sourceDocumentId: materializedId, durationMs: Date.now() - startedAt,
-      byteCount: fetched.body.byteLength, redirectCount: fetched.redirectCount,
+      byteCount: file.size,
     });
     return { sourceDocumentId: materializedId, status: extraction.status, chunkCount: extraction.chunkCount, attached: false, reused: false };
   } catch (error: unknown) {
-    const fetchCode = error instanceof Error && error.name === "WebPageFetchError" ? (error as Error & { code?: string }).code : undefined;
-    if (error instanceof Error && /CONFLICT|INVALID/.test(error.message)) mapMutationError(error);
+    if (!(error instanceof WebContentExtractionProviderError)
+      && error instanceof Error && /CONFLICT|INVALID/.test(error.message)) mapMutationError(error);
     if (!materializedId && objectUploaded) await removeSourceObject(storagePath).catch(() => undefined);
     const stableCode = error instanceof ContentPipelineError ? error.code
-      : fetchCode === "RESPONSE_TOO_LARGE" ? "PAYLOAD_TOO_LARGE"
-        : fetchCode === "UNSUPPORTED_CONTENT_TYPE" ? "UNSUPPORTED_MEDIA_TYPE"
-          : fetchCode ? "FETCH_FAILED" : "EXTRACTION_FAILED";
+      : error instanceof WebContentExtractionProviderError ? error.code
+        : "EXTRACTION_FAILED";
     emitContentPipelineSignal({
-      event: "fetch", outcome: "failure", stage: materializedId ? "snapshot_extraction" : "page_fetch",
+      event: "fetch", outcome: "failure", stage: materializedId ? "snapshot_extraction" : "provider_extraction",
       code: stableCode, actorId: adminId, sourceDocumentId: materializedId ?? undefined,
       durationMs: Date.now() - startedAt,
     });
@@ -502,12 +513,8 @@ export async function ingestUrlSource(body: unknown) {
       if (!materializedId || error.details) throw error;
       throw new ContentPipelineError(error.code, error.message, { sourceDocumentId: materializedId });
     }
-    throw new ContentPipelineError(fetchCode === "RESPONSE_TOO_LARGE" ? "PAYLOAD_TOO_LARGE"
-      : fetchCode === "UNSUPPORTED_CONTENT_TYPE" ? "UNSUPPORTED_MEDIA_TYPE"
-        : fetchCode ? "FETCH_FAILED" : "EXTRACTION_FAILED",
-      fetchCode === "RESPONSE_TOO_LARGE" ? "The retrieved page exceeds 2 MiB."
-        : fetchCode === "UNSUPPORTED_CONTENT_TYPE" ? "The URL does not return readable HTML or plain text."
-          : "The URL could not be captured as usable evidence.",
+    if (error instanceof WebContentExtractionProviderError) mapWebContentExtractionError(error);
+    throw new ContentPipelineError("EXTRACTION_FAILED", "The URL could not be captured as usable evidence.",
       materializedId ? { sourceDocumentId: materializedId } : undefined);
   }
 }

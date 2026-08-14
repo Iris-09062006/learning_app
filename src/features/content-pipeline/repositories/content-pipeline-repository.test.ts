@@ -224,6 +224,12 @@ describe("Phase 1 Course-import source ownership repository", () => {
     expect(supabase.rpc).toHaveBeenCalledWith("materialize_course_import_source", expect.objectContaining({
       p_storage_path: "admin/key/snapshot.md",
       p_source_type: "web_page",
+      p_ingestion_method: "manual_url",
+      p_source_url: "https://example.com/a",
+      p_canonical_url: "https://example.com/a",
+      p_title: "A",
+      p_domain: "example.com",
+      p_fetched_at: "2026-08-13T00:00:00Z",
     }));
   });
 

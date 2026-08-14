@@ -43,7 +43,9 @@ const mocks = vi.hoisted(() => ({
   replaceDocumentChunks: vi.fn(),
   fetchWebPage: vi.fn(),
   extractWebPage: vi.fn(),
-  serializeWebSnapshot: vi.fn(),
+  webExtract: vi.fn(),
+  normalizeWebContentExtraction: vi.fn(),
+  serializeNormalizedWebExtractionSnapshot: vi.fn(),
 }));
 
 vi.mock("@/features/content-pipeline/repositories/content-pipeline-repository", () => ({
@@ -101,8 +103,18 @@ vi.mock("@/features/content-pipeline/extraction/web-page-extractor", () => ({
   extractWebPage: mocks.extractWebPage,
 }));
 
+vi.mock("@/features/content-pipeline/providers/tavily-web-content-extraction-provider", () => ({
+  TavilyWebContentExtractionProvider: class {
+    extract = mocks.webExtract;
+  },
+}));
+
+vi.mock("@/features/content-pipeline/providers/web-content-extraction-normalizer", () => ({
+  normalizeWebContentExtraction: mocks.normalizeWebContentExtraction,
+}));
+
 vi.mock("@/features/content-pipeline/extraction/web-snapshot", () => ({
-  serializeWebSnapshot: mocks.serializeWebSnapshot,
+  serializeNormalizedWebExtractionSnapshot: mocks.serializeNormalizedWebExtractionSnapshot,
 }));
 
 vi.mock("@/lib/supabase/server", () => ({
@@ -175,50 +187,218 @@ describe("Phase 3 source staging and initialization", () => {
     expect(mocks.uploadSourceObject).not.toHaveBeenCalled();
   });
 
-  it("takes a valid public page through extraction and immutable snapshot materialization", async () => {
+  it.each(["manual_url", "discovered"] as const)("takes a %s URL through the common provider-backed immutable snapshot path", async (discovery) => {
     mocks.getSourceDocumentByStoragePath.mockResolvedValue(null);
-    mocks.fetchWebPage.mockResolvedValue({
-      body: Buffer.from("<html><body>Public evidence</body></html>"),
-      contentType: "text/html",
-      charset: "utf-8",
-      canonicalUrl: "https://example.com/",
-      fetchedAt: "2026-08-14T00:00:00.000Z",
-      redirectCount: 0,
+    mocks.webExtract.mockResolvedValue({
+      sourceUrl: "https://example.com/selected",
+      canonicalUrlCandidate: "https://canonical.example/guide",
+      rawMarkdown: "Public evidence ".repeat(20),
+      capturedAt: "2026-08-14T00:00:00.000Z",
     });
-    mocks.extractWebPage.mockReturnValue({
-      title: "Example Domain",
-      byline: null,
-      excerpt: "Public evidence",
-      textContent: "Public evidence ".repeat(20),
-      contentMarkdown: "Public evidence ".repeat(20),
-      language: "en",
+    mocks.normalizeWebContentExtraction.mockReturnValue({
+      sourceUrl: "https://example.com/selected",
+      canonicalUrl: "https://canonical.example/guide",
+      title: "Example Guide",
+      markdown: "Public evidence ".repeat(20),
+      normalizedCharacterCount: 320,
+      capturedAt: "2026-08-14T00:00:00.000Z",
     });
-    mocks.serializeWebSnapshot.mockReturnValue("# Example Domain\n\nPublic evidence");
+    mocks.serializeNormalizedWebExtractionSnapshot.mockReturnValue("# Example Guide\n\nPublic evidence");
     mocks.uploadSourceObject.mockResolvedValue(undefined);
     mocks.materializeCourseImportSource.mockResolvedValue({ sourceDocumentId: 22, status: "uploaded" });
     mocks.getSourceDocument.mockResolvedValue({ id: 22, status: "extracted" });
     mocks.getSourceDocumentChunkCount.mockResolvedValue(1);
 
     await expect(ingestUrlSource({
-      url: "https://example.com",
-      discovery: "manual_url",
+      url: "https://example.com/selected",
+      discovery,
+      ...(discovery === "discovered" ? { title: "Example Guide" } : {}),
       idempotencyKey: "44444444-4444-4444-8444-444444444444",
-    })).resolves.toMatchObject({ sourceDocumentId: 22, status: "extracted", chunkCount: 1 });
+    }, { now: () => new Date("2026-08-14T00:00:00.000Z") }))
+      .resolves.toMatchObject({ sourceDocumentId: 22, status: "extracted", chunkCount: 1, reused: false });
 
-    expect(mocks.fetchWebPage).toHaveBeenCalledWith("https://example.com");
-    expect(mocks.extractWebPage).toHaveBeenCalledWith(expect.objectContaining({
-      contentType: "text/html",
-      url: "https://example.com/",
+    expect(mocks.webExtract).toHaveBeenCalledTimes(1);
+    expect(mocks.webExtract).toHaveBeenCalledWith({
+      sourceUrl: "https://example.com/selected",
+      capturedAt: "2026-08-14T00:00:00.000Z",
+    });
+    expect(mocks.fetchWebPage).not.toHaveBeenCalled();
+    expect(mocks.extractWebPage).not.toHaveBeenCalled();
+    expect(mocks.normalizeWebContentExtraction).toHaveBeenCalledWith(expect.objectContaining({
+      rawMarkdown: expect.any(String),
+    }), expect.objectContaining({
+      title: discovery === "discovered" ? "Example Guide" : undefined,
     }));
-    expect(mocks.serializeWebSnapshot).toHaveBeenCalledWith(expect.objectContaining({
-      title: "Example Domain",
-      canonicalUrl: "https://example.com/",
+    expect(mocks.serializeNormalizedWebExtractionSnapshot).toHaveBeenCalledWith(expect.objectContaining({
+      title: "Example Guide",
+      canonicalUrl: "https://canonical.example/guide",
     }));
     expect(mocks.uploadSourceObject).toHaveBeenCalledWith(
       expect.stringMatching(/\/snapshot\.md$/),
       expect.objectContaining({ type: "text/markdown" }),
     );
+    expect(mocks.uploadSourceObject).toHaveBeenCalledBefore(mocks.materializeCourseImportSource);
+    expect(mocks.materializeCourseImportSource).toHaveBeenCalledWith(expect.objectContaining({
+      sourceUrl: "https://example.com/selected",
+      canonicalUrl: "https://canonical.example/guide",
+      domain: "canonical.example",
+      ingestionMethod: discovery,
+      fetchedAt: "2026-08-14T00:00:00.000Z",
+    }));
     expect(mocks.getSourceDocumentChunkCount).toHaveBeenCalledWith(22);
+  });
+
+  it("rejects unsafe URLs and reuses accepted snapshots without calling either acquisition implementation", async () => {
+    await expect(ingestUrlSource({
+      url: "http://127.0.0.1/private",
+      discovery: "manual_url",
+      idempotencyKey: "44444444-4444-4444-8444-444444444444",
+    })).rejects.toMatchObject({ code: "INVALID_SOURCE" });
+    expect(mocks.webExtract).not.toHaveBeenCalled();
+
+    mocks.getSourceDocumentByStoragePath.mockResolvedValue({ id: 22, status: "extracted" });
+    mocks.getSourceDocumentChunkCount.mockResolvedValue(2);
+    mocks.getCourseImportJobIdForSource.mockResolvedValue(31);
+    await expect(ingestUrlSource({
+      url: "https://example.com/selected",
+      discovery: "discovered",
+      idempotencyKey: "44444444-4444-4444-8444-444444444444",
+    })).resolves.toMatchObject({ sourceDocumentId: 22, chunkCount: 2, jobId: 31, reused: true });
+    expect(mocks.webExtract).not.toHaveBeenCalled();
+    expect(mocks.fetchWebPage).not.toHaveBeenCalled();
+  });
+
+  it("fails invalid provider provenance before snapshot persistence", async () => {
+    mocks.getSourceDocumentByStoragePath.mockResolvedValue(null);
+    mocks.webExtract.mockResolvedValue({
+      sourceUrl: "https://selected.example/article",
+      canonicalUrlCandidate: "http://127.0.0.1/private",
+      rawMarkdown: "Usable external content ".repeat(10),
+      capturedAt: "2026-08-14T00:00:00.000Z",
+    });
+    mocks.normalizeWebContentExtraction.mockImplementation(() => {
+      throw new WebContentExtractionProviderError("INVALID_CANONICAL_URL", "invalid canonical candidate");
+    });
+
+    await expect(ingestUrlSource({
+      url: "https://selected.example/article",
+      discovery: "discovered",
+      idempotencyKey: "44444444-4444-4444-8444-444444444444",
+    })).rejects.toMatchObject({ code: "EXTRACTION_ERROR" });
+    expect(mocks.webExtract).toHaveBeenCalledTimes(1);
+    expect(mocks.uploadSourceObject).not.toHaveBeenCalled();
+    expect(mocks.materializeCourseImportSource).not.toHaveBeenCalled();
+    expect(mocks.initializeCourseImportFromSources).not.toHaveBeenCalled();
+    expect(mocks.attachCourseImportSource).not.toHaveBeenCalled();
+  });
+
+  it("keeps a chunkless materialized snapshot out of Course ownership", async () => {
+    mocks.getSourceDocumentByStoragePath.mockResolvedValue(null);
+    mocks.webExtract.mockResolvedValue({
+      sourceUrl: "https://selected.example/article", canonicalUrlCandidate: "https://canonical.example/article",
+      rawMarkdown: "Usable external content ".repeat(10), capturedAt: "2026-08-14T00:00:00.000Z",
+    });
+    mocks.normalizeWebContentExtraction.mockReturnValue({
+      sourceUrl: "https://selected.example/article", canonicalUrl: "https://canonical.example/article",
+      markdown: "Usable external content ".repeat(10), normalizedCharacterCount: 240,
+      capturedAt: "2026-08-14T00:00:00.000Z",
+    });
+    mocks.serializeNormalizedWebExtractionSnapshot.mockReturnValue("# canonical.example\n\nUsable external content");
+    mocks.uploadSourceObject.mockResolvedValue(undefined);
+    mocks.materializeCourseImportSource.mockResolvedValue({ sourceDocumentId: 22, status: "uploaded" });
+    mocks.getSourceDocument.mockResolvedValue({ id: 22, status: "extracted" });
+    mocks.getSourceDocumentChunkCount.mockResolvedValue(0);
+
+    await expect(ingestUrlSource({
+      url: "https://selected.example/article", discovery: "discovered",
+      idempotencyKey: "44444444-4444-4444-8444-444444444444",
+    })).rejects.toMatchObject({ code: "EXTRACTION_ERROR", details: { sourceDocumentId: 22 } });
+    expect(mocks.initializeCourseImportFromSources).not.toHaveBeenCalled();
+    expect(mocks.attachCourseImportSource).not.toHaveBeenCalled();
+  });
+
+  it("retries only a failed pre-snapshot URL under the same identity and accepts a changed final URL once", async () => {
+    mocks.getSourceDocumentByStoragePath.mockResolvedValue(null);
+    mocks.webExtract
+      .mockRejectedValueOnce(new WebContentExtractionProviderError("TIMEOUT", "provider timeout"))
+      .mockResolvedValueOnce({
+        sourceUrl: "https://selected.example/article", canonicalUrlCandidate: "https://changed.example/final",
+        rawMarkdown: "Recovered evidence ".repeat(10), capturedAt: "2026-08-14T00:01:00.000Z",
+      });
+    mocks.normalizeWebContentExtraction.mockReturnValue({
+      sourceUrl: "https://selected.example/article", canonicalUrl: "https://changed.example/final",
+      markdown: "Recovered evidence ".repeat(10), normalizedCharacterCount: 190,
+      capturedAt: "2026-08-14T00:01:00.000Z",
+    });
+    mocks.serializeNormalizedWebExtractionSnapshot.mockReturnValue("# changed.example\n\nRecovered evidence");
+    mocks.uploadSourceObject.mockResolvedValue(undefined);
+    mocks.materializeCourseImportSource.mockResolvedValue({ sourceDocumentId: 22, status: "uploaded" });
+    mocks.getSourceDocument.mockResolvedValue({ id: 22, status: "extracted" });
+    mocks.getSourceDocumentChunkCount.mockResolvedValue(1);
+    const body = {
+      url: "https://selected.example/article", discovery: "discovered",
+      idempotencyKey: "44444444-4444-4444-8444-444444444444",
+    };
+
+    await expect(ingestUrlSource(body)).rejects.toMatchObject({ code: "WEB_EXTRACTION_UNAVAILABLE" });
+    await expect(ingestUrlSource(body)).resolves.toMatchObject({ sourceDocumentId: 22, reused: false });
+    expect(mocks.webExtract).toHaveBeenCalledTimes(2);
+    expect(mocks.uploadSourceObject).toHaveBeenCalledTimes(1);
+    expect(mocks.materializeCourseImportSource).toHaveBeenCalledTimes(1);
+    expect(mocks.materializeCourseImportSource).toHaveBeenCalledWith(expect.objectContaining({
+      storagePath: expect.stringContaining("/44444444-4444-4444-8444-444444444444/snapshot.md"),
+      sourceUrl: "https://selected.example/article",
+      canonicalUrl: "https://changed.example/final",
+    }));
+    expect(mocks.initializeCourseImportFromSources).not.toHaveBeenCalled();
+    expect(mocks.attachCourseImportSource).not.toHaveBeenCalled();
+  });
+
+  it("settles A-success/B-failure/C-success without rolling back or re-extracting A and C", async () => {
+    mocks.getSourceDocumentByStoragePath.mockResolvedValue(null);
+    mocks.webExtract
+      .mockResolvedValueOnce({ sourceUrl: "https://a.example", canonicalUrlCandidate: "https://a.example/", rawMarkdown: "A evidence ".repeat(10), capturedAt: "2026-08-14T00:00:00.000Z" })
+      .mockRejectedValueOnce(new WebContentExtractionProviderError("UPSTREAM", "provider unavailable"))
+      .mockResolvedValueOnce({ sourceUrl: "https://c.example", canonicalUrlCandidate: "https://c.example/", rawMarkdown: "C evidence ".repeat(10), capturedAt: "2026-08-14T00:00:02.000Z" });
+    mocks.normalizeWebContentExtraction.mockImplementation((result: { sourceUrl: string; canonicalUrlCandidate: string; rawMarkdown: string; capturedAt: string }) => ({
+      sourceUrl: result.sourceUrl, canonicalUrl: result.canonicalUrlCandidate,
+      markdown: result.rawMarkdown, normalizedCharacterCount: result.rawMarkdown.length, capturedAt: result.capturedAt,
+    }));
+    mocks.serializeNormalizedWebExtractionSnapshot.mockImplementation((input: { markdown: string }) => input.markdown);
+    mocks.uploadSourceObject.mockResolvedValue(undefined);
+    mocks.materializeCourseImportSource
+      .mockResolvedValueOnce({ sourceDocumentId: 21, status: "uploaded" })
+      .mockResolvedValueOnce({ sourceDocumentId: 23, status: "uploaded" });
+    mocks.getSourceDocument.mockImplementation(async (id: number) => ({ id, status: "extracted" }));
+    mocks.getSourceDocumentChunkCount.mockResolvedValue(1);
+    const request = (label: "a" | "b" | "c") => ingestUrlSource({
+      url: `https://${label}.example`, discovery: "discovered",
+      idempotencyKey: `${label === "a" ? "aaaaaaaa" : label === "b" ? "bbbbbbbb" : "cccccccc"}-4444-4444-8444-444444444444`,
+    });
+
+    await expect(request("a")).resolves.toMatchObject({ sourceDocumentId: 21 });
+    await expect(request("b")).rejects.toMatchObject({ code: "WEB_EXTRACTION_UNAVAILABLE" });
+    await expect(request("c")).resolves.toMatchObject({ sourceDocumentId: 23 });
+    expect(mocks.webExtract).toHaveBeenCalledTimes(3);
+    expect(mocks.materializeCourseImportSource).toHaveBeenCalledTimes(2);
+    expect(mocks.removeSourceObject).not.toHaveBeenCalled();
+    expect(mocks.initializeCourseImportFromSources).not.toHaveBeenCalled();
+    expect(mocks.attachCourseImportSource).not.toHaveBeenCalled();
+  });
+
+  it("retries a post-snapshot chunk failure without another provider call", async () => {
+    mocks.getSourceDocumentByStoragePath.mockResolvedValue({ id: 22, status: "failed" });
+    mocks.getSourceDocument.mockResolvedValue({ id: 22, status: "failed", storage_bucket: "lesson-sources", storage_path: "admin/key/snapshot.md", mimeType: "text/markdown" });
+    mocks.updateSourceStatus.mockResolvedValue(undefined);
+
+    await expect(ingestUrlSource({
+      url: "https://selected.example/article", discovery: "manual_url",
+      idempotencyKey: "44444444-4444-4444-8444-444444444444",
+    })).rejects.toMatchObject({ code: "EXTRACTION_ERROR" });
+    expect(mocks.webExtract).not.toHaveBeenCalled();
+    expect(mocks.fetchWebPage).not.toHaveBeenCalled();
+    expect(mocks.uploadSourceObject).not.toHaveBeenCalled();
+    expect(mocks.materializeCourseImportSource).not.toHaveBeenCalled();
   });
 
   it("does not delete a deterministic object after an ambiguous storage failure", async () => {

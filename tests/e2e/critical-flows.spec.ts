@@ -155,6 +155,8 @@ test("generates, moderates, and publishes an Exercise for one published Lesson",
 
 test("reviews an outline, generates Lesson contents, and atomically publishes a Course", async ({ page }) => {
   let stage: "empty" | "outline" | "content" | "published" = "empty";
+  let tavilySearchCalls = 0;
+  let tavilyExtractCalls = 0;
   const content = (id: number, outlineLessonId: number, title: string) => ({
     id, outlineLessonId, revision: 1, title, summary: "Nội dung có trích dẫn.", estimatedMinutes: 12,
     sections: [{ heading: "Mở đầu", bodyMarkdown: "Nội dung bài học", citationChunkIndexes: [0] }],
@@ -162,9 +164,9 @@ test("reviews an outline, generates Lesson contents, and atomically publishes a 
     citations: [{ sectionIndex: 0, chunkIndex: 0, quote: "Nguồn kiểm thử" }],
   });
   const job = () => ({
-    jobId: 61, sourceDocumentId: 9, sourceFilename: "lagrange.txt",
+    jobId: 61, sourceDocumentId: 9, sourceFilename: "lagrange.pdf",
     sources: [{ sourceDocumentId: 9, sourceOrder: 0, sourceType: "file", ingestionMethod: "uploaded",
-      title: "lagrange.txt", filename: "lagrange.txt", sourceUrl: null, canonicalUrl: null,
+      title: "lagrange.pdf", filename: "lagrange.pdf", sourceUrl: null, canonicalUrl: null,
       domain: null, authorityScore: null, relevanceScore: null, status: "ready_for_review",
       errorCode: null, chunkCount: 1 }], outlineStale: false,
     status: stage === "outline" ? "outline_review" : "content_review",
@@ -187,6 +189,8 @@ test("reviews an outline, generates Lesson contents, and atomically publishes a 
     });
 
     if (pathname === "/api/admin/content-targets") return respond({ items: [] });
+    if (pathname === "/api/admin/course-research") tavilySearchCalls += 1;
+    if (pathname === "/api/admin/content-sources/url") tavilyExtractCalls += 1;
     if (pathname === "/api/admin/course-drafts") return respond({ items: stage === "empty" || stage === "published" ? [] : [job()] });
     if (pathname === "/api/admin/content-sources") return respond({ id: 9, originalFilename: "lagrange.txt" }, 201);
     if (pathname === "/api/admin/content-sources/9/extract") return respond({ status: "extracted" });
@@ -216,9 +220,9 @@ test("reviews an outline, generates Lesson contents, and atomically publishes a 
   await expect(page.getByRole("link", { name: "Tạo & duyệt bài học" })).toBeVisible();
 
   await page.locator('input[name="source"]').setInputFiles({
-    name: "lagrange.txt",
-    mimeType: "text/plain",
-    buffer: Buffer.from("Nội suy Lagrange"),
+    name: "lagrange.pdf",
+    mimeType: "application/pdf",
+    buffer: Buffer.from("%PDF-1.4 E2E fixture"),
   });
   await page.getByRole("button", { name: "Tạo Course outline" }).click();
 
@@ -230,6 +234,8 @@ test("reviews an outline, generates Lesson contents, and atomically publishes a 
 
   await expect(page.getByText("Hàng chờ trống.")).toBeVisible();
   await expect(page.getByRole("link", { name: "Mở Course" })).toHaveAttribute("href", "/courses/31");
+  expect(tavilySearchCalls).toBe(0);
+  expect(tavilyExtractCalls).toBe(0);
   await expectNoSeriousA11yViolations(page);
 });
 
@@ -395,6 +401,7 @@ test("researches a topic, preserves Research More selection, and ingests only co
     jobId: number;
   };
   const discoveredIngestions: string[] = [];
+  const extractCalls = new Map<string, number>();
   let initializedSources: Array<{ sourceDocumentId: number; relevanceScore?: number }> = [];
   const sourceMetadata = new Map<number, { title: string; ingestionMethod: "uploaded" | "manual_url" | "discovered"; url: string | null; domain: string | null; authority: number | null }>([
     [fixture.sourceIds.researchA, { title: "Nguồn nghiên cứu A", ingestionMethod: "discovered", url: "https://a.example/guide", domain: "a.example", authority: 0.7 }],
@@ -447,6 +454,7 @@ test("researches a topic, preserves Research More selection, and ingests only co
     }
     if (pathname === "/api/admin/content-sources/url") {
       const body = request.postDataJSON() as { url: string; discovery: string };
+      extractCalls.set(body.url, (extractCalls.get(body.url) ?? 0) + 1);
       if (body.discovery === "discovered") discoveredIngestions.push(body.url);
       const sourceDocumentId = body.url.includes("a.example") ? fixture.sourceIds.researchA
         : body.url.includes("c.example") ? fixture.sourceIds.researchC : fixture.sourceIds.manual;
@@ -468,14 +476,18 @@ test("researches a topic, preserves Research More selection, and ingests only co
   await loginAs(page, "admin"); await page.goto("/admin/content");
   await page.getByLabel("Chủ đề Course").fill("Python concurrency");
   await page.getByRole("button", { name: "Nghiên cứu" }).click();
+  expect(extractCalls.size).toBe(0);
   const sourceA = page.getByRole("checkbox", { name: /Nguồn nghiên cứu A/u });
   await sourceA.focus(); await page.keyboard.press("Space");
   await expect(sourceA).toBeChecked();
+  expect(extractCalls.size).toBe(0);
   await page.getByRole("button", { name: "Nghiên cứu thêm" }).click();
   await expect(sourceA).toBeChecked();
+  expect(extractCalls.size).toBe(0);
   const sourceB = page.getByRole("checkbox", { name: /Nguồn nghiên cứu B/u });
   await sourceB.check(); await sourceB.uncheck();
   await page.getByRole("checkbox", { name: /Nguồn nghiên cứu C/u }).check();
+  expect(extractCalls.size).toBe(0);
   await expectNoSeriousA11yViolations(page);
 
   await page.getByRole("button", { name: "Nghiên cứu thêm" }).click();
@@ -483,14 +495,22 @@ test("researches a topic, preserves Research More selection, and ingests only co
   await expect(sourceA).toBeChecked();
   await expect(page.getByLabel("URL thủ công")).toBeEnabled();
   await expect(page.getByLabel("Tài liệu tùy chọn")).toBeEnabled();
+  expect(extractCalls.size).toBe(0);
 
   await page.getByLabel("URL thủ công").fill("https://manual.example/reference");
   await page.getByRole("button", { name: "Ingest URL" }).click();
+  expect(extractCalls.get("https://manual.example/reference")).toBe(1);
+  expect(extractCalls.get("https://a.example/guide") ?? 0).toBe(0);
+  expect(extractCalls.get("https://b.example/guide") ?? 0).toBe(0);
+  expect(extractCalls.get("https://c.example/reference") ?? 0).toBe(0);
   await page.getByLabel("Tài liệu tùy chọn").setInputFiles({ name: "notes.md", mimeType: "text/markdown", buffer: Buffer.from("Evidence") });
   await page.getByRole("button", { name: "Ingest file" }).click();
   await page.getByRole("button", { name: "Xác nhận và ingest nguồn đã chọn" }).click();
   await expect(page.getByText("Đã chuyển sang source review")).toHaveCount(2);
   expect(discoveredIngestions.sort()).toEqual(["https://a.example/guide", "https://c.example/reference"]);
+  expect(extractCalls.get("https://a.example/guide")).toBe(1);
+  expect(extractCalls.get("https://b.example/guide") ?? 0).toBe(0);
+  expect(extractCalls.get("https://c.example/reference")).toBe(1);
 
   await page.getByRole("button", { name: "Khởi tạo Course import" }).click();
   expect(initializedSources).toHaveLength(4);
