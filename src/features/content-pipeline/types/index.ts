@@ -251,6 +251,177 @@ export interface ProviderSourceChunk {
   content: string;
 }
 
+export const SECTION_PURPOSES = [
+  "introduction",
+  "objectives",
+  "concept",
+  "procedure",
+  "comparison",
+  "example",
+  "worked_example",
+  "deep_dive",
+  "practice",
+  "misconception",
+  "best_practice",
+  "recap",
+  "summary",
+] as const;
+
+export type SectionPurpose = (typeof SECTION_PURPOSES)[number];
+
+export interface ApprovedLessonEvidence {
+  readonly jobId: number;
+  readonly outlineLessonId: number;
+  readonly lessonTitle: string;
+  readonly learningObjectives: readonly string[];
+  readonly chunks: readonly CourseSourceChunk[];
+}
+
+export interface EvidenceRefMapEntry {
+  readonly sourceRef: number;
+  readonly documentChunkId: number;
+  readonly sourceDocumentId: number;
+  readonly chunkIndex: number;
+  readonly sourceLabel: string;
+  readonly content: string;
+}
+
+export type EvidenceRefMap = readonly EvidenceRefMapEntry[];
+
+export type SynthesizedEvidenceKind =
+  | "concept"
+  | "definition"
+  | "prerequisite"
+  | "procedure"
+  | "comparison"
+  | "example"
+  | "misconception"
+  | "best_practice"
+  | "relationship";
+
+export interface SynthesizedEvidenceItem {
+  itemKey: string;
+  kind: SynthesizedEvidenceKind;
+  statement: string;
+  evidenceRefs: number[];
+}
+
+export interface CoverageGap {
+  gapKey: string;
+  description: string;
+  affectedObjectiveIndexes: number[];
+  relatedEvidenceRefs: number[];
+}
+
+export interface EvidenceSynthesis {
+  items: SynthesizedEvidenceItem[];
+  coverageGaps: CoverageGap[];
+}
+
+export interface BlueprintSection {
+  sectionKey: string;
+  order: number;
+  purpose: SectionPurpose;
+  heading: string;
+  teachingObjective: string;
+  synthesisItemKeys: string[];
+  evidenceRefs: number[];
+  expectedElements: string[];
+}
+
+export interface LessonBlueprint {
+  progressionRationale: string;
+  sections: BlueprintSection[];
+}
+
+export interface SynthesisBlueprintGenerationRequest {
+  lessonTitle: string;
+  learningObjectives: readonly string[];
+  evidenceRefMap: EvidenceRefMap;
+}
+
+export interface SynthesisBlueprintGenerationResponse {
+  synthesis: EvidenceSynthesis;
+  blueprint: LessonBlueprint;
+  provider: string;
+  model: string;
+}
+
+export interface PedagogicalProviderResult<T> {
+  result: T;
+  provider: string;
+  model: string;
+}
+
+export interface GeneratedSection {
+  sectionKey: string;
+  purpose: SectionPurpose;
+  heading: string;
+  bodyMarkdown: string;
+  citationEvidenceRefs: number[];
+}
+
+export interface GeneratedLessonCandidate {
+  title: string;
+  summary: string;
+  estimatedMinutes: number;
+  sections: GeneratedSection[];
+}
+
+export const QUALITY_FINDING_CODES = [
+  "ARTICLE_LIKE_PROGRESSION",
+  "DUPLICATED_SECTION",
+  "OVERLAPPING_CONCEPT",
+  "UNSUPPORTED_CLAIM",
+  "MISSING_PREREQUISITE",
+  "SECTION_TOO_BROAD",
+  "SECTION_TOO_SHALLOW",
+  "IRRELEVANT_SECTION",
+  "WEAK_OR_MISSING_EXAMPLE",
+  "CITATION_OWNERSHIP",
+  "SECTION_WITHOUT_EVIDENCE",
+  "EXCESSIVE_REPETITION",
+  "OUTLINE_SCOPE_DRIFT",
+] as const;
+
+export type QualityFindingCode = (typeof QUALITY_FINDING_CODES)[number];
+
+export interface QualityFinding {
+  findingKey: string;
+  code: QualityFindingCode;
+  disposition: "correctable" | "reject";
+  sectionKeys: string[];
+  message: string;
+  evidenceRefs?: number[];
+}
+
+export interface LessonQualityReview {
+  verdict: "pass" | "correctable" | "reject";
+  findings: QualityFinding[];
+  reviewedSectionKeys: string[];
+}
+
+export interface TargetedCorrection {
+  addressedFindingKeys: string[];
+  sections: GeneratedSection[];
+  title?: string;
+  summary?: string;
+  estimatedMinutes?: number;
+}
+
+export interface GenerateLessonSectionsRequest extends SynthesisBlueprintGenerationRequest {
+  synthesis: EvidenceSynthesis;
+  blueprint: LessonBlueprint;
+}
+
+export interface ReviewLessonCandidateRequest extends GenerateLessonSectionsRequest {
+  candidate: GeneratedLessonCandidate;
+}
+
+export interface CorrectLessonCandidateRequest extends ReviewLessonCandidateRequest {
+  review: LessonQualityReview;
+}
+
 export interface CourseImportDraft {
   jobId: number;
   sourceDocumentId: number;

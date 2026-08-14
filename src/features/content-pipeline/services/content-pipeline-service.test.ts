@@ -94,6 +94,125 @@ vi.mock("@/features/content-pipeline/extraction/document-extractor", () => {
   throw new Error("Document extractor must be loaded lazily.");
 });
 
+describe("approved Lesson evidence boundary", () => {
+  const chunks: CourseSourceChunk[] = [
+    {
+      documentChunkId: 202, sourceDocumentId: 20, sourceOrder: 1, sourceTitle: "Linux manual",
+      sourceUrl: "https://example.test/linux", sourceDomain: "example.test", chunkIndex: 0,
+      content: "mv moves a source path to a destination path.",
+    },
+    {
+      documentChunkId: 101, sourceDocumentId: 10, sourceOrder: 0, sourceTitle: "Networking guide",
+      sourceUrl: null, sourceDomain: null, chunkIndex: 0,
+      content: "A router connects networks.",
+    },
+  ];
+
+  function job(overrides: Partial<CourseImportDraft> = {}): CourseImportDraft {
+    return {
+      jobId: 61,
+      sourceDocumentId: 10,
+      sourceFilename: "evidence",
+      sources: [
+        {
+          sourceDocumentId: 10, sourceOrder: 0, sourceType: "file", ingestionMethod: "uploaded",
+          title: "Networking guide", filename: "networking.md", sourceUrl: null, canonicalUrl: null,
+          domain: null, authorityScore: null, relevanceScore: null, status: "ready_for_review",
+          errorCode: null, chunkCount: 1,
+        },
+        {
+          sourceDocumentId: 20, sourceOrder: 1, sourceType: "web_page", ingestionMethod: "manual_url",
+          title: "Linux manual", filename: "linux.html", sourceUrl: "https://example.test/linux",
+          canonicalUrl: "https://example.test/linux", domain: "example.test", authorityScore: null,
+          relevanceScore: null, status: "ready_for_review", errorCode: null, chunkCount: 1,
+        },
+      ],
+      outlineStale: false,
+      status: "outline_review",
+      errorCode: null,
+      outlineRevision: 1,
+      approvedOutlineRevision: 1,
+      title: "Course",
+      description: "Description",
+      learningObjectives: ["Learn"],
+      lessons: [{
+        id: 71,
+        lessonOrder: 0,
+        clientKey: "lesson-a",
+        title: "Networking basics",
+        summary: "Compare devices",
+        learningObjectives: ["Explain routers"],
+        sourceChunkIndexes: [0, 0],
+        sourceRefs: [{ sourceDocumentId: 10, chunkIndex: 0 }, { sourceDocumentId: 20, chunkIndex: 0 }],
+        sourceChunks: [
+          { documentChunkId: 101, sourceDocumentId: 10, sourceOrder: 0, chunkIndex: 0 },
+          { documentChunkId: 202, sourceDocumentId: 20, sourceOrder: 1, chunkIndex: 0 },
+        ],
+        contentDraft: null,
+      }],
+      publishedCourseId: null,
+      createdAt: "2026-08-14T00:00:00.000Z",
+      updatedAt: "2026-08-14T00:00:00.000Z",
+      ...overrides,
+    };
+  }
+
+  it("builds deterministic immutable refs despite source-qualified local-index collisions", () => {
+    const result = buildApprovedLessonEvidenceBoundary(job(), 71, chunks);
+    expect(result.evidenceRefMap).toEqual([
+      expect.objectContaining({ sourceRef: 0, documentChunkId: 101, sourceDocumentId: 10, chunkIndex: 0 }),
+      expect.objectContaining({ sourceRef: 1, documentChunkId: 202, sourceDocumentId: 20, chunkIndex: 0 }),
+    ]);
+    expect(result.evidence.chunks.map((chunk) => chunk.documentChunkId)).toEqual([101, 202]);
+    expect(Object.isFrozen(result)).toBe(true);
+    expect(Object.isFrozen(result.evidenceRefMap)).toBe(true);
+    expect(Object.isFrozen(result.evidenceRefMap[0])).toBe(true);
+  });
+
+  it("uses the same deterministic ref contract for a single-source Lesson", () => {
+    const singleJob = job({
+      sources: [job().sources[0]],
+      lessons: [{
+        ...job().lessons[0],
+        sourceChunkIndexes: [0],
+        sourceRefs: [{ sourceDocumentId: 10, chunkIndex: 0 }],
+        sourceChunks: [{ documentChunkId: 101, sourceDocumentId: 10, sourceOrder: 0, chunkIndex: 0 }],
+      }],
+    });
+    const result = buildApprovedLessonEvidenceBoundary(singleJob, 71, [chunks[1]]);
+    expect(result.evidenceRefMap).toEqual([
+      expect.objectContaining({ sourceRef: 0, documentChunkId: 101, sourceDocumentId: 10, chunkIndex: 0 }),
+    ]);
+  });
+
+  it.each([
+    ["empty evidence", () => [] as CourseSourceChunk[]],
+    ["duplicate canonical identity", () => [chunks[1], { ...chunks[1] }]],
+    ["ambiguous source-qualified identity", () => [chunks[1], { ...chunks[0], sourceDocumentId: 10 }]],
+  ])("rejects %s", (_name, makeChunks) => {
+    expect(() => buildApprovedLessonEvidenceBoundary(job(), 71, makeChunks()))
+      .toThrow(ContentPipelineError);
+    expect(mocks.persistCourseLessonContentForJob).not.toHaveBeenCalled();
+  });
+
+  it("rejects foreign, missing, and mismatched approved ownership", () => {
+    const foreign = job({ lessons: [{
+      ...job().lessons[0],
+      sourceChunks: [{ documentChunkId: 999, sourceDocumentId: 10, sourceOrder: 0, chunkIndex: 0 }],
+    }] });
+    expect(() => buildApprovedLessonEvidenceBoundary(foreign, 71, chunks))
+      .toThrow("Lesson evidence is missing or foreign");
+
+    const missingOwnership = job({ lessons: [{
+      ...job().lessons[0],
+      sourceChunks: [{ documentChunkId: 101, sourceDocumentId: 20, sourceOrder: 0, chunkIndex: 0 }],
+    }] });
+    expect(() => buildApprovedLessonEvidenceBoundary(missingOwnership, 71, chunks))
+      .toThrow("Lesson evidence ownership is invalid");
+    expect(mocks.persistCourseLessonContentForJob).not.toHaveBeenCalled();
+  });
+});
+
 vi.mock("@/features/content-pipeline/extraction/web-page-fetcher", async (importOriginal) => ({
   ...await importOriginal<typeof import("@/features/content-pipeline/extraction/web-page-fetcher")>(),
   fetchWebPage: mocks.fetchWebPage,
@@ -144,7 +263,9 @@ import {
   researchCourseSources,
   mapWebContentExtractionError,
   submitCourseImportReview,
+  buildApprovedLessonEvidenceBoundary,
 } from "./content-pipeline-service";
+import type { CourseImportDraft, CourseSourceChunk } from "@/features/content-pipeline/types";
 import { WebSearchProviderError } from "@/features/content-pipeline/providers/web-search-provider";
 import { WebContentExtractionProviderError } from "@/features/content-pipeline/providers/web-content-extraction-provider";
 import { resetRateLimitBuckets } from "@/lib/rate-limiter";

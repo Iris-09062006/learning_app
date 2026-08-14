@@ -11,6 +11,10 @@
 
 ## Active Task
 
+`TASK-080` is verified for only T001–T008 of pedagogical Lesson generation: transient approved
+evidence, synthesis and blueprint contracts plus the single locked-model first stage. No final prose,
+quality review, integration, persistence, migration, push, or deployment is in scope.
+
 `TASK-079` is verified: failed Lesson-content generation now refreshes persisted job state, supports
 safe retry, bounds the browser wait, and can reset into a new local workflow without mutating stored
 jobs or evidence. No database, deployment, push, or remote-data change occurred.
@@ -55,6 +59,7 @@ Supabase Auth Redirect URLs wildcard and a fresh confirmation email.
 
 | Task ID | Title | Status | Phase | Evidence |
 |---|---|---|---|---|
+| `TASK-080` | Pedagogical Lesson Generation Phase A | VERIFIED | Feature 003 Phase A | `reports/TASK-080-implementation.md`, `reports/TASK-080-review.md`, `reports/TASK-080-test.md` |
 | `TASK-078` | Tavily Web Ingestion Phase D Readiness | VERIFIED | Tavily web ingestion Phase D | `reports/TASK-078-implementation.md`, `reports/TASK-078-review.md`, `reports/TASK-078-test.md` |
 | `TASK-077` | Tavily Web Ingestion Phase C Hardening | VERIFIED | Tavily web ingestion Phase C | `reports/TASK-077-implementation.md`, `reports/TASK-077-review.md`, `reports/TASK-077-test.md` |
 | `TASK-076` | Tavily Web Ingestion Phase B Active Path | VERIFIED | Tavily web ingestion Phase B | `reports/TASK-076-implementation.md`, `reports/TASK-076-review.md`, `reports/TASK-076-test.md` |

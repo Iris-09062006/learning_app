@@ -58,11 +58,13 @@ import {
 } from "@/features/content-pipeline/repositories/content-pipeline-repository";
 import {
   SUPPORTED_SOURCE_MIME_TYPES,
+  type ApprovedLessonEvidence,
   type LessonDraftReviewDecision,
   type CourseImportDraft,
   type CourseResearchResult,
   type CourseSourceChunk,
   type CourseSourceRef,
+  type EvidenceRefMap,
   type ProviderStructuredCourseOutline,
   type ProviderStructuredLessonDraft,
   type StructuredCourseOutline,
@@ -845,6 +847,81 @@ function sourceRefKey(ref: CourseSourceRef) {
 function sourceLabel(chunk: CourseSourceChunk) {
   const location = chunk.sourceDomain ?? chunk.sourceUrl ?? "private file";
   return `${chunk.sourceTitle} (${location}), local chunk ${chunk.chunkIndex}`;
+}
+
+export function buildApprovedLessonEvidenceBoundary(
+  job: CourseImportDraft,
+  outlineLessonId: number,
+  chunks: readonly CourseSourceChunk[]
+): { evidence: ApprovedLessonEvidence; evidenceRefMap: EvidenceRefMap } {
+  const lesson = job.lessons.find((item) => item.id === outlineLessonId);
+  if (!lesson) throw new ContentPipelineError("NOT_FOUND", "Outline Lesson not found.");
+  if (chunks.length < 1) {
+    throw new ContentPipelineError("INVALID_STATE", "Course import has no approved Lesson evidence.");
+  }
+  const canonicalIds = chunks.map((chunk) => chunk.documentChunkId);
+  const sourceKeys = chunks.map((chunk) => sourceRefKey(chunk));
+  if (canonicalIds.some((id) => !Number.isInteger(id) || id < 1) ||
+    new Set(canonicalIds).size !== canonicalIds.length ||
+    new Set(sourceKeys).size !== sourceKeys.length ||
+    chunks.some((chunk) => !chunk.content.trim() || !chunk.sourceTitle.trim())) {
+    throw new ContentPipelineError("INVALID_SOURCE_REFERENCE", "Course import evidence ownership is invalid.");
+  }
+
+  const approvedChunkIds = (lesson.sourceChunks ?? []).map((chunk) => chunk.documentChunkId);
+  if (new Set(approvedChunkIds).size !== approvedChunkIds.length) {
+    throw new ContentPipelineError("INVALID_SOURCE_REFERENCE", "Lesson evidence contains duplicate ownership.");
+  }
+  let selected: CourseSourceChunk[];
+  if (approvedChunkIds.length > 0) {
+    const byId = new Map(chunks.map((chunk) => [chunk.documentChunkId, chunk]));
+    selected = approvedChunkIds.map((documentChunkId) => byId.get(documentChunkId))
+      .filter((chunk): chunk is CourseSourceChunk => chunk !== undefined);
+    if (selected.length !== approvedChunkIds.length) {
+      throw new ContentPipelineError("INVALID_SOURCE_REFERENCE", "Lesson evidence is missing or foreign.");
+    }
+    for (const ownership of lesson.sourceChunks ?? []) {
+      const chunk = selected.find((item) => item.documentChunkId === ownership.documentChunkId);
+      if (!chunk || chunk.sourceDocumentId !== ownership.sourceDocumentId ||
+        chunk.sourceOrder !== ownership.sourceOrder || chunk.chunkIndex !== ownership.chunkIndex) {
+        throw new ContentPipelineError("INVALID_SOURCE_REFERENCE", "Lesson evidence ownership is invalid.");
+      }
+    }
+  } else {
+    if (job.sources.length !== 1 || lesson.sourceChunkIndexes.length < 1 ||
+      new Set(lesson.sourceChunkIndexes).size !== lesson.sourceChunkIndexes.length) {
+      throw new ContentPipelineError("INVALID_SOURCE_REFERENCE", "Lesson evidence is empty or ambiguous.");
+    }
+    const allowedIndexes = new Set(lesson.sourceChunkIndexes);
+    selected = chunks.filter((chunk) => chunk.sourceDocumentId === job.sourceDocumentId &&
+      allowedIndexes.has(chunk.chunkIndex));
+    if (selected.length !== allowedIndexes.size) {
+      throw new ContentPipelineError("INVALID_SOURCE_REFERENCE", "Lesson evidence is missing or foreign.");
+    }
+  }
+  selected.sort((left, right) => left.sourceOrder - right.sourceOrder || left.chunkIndex - right.chunkIndex);
+  if (selected.length < 1 || lesson.learningObjectives.length < 1 ||
+    lesson.learningObjectives.some((objective) => !objective.trim())) {
+    throw new ContentPipelineError("INVALID_STATE", "Lesson has incomplete approved evidence.");
+  }
+
+  const frozenChunks = Object.freeze(selected.map((chunk) => Object.freeze({ ...chunk })));
+  const evidenceRefMap = Object.freeze(frozenChunks.map((chunk, sourceRef) => Object.freeze({
+    sourceRef,
+    documentChunkId: chunk.documentChunkId,
+    sourceDocumentId: chunk.sourceDocumentId,
+    chunkIndex: chunk.chunkIndex,
+    sourceLabel: sourceLabel(chunk),
+    content: chunk.content,
+  })));
+  const evidence = Object.freeze({
+    jobId: job.jobId,
+    outlineLessonId: lesson.id,
+    lessonTitle: lesson.title,
+    learningObjectives: Object.freeze([...lesson.learningObjectives]),
+    chunks: frozenChunks,
+  });
+  return Object.freeze({ evidence, evidenceRefMap });
 }
 
 function resolveJobOutline(

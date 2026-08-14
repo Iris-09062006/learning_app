@@ -1,12 +1,23 @@
 # Active Task Queue
 
-- **Active task:** `TASK-079` — Recover Failed Lesson Content Generation
+- **Active task:** `TASK-080` — Pedagogical Lesson Generation Phase A
 - **Status:** `VERIFIED`
 - **Owner / Reviewer:** Codex
 - **Deferred design task:** `TASK-047` (`DRAFT`)
 - **Previous blocked task:** `TASK-044` — external Supabase Redirect URL verification
 
 ## Current objective
+
+TASK-080 implements and verifies only T001–T008 of feature `003-pedagogical-lesson-generation`: immutable
+approved-Lesson evidence identity, transient synthesis/blueprint contracts, strict structural
+validation, and one combined provider request locked to `gemini-3.6-flash`. Phase B–D, final
+Lesson prose, quality review, Continue integration, persistence, migrations, push, and deploy are
+out of scope.
+
+Focused/full tests, lint, typecheck, build, diff review, security review, and the zero-migration
+check pass. No live AI request, push, or deployment was performed.
+
+## Previous verified objective
 
 TASK-079 repairs only the Admin browser recovery path after Lesson-content generation failure:
 bounded waiting, persisted-state refresh before retry, and a local start-new-workflow reset. The
