@@ -1,5 +1,16 @@
 # Architecture
 
+## Tavily acquisition boundary — current feature 002 state
+
+Tavily Search is discovery-only: Research, Research More, candidate rendering, and selection do
+not acquire evidence. After explicit Admin confirmation, both discovered and manual web URLs use
+the same server-only Tavily Extract adapter with one Basic full-page Markdown request per URL.
+Application code validates and normalizes that untrusted Markdown, creates the deterministic
+private snapshot, and only then reuses Supabase source metadata, chunks, ownership, revisions, and
+publication state. Gemini remains the sole Course outline/Lesson generator. File/PDF ingestion is
+unchanged. The legacy direct network fetch and Readability extractor remain inactive/test-only and
+are not an outage fallback. Feature 002 adds no schema or migration.
+
 ## Topic-based multi-source Course creation — implemented architecture
 
 This section is authoritative for the current Course-import implementation and supersedes older
@@ -15,8 +26,8 @@ topic -> stateless research -> candidate review -> selected URL/file ingestion
 ```
 
 Research candidates remain request/browser state until explicit selection. Web acquisition is
-server-only, SSRF constrained, and materialized as deterministic private Markdown before
-extraction. `course_import_job_sources` is authoritative ownership; the legacy singular source is
+server-only, URL-policy constrained before Tavily access, and materialized as deterministic private
+Markdown before chunking. `course_import_job_sources` is authoritative ownership; the legacy singular source is
 retained as the order-zero compatibility anchor. Application references are source-qualified and
 resolve to canonical chunk IDs inside the job boundary. Learner, enrollment, progress, and
 Exercise modules do not import Course-import provenance or ranking data.

@@ -1,5 +1,15 @@
 # AI Course multi-source change-impact audit
 
+## Feature 002 implementation addendum (2026-08-14)
+
+The planned multi-source flow is now implemented. Tavily Search owns discovery only; explicitly
+confirmed discovered/manual URLs share one server-only Basic Markdown Tavily Extract orchestration.
+The application validates untrusted output and creates the existing immutable private snapshot
+before chunks or Gemini generation. The earlier safe direct-fetch/Readability design below is now
+historical: its network/extractor code is retained but production-unused and never a provider
+failure fallback. PDF/file, Course generation/review/publication, learner/progress, and Exercise
+contracts are unchanged, and feature 002 requires no database migration.
+
 ## Scope and evidence
 
 This document identifies the minimum application changes needed to extend the current Course-import pipeline from one source per import job to reviewed, selected multi-source imports that can begin with a topic and web research. It is an impact analysis only; it does not authorize an implementation or a database change.

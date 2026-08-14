@@ -1,5 +1,14 @@
 # AI Course multi-source database audit
 
+## Feature 002 persistence addendum (2026-08-14)
+
+Migration 030 has since implemented the metadata and job-source bridge described by this audit.
+Feature 002 changes only the upstream web acquisition provider: normalized Tavily Markdown is
+serialized into the same private immutable snapshot and reuses `source_documents`,
+`source_document_metadata`, `document_chunks`, `course_import_jobs`, and
+`course_import_job_sources`. No Tavily response, request ID, usage value, provider session, column,
+table, enum, RLS policy, RPC, or migration is added. File/PDF persistence is unchanged.
+
 ## Scope and evidence
 
 This is a read-only design audit of the checked-out implementation. It covers `.ua/`,

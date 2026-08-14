@@ -11,6 +11,12 @@
 
 ## Active Task
 
+`TASK-078` is verified: the T039 failure was isolated to a Vitest `jsdom`/native-fetch
+`AbortSignal` realm mismatch, the server-only smoke now runs under Node, and one final real Basic
+Markdown Extract passed normalization/snapshot/chunk checks. Vercel Production still requires the
+server-only key before a separately authorized deployment; no push, deployment, migration, or
+remote mutation occurred.
+
 `TASK-077` is verified: Phase C proves stored evidence and file/PDF workflows remain independent
 of Tavily after acquisition, locks security/privacy boundaries, and verifies the retained legacy
 direct-fetch code is inactive without starting Phase D.
@@ -43,6 +49,7 @@ Supabase Auth Redirect URLs wildcard and a fresh confirmation email.
 
 | Task ID | Title | Status | Phase | Evidence |
 |---|---|---|---|---|
+| `TASK-078` | Tavily Web Ingestion Phase D Readiness | VERIFIED | Tavily web ingestion Phase D | `reports/TASK-078-implementation.md`, `reports/TASK-078-review.md`, `reports/TASK-078-test.md` |
 | `TASK-077` | Tavily Web Ingestion Phase C Hardening | VERIFIED | Tavily web ingestion Phase C | `reports/TASK-077-implementation.md`, `reports/TASK-077-review.md`, `reports/TASK-077-test.md` |
 | `TASK-076` | Tavily Web Ingestion Phase B Active Path | VERIFIED | Tavily web ingestion Phase B | `reports/TASK-076-implementation.md`, `reports/TASK-076-review.md`, `reports/TASK-076-test.md` |
 | `TASK-074` | Repair URL Safe-Fetch Runtime Compatibility | VERIFIED | Course research Phase 3 hotfix | `reports/TASK-074-implementation.md`, `reports/TASK-074-review.md`, `reports/TASK-074-test.md` |

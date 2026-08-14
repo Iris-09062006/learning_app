@@ -109,6 +109,42 @@ describe("Phase 3 source routes", () => {
     expect(JSON.stringify(payload)).not.toMatch(/Tavily|raw_content|extract_depth|request_id/i);
   });
 
+  it("returns the same 201 contract for an idempotently reused URL attempt", async () => {
+    serviceMocks.ingestUrlSource.mockResolvedValue({
+      sourceDocumentId: 21,
+      status: "ready_for_review",
+      chunkCount: 2,
+      attached: true,
+      jobId: 31,
+      reused: true,
+    });
+    const body = {
+      url: "https://example.com",
+      discovery: "manual_url",
+      idempotencyKey: "22222222-2222-4222-8222-222222222222",
+    };
+
+    const response = await ingestUrl(new Request("http://localhost", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    }));
+
+    expect(response.status).toBe(201);
+    expect(response.headers.get("Cache-Control")).toBe("no-store");
+    await expect(response.json()).resolves.toEqual({
+      success: true,
+      data: {
+        sourceDocumentId: 21,
+        status: "ready_for_review",
+        chunkCount: 2,
+        attached: true,
+        jobId: 31,
+        reused: true,
+      },
+    });
+  });
+
   it("keeps legacy file upload immediate while idempotencyKey selects staged upload", async () => {
     const file = new File(["content"], "guide.md", { type: "text/markdown" });
     serviceMocks.uploadContentSource.mockResolvedValue({ id: 9 });

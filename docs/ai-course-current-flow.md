@@ -1,5 +1,15 @@
 # AI Course Creation: Current Implementation
 
+## Feature 002 current-state addendum (2026-08-14)
+
+This historical audit predates the completed multi-source and Tavily phases. Current web flow is
+Topic → Tavily Search candidates → explicit Admin confirmation → one Basic Markdown Tavily Extract
+per confirmed URL → validated deterministic private snapshot → existing Supabase chunks and
+Course-import ownership → Gemini outline/Lesson generation. Manual URLs share that acquisition
+path. All regeneration, Continue, review, and publication read stored evidence and make zero
+Extract calls. File/PDF, learner/progress, and Exercise flows remain independent. Feature 002 adds
+no database migration; the old direct fetch/Readability path is inactive and not a fallback.
+
 ## Scope
 
 This document audits the implementation that exists at repository commit

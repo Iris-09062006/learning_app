@@ -1,6 +1,6 @@
 # Active Task Queue
 
-- **Active task:** `TASK-077` — Tavily Web Ingestion Phase C Hardening
+- **Active task:** `TASK-078` — Tavily Web Ingestion Phase D Readiness
 - **Status:** `VERIFIED`
 - **Owner / Reviewer:** Codex
 - **Deferred design task:** `TASK-047` (`DRAFT`)
@@ -8,10 +8,25 @@
 
 ## Current objective
 
+TASK-078 implements only T036–T047 from `specs/002-tavily-web-ingestion/tasks.md`: contract
+validation, one explicitly gated real Tavily Basic Extract smoke, full feature/browser regression,
+security/secret and migration readiness checks, deployment/rollback documentation, and the final
+GO/NO-GO assessment. Deployment, push, remote migration application, production-data mutation,
+provider expansion, direct-fetch fallback, and feature-002 database changes are forbidden.
+
+T039 is verified. The earlier live smoke failed before HTTP dispatch because the repository-wide
+Vitest `jsdom` environment supplied a cross-realm `AbortSignal` that native Node `fetch` rejected.
+The server-only smoke now runs in the Node environment; its one final Basic Markdown request passed
+normalization, deterministic snapshot, and chunk checks. All Phase D gates pass. Vercel Production
+still requires `TAVILY_API_KEY` before a separately authorized deployment; no push, deployment, or
+remote mutation was performed. Evidence is recorded in `reports/TASK-078-*.md`.
+
 TASK-077 is verified. T026–T035 from `specs/002-tavily-web-ingestion/tasks.md` harden immutable
 stored-evidence generation, provider-outage isolation, file/PDF independence, URL security,
-untrusted-content framing, privacy, and inactive legacy direct-fetch classification. Phase D,
-migrations, deployment, push, and remote Supabase operations remain out of scope.
+untrusted-content framing, privacy, and inactive legacy direct-fetch classification.
+
+Phase D is verified under TASK-078; configuration, deployment, push, and remote Supabase mutation
+remain separate and out of scope.
 
 TASK-076 is verified. T010–T025 from `specs/002-tavily-web-ingestion/tasks.md` switch confirmed
 discovered/manual URL acquisition to the verified provider-backed extraction boundary while
