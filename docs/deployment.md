@@ -111,13 +111,15 @@ Danh sách biến môi trường bắt buộc:
 | `AI_API_KEY` | Secret | API key cho provider OpenAI-compatible | Local, Preview, Production khi bật AI |
 | `AI_PROVIDER_URL` | Server config | HTTPS endpoint của provider; không dùng localhost trên Vercel | Local, Preview, Production khi bật document pipeline |
 | `AI_PROVIDER_MODEL` | Server config | Model/route identifier được provider hỗ trợ | Local, Preview, Production khi bật document pipeline |
+| `TAVILY_API_KEY` | Optional secret | Tavily Search key dùng riêng ở server; nếu thiếu thì chỉ topic Research trả lỗi recoverable, còn URL/file/PDF vẫn hoạt động | Local, Preview, Production khi bật topic Research |
 
 `NODE_ENV` và `CI` do runtime/CI thiết lập, không lưu thủ công trong Vercel. `PLAYWRIGHT_BROWSER_EXECUTABLE_PATH` chỉ là override local/CI tùy chọn và không phải runtime variable của ứng dụng.
 
 Quy tắc bảo mật:
 
 - Biến có tiền tố `NEXT_PUBLIC_` sẽ xuất hiện trong client bundle.
-- Không đưa `SUPABASE_SERVICE_ROLE_KEY` hoặc `AI_API_KEY` vào biến `NEXT_PUBLIC_`.
+- Không đưa `SUPABASE_SERVICE_ROLE_KEY`, `AI_API_KEY` hoặc `TAVILY_API_KEY` vào biến `NEXT_PUBLIC_`.
+- `TAVILY_API_KEY` không phải điều kiện startup/build/deploy; chỉ cấu hình khi bật topic Research.
 - File `.env.local` phải nằm trong `.gitignore`.
 - Repository phải có `.env.example` chứa danh sách tên biến mẫu không chứa giá trị thật.
 - Preview/E2E không được dùng URL, anon key hoặc service-role key của Production.

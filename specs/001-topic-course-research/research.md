@@ -128,20 +128,21 @@ for up to eight sources.
   evidence.
 - Vector retrieval: rejected as unnecessary scope expansion.
 
-## Decision 6: Use Brave Web Search Behind a Local Provider Interface
+## Decision 6: Use Tavily Search Behind a Local Provider Interface
 
-**Decision**: Define one server-only `WebSearchProvider` interface and implement a Brave Web
-Search adapter. Use a deterministic planner that issues at most three bounded queries per round:
+**Decision**: Keep the server-only `WebSearchProvider` interface and use a Tavily Search adapter
+as its default implementation. Use a deterministic planner that issues at most three bounded queries per round:
 the normalized topic, a Vietnamese educational-intent variant, and a language-aware
 official/reference-material variant. Request only web results, normalize vendor payloads, and
 return at most 20 ranked candidates. `Research More` advances a bounded page cursor; the browser
 merges unique results, preserves selected candidates, and caps the visible list at 20.
 
-**Rationale**: Brave provides explicit language/country controls, supports up to 20 web results
-per request, and supports bounded pagination. The provider boundary prevents vendor payloads from
-becoming domain/UI contracts. See the official
-[Web Search API reference](https://api-dashboard.search.brave.com/api-reference/web/search/get)
-and [pagination guidance](https://api-dashboard.search.brave.com/app/documentation/web-search/get-started).
+**Rationale**: Tavily supports at most 20 results per request and allows the adapter to fix
+`search_depth` to `basic` with `auto_parameters` disabled for predictable free-tier credit use.
+The adapter uses bounded deterministic query refinements for stateless Research More behavior,
+while the provider boundary prevents vendor payloads from becoming domain/UI contracts. See the
+official [Tavily Search API reference](https://docs.tavily.com/documentation/api-reference/endpoint/search)
+and [rate-limit guidance](https://docs.tavily.com/documentation/rate-limits).
 
 **Alternatives considered**:
 
@@ -293,7 +294,9 @@ publication remains the only operation that archives evidence.
 
 ## Production Dependencies and Rollout Gates
 
-- Brave Search API credentials and provider terms must be approved before Phase 4 is enabled.
+- Tavily Search is optional at application startup and deployment. Its server-only credential and
+  provider terms are required only before topic Research is enabled; manual URL/file/PDF ingestion
+  remains available without it.
 - Product/legal/security must approve web snapshot retention and site-access policy before web
   ingestion is enabled in production. This is a rollout gate, not a new architecture decision.
 - The additive database migration and backfill verification must deploy before application code

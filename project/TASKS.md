@@ -11,6 +11,8 @@
 
 ## Active Task
 
+`TASK-073` is the active bounded deployment-blocker fix: replace Brave with optional Tavily Search
+as the default Phase 4 provider without changing database state or prior phase behavior.
 `TASK-066` remains in progress on its prior external verification. `TASK-072` and `TASK-071` are
 verified locally; they were not pushed or deployed.
 
@@ -31,6 +33,7 @@ Supabase Auth Redirect URLs wildcard and a fresh confirmation email.
 
 | Task ID | Title | Status | Phase | Evidence |
 |---|---|---|---|---|
+| `TASK-073` | Replace Default Brave Search with Tavily | VERIFIED | Course research Phase 4 provider | `reports/TASK-073-implementation.md`, `reports/TASK-073-review.md`, `reports/TASK-073-test.md` |
 | `TASK-072` | Clear Completed Course Source Workflow | VERIFIED | Content operations hotfix | `reports/TASK-072-implementation.md`, `reports/TASK-072-review.md`, `reports/TASK-072-test.md` |
 | `TASK-071` | Topic-Based Multi-Source Course Creation: Phase 5 | VERIFIED | Course research Phase 5 | `reports/TASK-071-implementation.md`, `reports/TASK-071-review.md`, `reports/TASK-071-test.md` |
 | `TASK-070` | Topic-Based Multi-Source Course Creation: Phase 4 | VERIFIED | Course research Phase 4 | `reports/TASK-070-implementation.md`, `reports/TASK-070-review.md`, `reports/TASK-070-test.md` |

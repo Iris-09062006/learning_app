@@ -1,12 +1,16 @@
 # Active Task Queue
 
-- **Active task:** `TASK-066` — Normalize Single-Chunk Lesson Citations external verification
-- **Status:** `IN_PROGRESS`
+- **Active task:** `TASK-073` — Replace Default Brave Search with Tavily
+- **Status:** `VERIFIED`
 - **Owner / Reviewer:** Codex
 - **Deferred design task:** `TASK-047` (`DRAFT`)
 - **Previous blocked task:** `TASK-044` — external Supabase Redirect URL verification
 
 ## Current objective
+
+TASK-073 is verified: Brave is replaced by optional, server-only Tavily Search as the default Phase 4 provider.
+The change preserves the verified vendor-neutral research and selected-only ingestion flow, does
+not modify migration 030 or any database state, and will not be pushed or deployed.
 
 TASK-072 is verified locally: a resolved Course import now starts the next Admin source session
 cleanly while published source evidence remains in the database. Phase 5 task `TASK-071` remains

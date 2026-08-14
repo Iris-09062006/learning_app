@@ -3,7 +3,7 @@ import "server-only";
 import { createHash, randomUUID } from "node:crypto";
 
 import { NineRouterLessonDraftProvider, type LessonDraftProvider } from "@/features/content-pipeline/providers/lesson-draft-provider";
-import { BraveWebSearchProvider } from "@/features/content-pipeline/providers/brave-web-search-provider";
+import { TavilyWebSearchProvider } from "@/features/content-pipeline/providers/tavily-web-search-provider";
 import { WebSearchProviderError, type WebSearchProvider } from "@/features/content-pipeline/providers/web-search-provider";
 import { planResearchQueries } from "@/features/content-pipeline/research/course-research";
 import { normalizeSearchResults } from "@/features/content-pipeline/research/normalize-search-results";
@@ -225,7 +225,7 @@ export async function researchCourseSources(
       retryAfterSeconds: capacity.retryAfterSeconds,
     });
   }
-  const provider = dependencies.provider ?? new BraveWebSearchProvider();
+  const provider = dependencies.provider ?? new TavilyWebSearchProvider();
   try {
     const pages = await Promise.all(plan.queries.map((query, index) => {
       if (input.cursor !== undefined && cursors[index] === null) return Promise.resolve({ results: [], cursor: null, hasMore: false });

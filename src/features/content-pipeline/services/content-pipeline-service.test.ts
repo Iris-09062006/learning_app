@@ -320,6 +320,24 @@ describe("Phase 4 stateless course research", () => {
     expect(logged).not.toContain("raw vendor detail");
     expect(logged).not.toMatch(/body|prompt|credential|token|privateAddress|storagePath|chunks/i);
   });
+
+  it("returns the recoverable unavailable state when the optional Tavily key is missing", async () => {
+    vi.stubEnv("TAVILY_API_KEY", "");
+    try {
+      await expect(researchCourseSources({ topic: "Python async" }, {
+        checkCapacity: vi.fn().mockResolvedValue({ allowed: true as const }),
+      })).rejects.toMatchObject({
+        code: "SEARCH_PROVIDER_AUTH",
+        message: "Web research is temporarily unavailable. Retry or use a manual URL or file.",
+      });
+      for (const repositoryCall of [
+        mocks.materializeCourseImportSource, mocks.initializeCourseImportFromSources,
+        mocks.attachCourseImportSource, mocks.createSourceDocument, mocks.uploadSourceObject,
+      ]) expect(repositoryCall).not.toHaveBeenCalled();
+    } finally {
+      vi.unstubAllEnvs();
+    }
+  });
 });
 
 describe("Phase 5 publication error contract", () => {

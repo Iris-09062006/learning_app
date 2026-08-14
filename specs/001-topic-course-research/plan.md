@@ -45,8 +45,8 @@ No audited assumption is contradicted by current HEAD.
 **Language/Version**: TypeScript 5.7, Node.js 22.x, SQL/PLpgSQL on PostgreSQL/Supabase
 
 **Primary Dependencies**: Next.js 15, React 19, `@supabase/ssr`, `@supabase/supabase-js`, existing
-OpenAI-compatible AI provider; planned `@mozilla/readability`, runtime `jsdom`, and Brave Web Search
-API adapter
+OpenAI-compatible AI provider; `@mozilla/readability`, runtime `jsdom`, and a server-only Tavily
+Search adapter behind the existing provider interface
 
 **Storage**: Supabase PostgreSQL plus private Supabase Storage bucket `lesson-sources`
 
@@ -659,7 +659,7 @@ bounded candidate review, deterministic ranking, and graceful provider failure.
 - `content-pipeline-admin.tsx`: topic, Research, Research More, selection state.
 - `types/index.ts`: normalized candidates/cursor.
 - `src/lib/rate-limiter.ts`: research scope.
-- `.env.example`: server-only Brave credential documentation.
+- `.env.example`: optional server-only Tavily credential documentation.
 
 ### Database and RPC work
 
@@ -687,8 +687,9 @@ None for research. Repository calls start only after selection triggers ingestio
 
 - `WebSearchProvider` accepts normalized query, language/country hints, result count, and cursor;
   returns vendor-neutral URL/title/snippet/provider-rank/page state.
-- Brave adapter sends server-only subscription token, requests web results only, disables display
-  decoration, uses count/offset bounds, validates response shape, and exposes no vendor payload.
+- Tavily adapter sends a server-only bearer token, fixes `search_depth` to `basic` and
+  `auto_parameters` to `false`, uses bounded stateless Research More refinements, validates the
+  response shape, and exposes no vendor payload.
 - Candidate key is derived from canonical URL; ranking scores are bounded and Admin-only.
 
 ### API work
@@ -712,7 +713,7 @@ None for research. Repository calls start only after selection triggers ingestio
 ### Unit/integration tests
 
 - Topic and query validation, Vietnamese-first/language-aware variants.
-- Brave response validation and error mapping with mock fetch only.
+- Tavily response validation, free-tier request parameters, and error mapping with mock fetch only.
 - URL canonicalization, tracking-parameter policy, unsupported scheme, duplicates.
 - Stable relevance/authority score bounds and tie ordering.
 - <=20 candidates, <=8 selection, Research More merge/retention.
@@ -730,7 +731,7 @@ the existing outline editor, reviews/publishes, and passes Axe with no serious v
 ### Compatibility strategy
 
 Topic research is an additive entry mode. Manual URL and file-only modes remain available when
-Brave is missing, limited, or unavailable.
+Tavily is missing, limited, or unavailable.
 
 ### Rollback considerations
 
@@ -740,7 +741,8 @@ operational. No research rows require cleanup.
 ### Dependencies
 
 - Phase 3 ingestion/review available.
-- Brave credential, subscription/quota, terms, and production configuration approved.
+- Tavily is optional at startup and deployment; a server-only credential and provider terms are
+  required only when topic Research is enabled.
 - No AI query planner dependency.
 
 ## Phase 5: Compatibility Hardening and Rollout

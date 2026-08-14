@@ -12,7 +12,7 @@ not run these future feature tests or apply a production migration.
 - Mock AI and web-search providers for deterministic tests; default automated tests must not call
   paid or live providers.
 - A private `lesson-sources` bucket in the test environment.
-- For a manual provider smoke test only: a server-only Brave Search credential and the existing
+- For a manual provider smoke test only: an optional server-only Tavily Search credential and the existing
   server-only AI provider configuration.
 
 Never place provider keys in `NEXT_PUBLIC_*`, fixtures, snapshots, reports, or committed files.
