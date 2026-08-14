@@ -1,10 +1,14 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import {
+  QUALITY_FINDING_CODES,
   SECTION_PURPOSES,
   type EvidenceRefMap,
   type EvidenceSynthesis,
+  type GeneratedLessonCandidate,
+  type GeneratedSection,
   type LessonBlueprint,
+  type LessonQualityReview,
 } from "@/features/content-pipeline/types";
 
 import { NineRouterLessonDraftProvider } from "./lesson-draft-provider";
@@ -885,6 +889,228 @@ describe("purpose-aware Lesson section generation", () => {
       .generateLessonSections({ lessonTitle: "Networking", learningObjectives: ["Compare"], evidenceRefMap,
         synthesis, blueprint: conceptualBlueprint });
     const assertion = expect(pending).rejects.toThrow("aborted");
+    await vi.advanceTimersByTimeAsync(45_000);
+    await assertion;
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe("independent pedagogical Quality Review", () => {
+  const evidenceRefMap: EvidenceRefMap = [
+    { sourceRef: 0, documentChunkId: 101, sourceDocumentId: 10, chunkIndex: 0,
+      sourceLabel: "Network guide", content: "Networks connect devices and allow resource sharing." },
+    { sourceRef: 1, documentChunkId: 202, sourceDocumentId: 20, chunkIndex: 0,
+      sourceLabel: "LAN guide", content: "A home Wi-Fi network is a LAN example." },
+  ];
+  const synthesis: EvidenceSynthesis = {
+    items: [
+      { itemKey: "network", kind: "concept", statement: "Networks connect devices.", evidenceRefs: [0] },
+      { itemKey: "home", kind: "example", statement: "Home Wi-Fi is a LAN.", evidenceRefs: [1] },
+    ], coverageGaps: [],
+  };
+  const blueprint: LessonBlueprint = {
+    progressionRationale: "Build intuition, apply it, then synthesize.",
+    sections: [
+      { sectionKey: "concept", order: 0, purpose: "concept", heading: "Mạng kết nối thiết bị",
+        teachingObjective: "Explain network intuition.", synthesisItemKeys: ["network"], evidenceRefs: [0],
+        expectedElements: ["intuition", "definition"] },
+      { sectionKey: "summary", order: 1, purpose: "summary", heading: "Tóm tắt",
+        teachingObjective: "Reinforce the Lesson objective.", synthesisItemKeys: ["network", "home"],
+        evidenceRefs: [0, 1], expectedElements: ["concise synthesis", "no new concepts"] },
+    ],
+  };
+  const candidate: GeneratedLessonCandidate = {
+    title: "Nhập môn Mạng máy tính", summary: "Giải thích mạng và ví dụ LAN.", estimatedMinutes: 12,
+    sections: [
+      { sectionKey: "concept", purpose: "concept", heading: "Mạng kết nối thiết bị",
+        bodyMarkdown: "Hãy hình dung mạng là cách các thiết bị kết nối và chia sẻ tài nguyên.",
+        citationEvidenceRefs: [0] },
+      { sectionKey: "summary", purpose: "summary", heading: "Tóm tắt",
+        bodyMarkdown: "Mạng kết nối thiết bị; Wi-Fi gia đình là một ví dụ LAN.",
+        citationEvidenceRefs: [0, 1] },
+    ],
+  };
+
+  function responseFor(content: unknown, model = "gemini-3.6-flash") {
+    return new Response(JSON.stringify({ model, choices: [{ message: { content: JSON.stringify(content) } }] }),
+      { status: 200 });
+  }
+
+  function review(payload: unknown, reviewCandidate = candidate) {
+    vi.spyOn(globalThis, "fetch").mockResolvedValue(responseFor(payload));
+    return new NineRouterLessonDraftProvider("secret", "https://router.test", "fallback")
+      .reviewLessonCandidate({ lessonTitle: candidate.title, learningObjectives: ["Explain networks"],
+        evidenceRefMap, synthesis, blueprint, candidate: reviewCandidate });
+  }
+
+  it("accepts an independent pass covering every candidate section", async () => {
+    const result = await review({ verdict: "pass", findings: [], reviewedSectionKeys: ["concept", "summary"] });
+    expect(result.result).toEqual({ verdict: "pass", findings: [], reviewedSectionKeys: ["concept", "summary"] });
+    expect(globalThis.fetch).toHaveBeenCalledTimes(1);
+  });
+
+  it("accepts a reject verdict with at least one non-correctable finding", async () => {
+    const result = await review({
+      verdict: "reject",
+      findings: [{ findingKey: "scope-reject", code: "OUTLINE_SCOPE_DRIFT", disposition: "reject",
+        sectionKeys: [], message: "The complete Lesson is outside the approved scope.", evidenceRefs: [0] }],
+      reviewedSectionKeys: ["concept", "summary"],
+    });
+    expect(result.result.verdict).toBe("reject");
+    expect(result.result.findings[0].disposition).toBe("reject");
+  });
+
+  it.each(QUALITY_FINDING_CODES)("accepts the required %s finding category", async (code) => {
+    const result = await review({
+      verdict: "correctable",
+      findings: [{ findingKey: `finding-${code}`, code, disposition: "correctable",
+        sectionKeys: ["concept"], message: `Correct ${code}.`, evidenceRefs: [0] }],
+      reviewedSectionKeys: ["concept", "summary"],
+    });
+    expect(result.result.findings[0].code).toBe(code);
+  });
+
+  it("classifies unsupported prose as semantic failure despite a structurally valid citation", async () => {
+    const unsupported = structuredClone(candidate);
+    unsupported.sections[0].bodyMarkdown = "Mạng lượng tử truyền dữ liệu tức thời qua mọi khoảng cách.";
+    const result = await review({
+      verdict: "correctable",
+      findings: [{ findingKey: "unsupported-claim", code: "UNSUPPORTED_CLAIM", disposition: "correctable",
+        sectionKeys: ["concept"], message: "The cited chunk does not support quantum networking.", evidenceRefs: [0] }],
+      reviewedSectionKeys: ["concept", "summary"],
+    }, unsupported);
+    expect(unsupported.sections[0].citationEvidenceRefs).toEqual([0]);
+    expect(result.result.verdict).toBe("correctable");
+  });
+
+  it.each([
+    ["pass with findings", { verdict: "pass", findings: [{ findingKey: "x", code: "UNSUPPORTED_CLAIM",
+      disposition: "correctable", sectionKeys: ["concept"], message: "x", evidenceRefs: [0] }],
+      reviewedSectionKeys: ["concept", "summary"] }],
+    ["correctable with reject disposition", { verdict: "correctable", findings: [{ findingKey: "x",
+      code: "OUTLINE_SCOPE_DRIFT", disposition: "reject", sectionKeys: ["concept"], message: "x", evidenceRefs: [0] }],
+      reviewedSectionKeys: ["concept", "summary"] }],
+    ["reject with only correctable findings", { verdict: "reject", findings: [{ findingKey: "x",
+      code: "OUTLINE_SCOPE_DRIFT", disposition: "correctable", sectionKeys: ["concept"], message: "x", evidenceRefs: [0] }],
+      reviewedSectionKeys: ["concept", "summary"] }],
+    ["incomplete reviewed sections", { verdict: "pass", findings: [], reviewedSectionKeys: ["concept"] }],
+    ["duplicate reviewed sections", { verdict: "pass", findings: [], reviewedSectionKeys: ["concept", "concept"] }],
+    ["unknown target section", { verdict: "correctable", findings: [{ findingKey: "x",
+      code: "UNSUPPORTED_CLAIM", disposition: "correctable", sectionKeys: ["foreign"], message: "x",
+      evidenceRefs: [0] }], reviewedSectionKeys: ["concept", "summary"] }],
+    ["foreign evidence ref", { verdict: "correctable", findings: [{ findingKey: "x",
+      code: "UNSUPPORTED_CLAIM", disposition: "correctable", sectionKeys: ["concept"], message: "x",
+      evidenceRefs: [99] }], reviewedSectionKeys: ["concept", "summary"] }],
+    ["unknown finding code", { verdict: "correctable", findings: [{ findingKey: "x",
+      code: "PURPOSE_FAILURE", disposition: "correctable", sectionKeys: ["concept"], message: "x",
+      evidenceRefs: [0] }], reviewedSectionKeys: ["concept", "summary"] }],
+  ])("rejects %s", async (_name, payload) => {
+    await expect(review(payload)).rejects.toThrow("AI_RESPONSE_INVALID");
+  });
+
+  const correctableReview = {
+    verdict: "correctable",
+    findings: [{ findingKey: "unsupported-claim", code: "UNSUPPORTED_CLAIM", disposition: "correctable",
+      sectionKeys: ["concept"], message: "Remove the unsupported quantum claim.", evidenceRefs: [0] }],
+    reviewedSectionKeys: ["concept", "summary"],
+  } satisfies LessonQualityReview;
+  const correctedSection = {
+    sectionKey: "concept", purpose: "concept", heading: "Mạng kết nối thiết bị",
+    bodyMarkdown: "Hãy hình dung mạng là cách các thiết bị kết nối và chia sẻ tài nguyên.",
+    citationEvidenceRefs: [0],
+  } satisfies GeneratedSection;
+
+  function correct(payload: unknown, reviewResult = correctableReview) {
+    vi.spyOn(globalThis, "fetch").mockResolvedValue(responseFor(payload));
+    return new NineRouterLessonDraftProvider("secret", "https://router.test", "fallback")
+      .correctLessonCandidate({ lessonTitle: candidate.title, learningObjectives: ["Explain networks"],
+        evidenceRefMap, synthesis, blueprint, candidate, review: reviewResult });
+  }
+
+  it("returns only the authorized corrected section and addressed finding", async () => {
+    const result = await correct({ addressedFindingKeys: ["unsupported-claim"], sections: [correctedSection] });
+    expect(result.result).toEqual({ addressedFindingKeys: ["unsupported-claim"], sections: [correctedSection] });
+    expect(globalThis.fetch).toHaveBeenCalledTimes(1);
+  });
+
+  it.each([
+    ["an omitted finding", { addressedFindingKeys: [], sections: [correctedSection] }],
+    ["an extra target", { addressedFindingKeys: ["unsupported-claim"], sections: [correctedSection,
+      { ...candidate.sections[1] }] }],
+    ["a deleted target", { addressedFindingKeys: ["unsupported-claim"], sections: [] }],
+    ["a changed purpose", { addressedFindingKeys: ["unsupported-claim"], sections: [
+      { ...correctedSection, purpose: "procedure" }] }],
+    ["a changed heading", { addressedFindingKeys: ["unsupported-claim"], sections: [
+      { ...correctedSection, heading: "New heading" }] }],
+    ["a foreign citation", { addressedFindingKeys: ["unsupported-claim"], sections: [
+      { ...correctedSection, citationEvidenceRefs: [99] }] }],
+    ["unauthorized metadata", { addressedFindingKeys: ["unsupported-claim"], sections: [correctedSection],
+      summary: "Changed summary" }],
+  ])("rejects correction with %s", async (_name, payload) => {
+    await expect(correct(payload)).rejects.toThrow("AI_RESPONSE_INVALID");
+  });
+
+  it("locks review and correction requests to one raw request on the exact model", async () => {
+    const fetchMock = vi.spyOn(globalThis, "fetch")
+      .mockResolvedValueOnce(responseFor({ verdict: "pass", findings: [],
+        reviewedSectionKeys: ["concept", "summary"] }))
+      .mockResolvedValueOnce(responseFor({ addressedFindingKeys: ["unsupported-claim"],
+        sections: [correctedSection] }));
+    const provider = new NineRouterLessonDraftProvider("secret", "https://router.test", "gpt-fallback");
+    await provider.reviewLessonCandidate({ lessonTitle: candidate.title, learningObjectives: ["Explain networks"],
+      evidenceRefMap, synthesis, blueprint, candidate });
+    await provider.correctLessonCandidate({ lessonTitle: candidate.title, learningObjectives: ["Explain networks"],
+      evidenceRefMap, synthesis, blueprint, candidate, review: correctableReview });
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    const requests = fetchMock.mock.calls.map((call) => JSON.parse(String(call[1]?.body)) as {
+      model: string; messages: Array<{ content: string }>;
+    });
+    expect(requests.map((request) => request.model)).toEqual(["gemini-3.6-flash", "gemini-3.6-flash"]);
+    expect(requests[0].messages[0].content).toContain("semantic teaching-quality review");
+    expect(requests[0].messages[0].content).toContain("Khái niệm/Vai trò/Tầm quan trọng");
+    expect(requests[0].messages[0].content).toContain("UNSUPPORTED_CLAIM");
+    expect(requests[0].messages[0].content).toContain("purpose failure");
+    expect(requests[1].messages[0].content).toContain("exactly one bounded targeted correction");
+    expect(requests[1].messages[0].content).toContain("Preserve every unaffected section");
+  });
+
+  it.each([
+    ["review malformed response", "review", () => Promise.resolve(responseFor("not-json")), "AI_RESPONSE_INVALID"],
+    ["review provider error", "review", () => Promise.resolve(new Response("failed", { status: 503 })),
+      "AI_PROVIDER_REQUEST_FAILED"],
+    ["review model substitution", "review", () => Promise.resolve(responseFor({ verdict: "pass", findings: [],
+      reviewedSectionKeys: ["concept", "summary"] }, "gpt-fallback")), "AI_PROVIDER_RESPONSE_INVALID"],
+    ["correction malformed response", "correction", () => Promise.resolve(responseFor("not-json")),
+      "AI_RESPONSE_INVALID"],
+    ["correction provider error", "correction", () => Promise.resolve(new Response("failed", { status: 503 })),
+      "AI_PROVIDER_REQUEST_FAILED"],
+    ["correction model substitution", "correction", () => Promise.resolve(responseFor({
+      addressedFindingKeys: ["unsupported-claim"], sections: [correctedSection],
+    }, "deepseek-fallback")), "AI_PROVIDER_RESPONSE_INVALID"],
+  ])("does not retry after %s", async (_name, stage, implementation, errorCode) => {
+    const fetchMock = vi.spyOn(globalThis, "fetch").mockImplementation(implementation);
+    const provider = new NineRouterLessonDraftProvider("secret", "https://router.test", "fallback");
+    const operation = stage === "review"
+      ? provider.reviewLessonCandidate({ lessonTitle: candidate.title, learningObjectives: ["Explain networks"],
+          evidenceRefMap, synthesis, blueprint, candidate })
+      : provider.correctLessonCandidate({ lessonTitle: candidate.title, learningObjectives: ["Explain networks"],
+          evidenceRefMap, synthesis, blueprint, candidate, review: correctableReview });
+    await expect(operation).rejects.toThrow(errorCode);
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+
+  it.each(["review", "correction"])("times out %s with one raw request and no fallback", async (stage) => {
+    vi.useFakeTimers();
+    const fetchMock = vi.spyOn(globalThis, "fetch").mockImplementation((_input, init) =>
+      new Promise((_resolve, reject) => init?.signal?.addEventListener("abort", () => reject(new Error("aborted"))))
+    );
+    const provider = new NineRouterLessonDraftProvider("secret", "https://router.test", "fallback");
+    const operation = stage === "review"
+      ? provider.reviewLessonCandidate({ lessonTitle: candidate.title, learningObjectives: ["Explain networks"],
+          evidenceRefMap, synthesis, blueprint, candidate })
+      : provider.correctLessonCandidate({ lessonTitle: candidate.title, learningObjectives: ["Explain networks"],
+          evidenceRefMap, synthesis, blueprint, candidate, review: correctableReview });
+    const assertion = expect(operation).rejects.toThrow("aborted");
     await vi.advanceTimersByTimeAsync(45_000);
     await assertion;
     expect(fetchMock).toHaveBeenCalledTimes(1);

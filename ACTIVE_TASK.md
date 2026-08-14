@@ -1,12 +1,20 @@
 # Active Task Queue
 
-- **Active task:** `TASK-081` — Pedagogical Lesson Generation Phase B
+- **Active task:** `TASK-082` — Pedagogical Lesson Generation Phase C
 - **Status:** `VERIFIED`
 - **Owner / Reviewer:** Codex
 - **Deferred design task:** `TASK-047` (`DRAFT`)
 - **Previous blocked task:** `TASK-044` — external Supabase Redirect URL verification
 
 ## Current objective
+
+TASK-082 implements and verifies only T017–T025 of feature `003-pedagogical-lesson-generation`: independent
+semantic Quality Review, exactly one targeted correction, one independent re-review, and the
+bounded three/five-call transient runner. Focused tests, lint, typecheck, diff review, and
+protected-scope checks pass. Phase D integration, persistence, scheduling, migrations, push,
+and deploy remain out of scope.
+
+## Previous verified objective
 
 TASK-081 implements and verifies only T009–T016 of feature `003-pedagogical-lesson-generation`: one locked-model
 all-section request driven by the validated blueprint, purpose-aware instructions, deterministic

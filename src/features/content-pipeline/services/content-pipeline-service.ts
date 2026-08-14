@@ -61,6 +61,7 @@ import {
   uploadSourceObject,
 } from "@/features/content-pipeline/repositories/content-pipeline-repository";
 import {
+  QUALITY_FINDING_CODES,
   SUPPORTED_SOURCE_MIME_TYPES,
   type ApprovedLessonEvidence,
   type LessonDraftReviewDecision,
@@ -71,11 +72,13 @@ import {
   type EvidenceRefMap,
   type GeneratedLessonCandidate,
   type LessonBlueprint,
+  type LessonQualityReview,
   type ProviderStructuredCourseOutline,
   type ProviderStructuredLessonDraft,
   type StructuredCourseOutline,
   type StructuredLessonDraft,
   type SupportedSourceMimeType,
+  type TargetedCorrection,
 } from "@/features/content-pipeline/types";
 import { documentTitleFromFilename, documentTitleFromWebSource } from "@/features/content-pipeline/utils/document-title";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
@@ -83,6 +86,7 @@ import { checkRateLimit } from "@/lib/rate-limiter";
 
 const MAX_FILE_BYTES = 10 * 1024 * 1024;
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+const PEDAGOGICAL_MODEL = "gemini-3.6-flash";
 
 export type ContentPipelineErrorCode =
   | "UNAUTHENTICATED"
@@ -142,6 +146,15 @@ export class ContentPipelineError extends Error {
   ) {
     super(message);
     this.name = "ContentPipelineError";
+  }
+}
+
+export class PedagogicalLessonGenerationError extends Error {
+  readonly code = "LESSON_GENERATION_FAILED";
+
+  constructor(public readonly cause?: unknown) {
+    super("Unable to produce a Lesson candidate that passes pedagogical Quality Review.");
+    this.name = "PedagogicalLessonGenerationError";
   }
 }
 
@@ -1027,6 +1040,9 @@ export async function generatePedagogicalLessonSections(
     learningObjectives: evidence.learningObjectives,
     evidenceRefMap,
   });
+  if (planned.model !== PEDAGOGICAL_MODEL) {
+    throw new PedagogicalLessonGenerationError(new Error("PEDAGOGICAL_MODEL_MISMATCH"));
+  }
   const generated = await provider.generateLessonSections({
     lessonTitle: evidence.lessonTitle,
     learningObjectives: evidence.learningObjectives,
@@ -1034,6 +1050,9 @@ export async function generatePedagogicalLessonSections(
     synthesis: planned.synthesis,
     blueprint: planned.blueprint,
   });
+  if (generated.model !== PEDAGOGICAL_MODEL) {
+    throw new PedagogicalLessonGenerationError(new Error("PEDAGOGICAL_MODEL_MISMATCH"));
+  }
   const normalized = normalizePedagogicalLessonCandidate(
     generated.result,
     planned.blueprint,
@@ -1050,6 +1069,158 @@ export async function generatePedagogicalLessonSections(
     provider: generated.provider,
     model: generated.model,
   };
+}
+
+function hasOnlyObjectKeys(value: object, allowedKeys: readonly string[]): boolean {
+  const allowed = new Set(allowedKeys);
+  return Object.keys(value).every((key) => allowed.has(key));
+}
+
+function validateLessonQualityReview(
+  review: LessonQualityReview,
+  candidate: GeneratedLessonCandidate,
+  evidenceRefMap: EvidenceRefMap
+): void {
+  if (!review || typeof review !== "object" || !hasOnlyObjectKeys(review, [
+    "verdict", "findings", "reviewedSectionKeys",
+  ]) || !["pass", "correctable", "reject"].includes(review.verdict) ||
+    !Array.isArray(review.findings) || !Array.isArray(review.reviewedSectionKeys)) {
+    throw new ContentPipelineError("VALIDATION_ERROR", "Lesson Quality Review is invalid.");
+  }
+  const sectionKeys = candidate.sections.map((section) => section.sectionKey);
+  if (review.reviewedSectionKeys.length !== sectionKeys.length ||
+    new Set(review.reviewedSectionKeys).size !== review.reviewedSectionKeys.length ||
+    !review.reviewedSectionKeys.every((key, index) => key === sectionKeys[index])) {
+    throw new ContentPipelineError("VALIDATION_ERROR", "Lesson Quality Review coverage is invalid.");
+  }
+  const allowedSectionKeys = new Set(sectionKeys);
+  const allowedEvidenceRefs = new Set(evidenceRefMap.map((entry) => entry.sourceRef));
+  const allowedCodes = new Set<string>(QUALITY_FINDING_CODES);
+  const globalCodes = new Set(["ARTICLE_LIKE_PROGRESSION", "OUTLINE_SCOPE_DRIFT"]);
+  const findingKeys = new Set<string>();
+  for (const finding of review.findings) {
+    if (!finding || typeof finding !== "object" || !hasOnlyObjectKeys(finding, [
+      "findingKey", "code", "disposition", "sectionKeys", "message", "evidenceRefs",
+    ]) || !finding.findingKey?.trim() || findingKeys.has(finding.findingKey) ||
+      !allowedCodes.has(finding.code) || !["correctable", "reject"].includes(finding.disposition) ||
+      !Array.isArray(finding.sectionKeys) || new Set(finding.sectionKeys).size !== finding.sectionKeys.length ||
+      !finding.sectionKeys.every((key) => allowedSectionKeys.has(key)) ||
+      (finding.sectionKeys.length === 0 && !globalCodes.has(finding.code)) || !finding.message?.trim() ||
+      (finding.evidenceRefs !== undefined && (!Array.isArray(finding.evidenceRefs) ||
+        new Set(finding.evidenceRefs).size !== finding.evidenceRefs.length ||
+        !finding.evidenceRefs.every((ref) => Number.isInteger(ref) && allowedEvidenceRefs.has(ref))))) {
+      throw new ContentPipelineError("VALIDATION_ERROR", "Lesson Quality Review finding is invalid.");
+    }
+    findingKeys.add(finding.findingKey);
+  }
+  if ((review.verdict === "pass" && review.findings.length !== 0) ||
+    (review.verdict !== "pass" && review.findings.length === 0) ||
+    (review.verdict === "correctable" && review.findings.some((finding) => finding.disposition !== "correctable")) ||
+    (review.verdict === "reject" && !review.findings.some((finding) => finding.disposition === "reject"))) {
+    throw new ContentPipelineError("VALIDATION_ERROR", "Lesson Quality Review verdict is contradictory.");
+  }
+}
+
+export function mergeTargetedLessonCorrection(
+  candidate: GeneratedLessonCandidate,
+  correction: TargetedCorrection,
+  review: LessonQualityReview,
+  blueprint: LessonBlueprint,
+  evidenceRefMap: EvidenceRefMap,
+  includeCitationSourceRefs: boolean
+) {
+  validateLessonQualityReview(review, candidate, evidenceRefMap);
+  if (review.verdict !== "correctable" || !correction || typeof correction !== "object" ||
+    !hasOnlyObjectKeys(correction, [
+      "addressedFindingKeys", "sections", "title", "summary", "estimatedMinutes",
+    ]) || !Array.isArray(correction.addressedFindingKeys) || !Array.isArray(correction.sections)) {
+    throw new ContentPipelineError("VALIDATION_ERROR", "Targeted Lesson correction is invalid.");
+  }
+  const expectedFindingKeys = review.findings.map((finding) => finding.findingKey);
+  if (correction.addressedFindingKeys.length !== expectedFindingKeys.length ||
+    new Set(correction.addressedFindingKeys).size !== correction.addressedFindingKeys.length ||
+    !correction.addressedFindingKeys.every((key, index) => key === expectedFindingKeys[index])) {
+    throw new ContentPipelineError("VALIDATION_ERROR", "Targeted correction does not address every finding.");
+  }
+  const requestedTargets = new Set(review.findings.flatMap((finding) => finding.sectionKeys));
+  const orderedTargets = candidate.sections.map((section) => section.sectionKey)
+    .filter((sectionKey) => requestedTargets.has(sectionKey));
+  const returnedKeys = correction.sections.map((section) => section.sectionKey);
+  if (returnedKeys.length !== orderedTargets.length || new Set(returnedKeys).size !== returnedKeys.length ||
+    !returnedKeys.every((key, index) => key === orderedTargets[index])) {
+    throw new ContentPipelineError("VALIDATION_ERROR", "Targeted correction changed its authorized section set.");
+  }
+  const hasLessonLevelFinding = review.findings.some((finding) => finding.sectionKeys.length === 0);
+  const includesMetadata = correction.title !== undefined || correction.summary !== undefined ||
+    correction.estimatedMinutes !== undefined;
+  if (includesMetadata && !hasLessonLevelFinding) {
+    throw new ContentPipelineError("VALIDATION_ERROR", "Targeted correction changed unauthorized metadata.");
+  }
+  const correctionsByKey = new Map(correction.sections.map((section) => [section.sectionKey, section]));
+  const mergedCandidate: GeneratedLessonCandidate = {
+    title: correction.title ?? candidate.title,
+    summary: correction.summary ?? candidate.summary,
+    estimatedMinutes: correction.estimatedMinutes ?? candidate.estimatedMinutes,
+    sections: candidate.sections.map((section) => correctionsByKey.get(section.sectionKey) ?? section),
+  };
+  const normalized = normalizePedagogicalLessonCandidate(
+    mergedCandidate, blueprint, evidenceRefMap, includeCitationSourceRefs
+  );
+  return { candidate: mergedCandidate, ...normalized };
+}
+
+export async function generateReviewedPedagogicalLesson(
+  job: CourseImportDraft,
+  outlineLessonId: number,
+  chunks: readonly CourseSourceChunk[],
+  provider: PedagogicalLessonProvider
+) {
+  try {
+    const phaseB = await generatePedagogicalLessonSections(job, outlineLessonId, chunks, provider);
+    const reviewRequest = {
+      lessonTitle: phaseB.evidence.lessonTitle,
+      learningObjectives: phaseB.evidence.learningObjectives,
+      evidenceRefMap: phaseB.evidenceRefMap,
+      synthesis: phaseB.synthesis,
+      blueprint: phaseB.blueprint,
+      candidate: phaseB.candidate,
+    };
+    const initialReview = await provider.reviewLessonCandidate(reviewRequest);
+    if (initialReview.model !== PEDAGOGICAL_MODEL) throw new Error("PEDAGOGICAL_MODEL_MISMATCH");
+    validateLessonQualityReview(initialReview.result, phaseB.candidate, phaseB.evidenceRefMap);
+    if (initialReview.result.verdict === "pass") return phaseB;
+    if (initialReview.result.verdict === "reject") throw new PedagogicalLessonGenerationError();
+
+    const corrected = await provider.correctLessonCandidate({
+      ...reviewRequest,
+      review: initialReview.result,
+    });
+    if (corrected.model !== PEDAGOGICAL_MODEL) throw new Error("PEDAGOGICAL_MODEL_MISMATCH");
+    const merged = mergeTargetedLessonCorrection(
+      phaseB.candidate,
+      corrected.result,
+      initialReview.result,
+      phaseB.blueprint,
+      phaseB.evidenceRefMap,
+      job.sources.length > 1
+    );
+    const finalReview = await provider.reviewLessonCandidate({
+      ...reviewRequest,
+      candidate: merged.candidate,
+    });
+    if (finalReview.model !== PEDAGOGICAL_MODEL) throw new Error("PEDAGOGICAL_MODEL_MISMATCH");
+    validateLessonQualityReview(finalReview.result, merged.candidate, phaseB.evidenceRefMap);
+    if (finalReview.result.verdict !== "pass") throw new PedagogicalLessonGenerationError();
+    return {
+      ...phaseB,
+      ...merged,
+      provider: finalReview.provider,
+      model: finalReview.model,
+    };
+  } catch (error) {
+    if (error instanceof PedagogicalLessonGenerationError) throw error;
+    throw new PedagogicalLessonGenerationError(error);
+  }
 }
 
 function resolveJobOutline(

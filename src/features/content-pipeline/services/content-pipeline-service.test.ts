@@ -265,6 +265,8 @@ import {
   submitCourseImportReview,
   buildApprovedLessonEvidenceBoundary,
   generatePedagogicalLessonSections,
+  generateReviewedPedagogicalLesson,
+  mergeTargetedLessonCorrection,
   normalizePedagogicalLessonCandidate,
 } from "./content-pipeline-service";
 import type {
@@ -273,8 +275,13 @@ import type {
   EvidenceSynthesis,
   GeneratedLessonCandidate,
   LessonBlueprint,
+  LessonQualityReview,
+  TargetedCorrection,
 } from "@/features/content-pipeline/types";
-import type { PedagogicalLessonProvider } from "@/features/content-pipeline/providers/lesson-draft-provider";
+import {
+  NineRouterLessonDraftProvider,
+  type PedagogicalLessonProvider,
+} from "@/features/content-pipeline/providers/lesson-draft-provider";
 import { WebSearchProviderError } from "@/features/content-pipeline/providers/web-search-provider";
 import { WebContentExtractionProviderError } from "@/features/content-pipeline/providers/web-content-extraction-provider";
 import { resetRateLimitBuckets } from "@/lib/rate-limiter";
@@ -475,6 +482,211 @@ describe("Phase B pedagogical section normalization", () => {
     expect(provider.synthesizeEvidenceAndBlueprint).toHaveBeenCalledTimes(1);
     expect(provider.generateLessonSections).toHaveBeenCalledTimes(1);
     expect(provider.reviewLessonCandidate).not.toHaveBeenCalled();
+    expect(mocks.persistCourseLessonContentForJob).not.toHaveBeenCalled();
+
+    const proceduralPassReview: LessonQualityReview = {
+      verdict: "pass", findings: [], reviewedSectionKeys: ["steps", "worked", "practice"],
+    };
+    const reviewedProceduralProvider: PedagogicalLessonProvider = {
+      synthesizeEvidenceAndBlueprint: vi.fn(async () => ({ synthesis: proceduralSynthesis,
+        blueprint: proceduralBlueprint, provider: "fake", model: "gemini-3.6-flash" })),
+      generateLessonSections: vi.fn(async () => ({ result: proceduralCandidate,
+        provider: "fake", model: "gemini-3.6-flash" })),
+      reviewLessonCandidate: vi.fn(async () => ({ result: proceduralPassReview, provider: "fake",
+        model: "gemini-3.6-flash" })),
+      correctLessonCandidate: vi.fn(),
+    };
+    await expect(generateReviewedPedagogicalLesson(proceduralJob, 71, chunks, reviewedProceduralProvider))
+      .resolves.toMatchObject({ candidate: proceduralCandidate });
+    expect(reviewedProceduralProvider.reviewLessonCandidate).toHaveBeenCalledTimes(1);
+    expect(reviewedProceduralProvider.correctLessonCandidate).not.toHaveBeenCalled();
+  });
+
+  const passReview: LessonQualityReview = {
+    verdict: "pass", findings: [], reviewedSectionKeys: ["concept", "example"],
+  };
+  const correctableReview: LessonQualityReview = {
+    verdict: "correctable",
+    findings: [{ findingKey: "unsupported", code: "UNSUPPORTED_CLAIM", disposition: "correctable",
+      sectionKeys: ["concept"], message: "Remove the unsupported claim.", evidenceRefs: [0] }],
+    reviewedSectionKeys: ["concept", "example"],
+  };
+  const correctedConcept = {
+    ...candidate.sections[0], bodyMarkdown: "Mạng kết nối các thiết bị và cho phép chia sẻ tài nguyên.",
+  };
+  const correction: TargetedCorrection = {
+    addressedFindingKeys: ["unsupported"], sections: [correctedConcept],
+  };
+
+  function reviewedProvider(
+    reviews: LessonQualityReview[],
+    correctionResult = correction,
+    generatedCandidate: GeneratedLessonCandidate = candidate
+  ) {
+    const callOrder: string[] = [];
+    const provider: PedagogicalLessonProvider = {
+      synthesizeEvidenceAndBlueprint: vi.fn(async () => {
+        callOrder.push("synthesis_blueprint");
+        return { synthesis, blueprint, provider: "fake", model: "gemini-3.6-flash" };
+      }),
+      generateLessonSections: vi.fn(async () => {
+        callOrder.push("sections");
+        return { result: generatedCandidate, provider: "fake", model: "gemini-3.6-flash" };
+      }),
+      reviewLessonCandidate: vi.fn(async () => {
+        callOrder.push("review");
+        const next = reviews.shift();
+        if (!next) throw new Error("unexpected review");
+        return { result: next, provider: "fake", model: "gemini-3.6-flash" };
+      }),
+      correctLessonCandidate: vi.fn(async () => {
+        callOrder.push("correction");
+        return { result: correctionResult, provider: "fake", model: "gemini-3.6-flash" };
+      }),
+    };
+    return { provider, callOrder };
+  }
+
+  it("accepts a good Lesson in exactly three calls without correction or persistence", async () => {
+    const { provider, callOrder } = reviewedProvider([passReview]);
+    const result = await generateReviewedPedagogicalLesson(courseJob(), 71, chunks, provider);
+    expect(callOrder).toEqual(["synthesis_blueprint", "sections", "review"]);
+    expect(result.candidate).toEqual(candidate);
+    expect(result.draft).toEqual(normalizePedagogicalLessonCandidate(
+      candidate, blueprint, result.evidenceRefMap, true
+    ).draft);
+    expect(provider.correctLessonCandidate).not.toHaveBeenCalled();
+    expect(mocks.persistCourseLessonContentForJob).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    ["article-like exposition", "ARTICLE_LIKE_PROGRESSION", "Khái niệm mạng. Vai trò của mạng. Tầm quan trọng của mạng."],
+    ["duplicated sections", "DUPLICATED_SECTION", candidate.sections[1].bodyMarkdown],
+    ["scope drift", "OUTLINE_SCOPE_DRIFT", "Bài học chuyển sang hướng dẫn quản trị cơ sở dữ liệu."],
+    ["a section-purpose failure", "SECTION_TOO_SHALLOW", "Mạng là một mạng máy tính."],
+  ] as const)("routes %s to one bounded correction using %s", async (_name, code, flawedBody) => {
+    const issueReview: LessonQualityReview = {
+      verdict: "correctable",
+      findings: [{ findingKey: `issue-${code}`, code, disposition: "correctable", sectionKeys: ["concept"],
+        message: "Correct only the affected section.", evidenceRefs: [0] }],
+      reviewedSectionKeys: ["concept", "example"],
+    };
+    const issueCorrection: TargetedCorrection = {
+      addressedFindingKeys: [`issue-${code}`], sections: [correctedConcept],
+    };
+    const flawedCandidate: GeneratedLessonCandidate = {
+      ...candidate,
+      sections: [{ ...candidate.sections[0], bodyMarkdown: flawedBody }, candidate.sections[1]],
+    };
+    const { provider, callOrder } = reviewedProvider(
+      [issueReview, passReview], issueCorrection, flawedCandidate
+    );
+    await expect(generateReviewedPedagogicalLesson(courseJob(), 71, chunks, provider)).resolves.toBeDefined();
+    expect(callOrder).toEqual(["synthesis_blueprint", "sections", "review", "correction", "review"]);
+    expect(provider.correctLessonCandidate).toHaveBeenCalledTimes(1);
+  });
+
+  it("corrects only identified sections, preserves unaffected content, and independently re-reviews", async () => {
+    const { provider, callOrder } = reviewedProvider([correctableReview, passReview]);
+    const result = await generateReviewedPedagogicalLesson(courseJob(), 71, chunks, provider);
+    expect(callOrder).toEqual(["synthesis_blueprint", "sections", "review", "correction", "review"]);
+    expect(result.candidate.sections[0]).toEqual(correctedConcept);
+    expect(result.candidate.sections[1]).toEqual(candidate.sections[1]);
+    expect(result.candidate.sections[1]).toBe(candidate.sections[1]);
+    expect(provider.correctLessonCandidate).toHaveBeenCalledTimes(1);
+    expect(provider.reviewLessonCandidate).toHaveBeenCalledTimes(2);
+    expect(mocks.persistCourseLessonContentForJob).not.toHaveBeenCalled();
+  });
+
+  it("keeps unsupported prose structurally valid but requires semantic correction", async () => {
+    const unsupported = structuredClone(candidate);
+    unsupported.sections[0].bodyMarkdown = "Mạng lượng tử truyền tức thời qua mọi khoảng cách.";
+    expect(() => normalizePedagogicalLessonCandidate(unsupported, blueprint,
+      buildApprovedLessonEvidenceBoundary(courseJob(), 71, chunks).evidenceRefMap, true)).not.toThrow();
+    const { provider } = reviewedProvider([correctableReview, passReview], correction, unsupported);
+    const result = await generateReviewedPedagogicalLesson(courseJob(), 71, chunks, provider);
+    expect(result.candidate.sections[0]).toEqual(correctedConcept);
+  });
+
+  it("fails recoverably after a failed re-review with five calls, one correction, and no persistence", async () => {
+    const unresolved: LessonQualityReview = { ...correctableReview,
+      findings: [{ ...correctableReview.findings[0], findingKey: "still-unsupported" }] };
+    const { provider, callOrder } = reviewedProvider([correctableReview, unresolved]);
+    await expect(generateReviewedPedagogicalLesson(courseJob(), 71, chunks, provider))
+      .rejects.toMatchObject({ code: "LESSON_GENERATION_FAILED" });
+    expect(callOrder).toEqual(["synthesis_blueprint", "sections", "review", "correction", "review"]);
+    expect(provider.correctLessonCandidate).toHaveBeenCalledTimes(1);
+    expect(provider.reviewLessonCandidate).toHaveBeenCalledTimes(2);
+    expect(mocks.persistCourseLessonContentForJob).not.toHaveBeenCalled();
+  });
+
+  it("rejects immediately without correction when review is non-correctable", async () => {
+    const rejected: LessonQualityReview = {
+      verdict: "reject", findings: [{ findingKey: "scope", code: "OUTLINE_SCOPE_DRIFT",
+        disposition: "reject", sectionKeys: ["concept"], message: "Outside approved scope.", evidenceRefs: [0] }],
+      reviewedSectionKeys: ["concept", "example"],
+    };
+    const { provider, callOrder } = reviewedProvider([rejected]);
+    await expect(generateReviewedPedagogicalLesson(courseJob(), 71, chunks, provider))
+      .rejects.toMatchObject({ code: "LESSON_GENERATION_FAILED" });
+    expect(callOrder).toEqual(["synthesis_blueprint", "sections", "review"]);
+    expect(provider.correctLessonCandidate).not.toHaveBeenCalled();
+  });
+
+  it("rejects invalid corrections before re-review and preserves the original candidate", () => {
+    const boundary = buildApprovedLessonEvidenceBoundary(courseJob(), 71, chunks);
+    const invalid: TargetedCorrection = { addressedFindingKeys: ["unsupported"],
+      sections: [{ ...correctedConcept, sectionKey: "example" }] };
+    expect(() => mergeTargetedLessonCorrection(candidate, invalid, correctableReview, blueprint,
+      boundary.evidenceRefMap, true)).toThrow(ContentPipelineError);
+    expect(candidate.sections[0].bodyMarkdown).toBe("Mạng kết nối các thiết bị.");
+    expect(mocks.persistCourseLessonContentForJob).not.toHaveBeenCalled();
+  });
+
+  function providerResponse(content: unknown, model = "gemini-3.6-flash") {
+    return new Response(JSON.stringify({ model, choices: [{ message: { content: JSON.stringify(content) } }] }),
+      { status: 200 });
+  }
+
+  it("uses exactly three raw HTTP requests on the complete pass path", async () => {
+    const fetchMock = vi.spyOn(globalThis, "fetch")
+      .mockResolvedValueOnce(providerResponse({ synthesis, blueprint }))
+      .mockResolvedValueOnce(providerResponse(candidate))
+      .mockResolvedValueOnce(providerResponse(passReview));
+    const provider = new NineRouterLessonDraftProvider("secret", "https://router.test", "alternate-model");
+    await expect(generateReviewedPedagogicalLesson(courseJob(), 71, chunks, provider)).resolves.toBeDefined();
+    expect(fetchMock).toHaveBeenCalledTimes(3);
+    expect(fetchMock.mock.calls.map((call) => JSON.parse(String(call[1]?.body)).model))
+      .toEqual(["gemini-3.6-flash", "gemini-3.6-flash", "gemini-3.6-flash"]);
+  });
+
+  it("uses exactly five raw HTTP requests on the complete correction path", async () => {
+    const fetchMock = vi.spyOn(globalThis, "fetch")
+      .mockResolvedValueOnce(providerResponse({ synthesis, blueprint }))
+      .mockResolvedValueOnce(providerResponse(candidate))
+      .mockResolvedValueOnce(providerResponse(correctableReview))
+      .mockResolvedValueOnce(providerResponse(correction))
+      .mockResolvedValueOnce(providerResponse(passReview));
+    const provider = new NineRouterLessonDraftProvider("secret", "https://router.test", "deepseek-fallback");
+    const result = await generateReviewedPedagogicalLesson(courseJob(), 71, chunks, provider);
+    expect(fetchMock).toHaveBeenCalledTimes(5);
+    expect(fetchMock.mock.calls.map((call) => JSON.parse(String(call[1]?.body)).model))
+      .toEqual(Array.from({ length: 5 }, () => "gemini-3.6-flash"));
+    expect(result.candidate.sections[1]).toEqual(candidate.sections[1]);
+    expect(mocks.persistCourseLessonContentForJob).not.toHaveBeenCalled();
+  });
+
+  it("rejects a substituted re-review model after five raw requests with no sixth call", async () => {
+    const fetchMock = vi.spyOn(globalThis, "fetch")
+      .mockResolvedValueOnce(providerResponse({ synthesis, blueprint }))
+      .mockResolvedValueOnce(providerResponse(candidate))
+      .mockResolvedValueOnce(providerResponse(correctableReview))
+      .mockResolvedValueOnce(providerResponse(correction))
+      .mockResolvedValueOnce(providerResponse(passReview, "gpt-fallback"));
+    const provider = new NineRouterLessonDraftProvider("secret", "https://router.test", "fallback");
+    await expect(generateReviewedPedagogicalLesson(courseJob(), 71, chunks, provider))
+      .rejects.toMatchObject({ code: "LESSON_GENERATION_FAILED" });
+    expect(fetchMock).toHaveBeenCalledTimes(5);
     expect(mocks.persistCourseLessonContentForJob).not.toHaveBeenCalled();
   });
 });

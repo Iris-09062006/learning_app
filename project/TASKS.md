@@ -11,6 +11,11 @@
 
 ## Active Task
 
+`TASK-082` is verified for only T017–T025 of pedagogical Lesson generation: independent semantic
+Quality Review, one targeted correction, independent re-review, and exact three/five-call budgets.
+Focused tests, lint, typecheck, diff review, and protected-scope checks pass. Phase D, persistence,
+scheduling, migrations, push, and deployment remain out of scope.
+
 `TASK-081` is verified for only T009–T016 of pedagogical Lesson generation: purpose-aware
 all-section generation, exact blueprint adherence, structural citation ownership, and transient
 normalization to the unchanged final draft contract. Quality review/correction, integration,
@@ -65,6 +70,7 @@ Supabase Auth Redirect URLs wildcard and a fresh confirmation email.
 
 | Task ID | Title | Status | Phase | Evidence |
 |---|---|---|---|---|
+| `TASK-082` | Pedagogical Lesson Generation Phase C | VERIFIED | Feature 003 Phase C | `reports/TASK-082-implementation.md`, `reports/TASK-082-review.md`, `reports/TASK-082-test.md` |
 | `TASK-080` | Pedagogical Lesson Generation Phase A | VERIFIED | Feature 003 Phase A | `reports/TASK-080-implementation.md`, `reports/TASK-080-review.md`, `reports/TASK-080-test.md` |
 | `TASK-078` | Tavily Web Ingestion Phase D Readiness | VERIFIED | Tavily web ingestion Phase D | `reports/TASK-078-implementation.md`, `reports/TASK-078-review.md`, `reports/TASK-078-test.md` |
 | `TASK-077` | Tavily Web Ingestion Phase C Hardening | VERIFIED | Tavily web ingestion Phase C | `reports/TASK-077-implementation.md`, `reports/TASK-077-review.md`, `reports/TASK-077-test.md` |
