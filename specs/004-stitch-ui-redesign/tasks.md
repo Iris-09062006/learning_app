@@ -106,7 +106,7 @@
 
 ### A6 — Small missing primitives (Textarea / Select / PageContainer / PageHeader)
 
-- [ ] **T007** [A6, P] Add `src/components/ui/{textarea,select}.tsx` and `src/components/layout/{page-container,page-header}.tsx` (+ tests)
+- [x] **T007** [A6, P] Add `src/components/ui/{textarea,select}.tsx` and `src/components/layout/{page-container,page-header}.tsx` (+ tests)
   - **Phase**: A · **Story**: — · **[P]**: yes (parallel with T006; disjoint files) · **Prereq**: T005
   - **Objective**: Add small siblings mirroring the Input contract (label, error, helperText, disabled) using Input surface/focus tokens: `textarea.tsx` (raw `<textarea>`) and `select.tsx` (raw `<select>`); add minimal `page-container.tsx` (mx-auto, ~75rem/1200px max-width, gutter padding) and `page-header.tsx` (title at headline scale + optional eyebrow/description) in `components/layout`. Each with a colocated test.
   - **Files likely to change**: `src/components/ui/{textarea,select}.tsx` (+tests), `src/components/layout/{page-container,page-header}.tsx` (+tests).
