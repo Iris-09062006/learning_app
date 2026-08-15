@@ -64,12 +64,12 @@ export function AppNavigation({ user }: AppNavigationProps) {
 
   return (
     <>
-      <aside className="fixed inset-y-0 left-0 z-40 hidden w-64 flex-col border-r border-slate-200 bg-white px-4 py-6 lg:flex">
-        <Link href="/" className="flex items-center gap-3 rounded-xl px-2 py-2 text-slate-950">
-          <span className="flex size-10 items-center justify-center rounded-xl bg-indigo-600 font-mono text-sm font-bold text-white">Py</span>
+      <aside className="fixed inset-y-0 left-0 z-40 hidden w-64 flex-col border-r border-border bg-surface-container-lowest px-4 py-6 lg:flex">
+        <Link href="/" className="flex items-center gap-3 rounded-xl px-2 py-2 text-text-primary">
+          <span className="flex size-10 items-center justify-center rounded-xl bg-primary-container font-mono text-sm font-bold text-on-primary-container">Py</span>
           <span>
             <span className="block font-bold tracking-tight">Python Learning</span>
-            <span className="block text-xs text-slate-500">Học theo lộ trình</span>
+            <span className="block text-xs text-text-secondary">Học theo lộ trình</span>
           </span>
         </Link>
 
@@ -85,32 +85,32 @@ export function AppNavigation({ user }: AppNavigationProps) {
                   active ? "bg-indigo-50 text-indigo-700" : "text-slate-600 hover:bg-slate-100 hover:text-slate-950"
                 }`}
               >
-                <span aria-hidden="true" className="font-mono text-xs text-slate-600">{item.marker}</span>
+                <span aria-hidden="true" className="font-mono text-xs text-text-secondary">{item.marker}</span>
                 {item.label}
               </Link>
             );
           })}
         </nav>
 
-        <div className="border-t border-slate-200 pt-4">
+        <div className="border-t border-border pt-4">
           {user ? (
             <>
-              <p className="truncate px-2 text-sm font-semibold text-slate-900">{user.username}</p>
-              <p className="mt-1 px-2 text-xs capitalize text-slate-500">{user.role}</p>
+              <p className="truncate px-2 text-sm font-semibold text-text-primary">{user.username}</p>
+              <p className="mt-1 px-2 text-xs capitalize text-text-secondary">{user.role}</p>
               <button
                 type="button"
                 onClick={handleSignOut}
                 disabled={isSigningOut}
-                className="mt-3 min-h-10 w-full rounded-lg border border-slate-300 px-3 text-sm font-semibold text-slate-700 hover:bg-slate-50 disabled:cursor-wait disabled:opacity-60"
+                className="mt-3 min-h-10 w-full rounded-lg border border-border px-3 text-sm font-semibold text-text-secondary hover:bg-surface-subtle disabled:cursor-wait disabled:opacity-60"
               >
                 {isSigningOut ? "Đang đăng xuất…" : "Đăng xuất"}
               </button>
-              {signOutError && <p role="alert" className="mt-2 text-xs text-red-600">{signOutError}</p>}
+              {signOutError && <p role="alert" className="mt-2 text-xs text-danger">{signOutError}</p>}
             </>
           ) : (
             <div className="grid grid-cols-2 gap-2">
-              <Link href="/login" className="flex min-h-10 items-center justify-center rounded-lg border border-slate-300 text-sm font-semibold text-slate-700">Đăng nhập</Link>
-              <Link href="/register" className="flex min-h-10 items-center justify-center rounded-lg bg-indigo-600 text-sm font-semibold text-white">Đăng ký</Link>
+              <Link href="/login" className="flex min-h-10 items-center justify-center rounded-lg border border-border text-sm font-semibold text-text-primary hover:bg-surface-subtle">Đăng nhập</Link>
+              <Link href="/register" className="flex min-h-10 items-center justify-center rounded-lg bg-primary text-sm font-semibold text-on-primary hover:bg-primary-hover">Đăng ký</Link>
             </div>
           )}
         </div>

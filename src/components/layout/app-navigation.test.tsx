@@ -39,6 +39,29 @@ describe("AppNavigation", () => {
     expect(screen.getAllByRole("link", { name: "Hệ thống" }).length).toBeGreaterThan(0);
   });
 
+  it("restyles the desktop sidebar with Stitch semantic tokens", () => {
+    render(<AppNavigation user={null} />);
+
+    const aside = document.querySelector("aside");
+    expect(aside).not.toBeNull();
+    expect(aside?.className).toContain("w-64");
+    expect(aside?.className).toContain("bg-surface-container-lowest");
+    expect(aside?.className).toContain("border-border");
+    expect(aside?.className).toContain("hidden");
+    expect(aside?.className).toContain("lg:flex");
+
+    const brandTile = screen.getByText("Py");
+    expect(brandTile.className).toContain("bg-primary-container");
+    expect(brandTile.className).toContain("text-on-primary-container");
+
+    const guestRegister = screen.getByRole("link", { name: "Đăng ký" });
+    expect(guestRegister.className).toContain("bg-primary");
+    expect(guestRegister.className).toContain("text-on-primary");
+
+    // No Stitch-only navigation destinations were added.
+    expect(screen.queryByRole("link", { name: /AI Tutor|Upgrade to Pro|Support|Bạn bè|Khu vườn/i })).not.toBeInTheDocument();
+  });
+
   it("signs out through the auth API and returns to login", async () => {
     vi.mocked(fetch).mockResolvedValueOnce(new Response(null, { status: 200 }));
     render(<AppNavigation user={{ username: "Lan", role: "learner" }} />);

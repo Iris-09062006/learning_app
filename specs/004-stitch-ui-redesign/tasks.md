@@ -134,7 +134,7 @@
 
 **Purpose**: Restyle the existing shell to the Stitch visual language. **Strictly preserve**: routes, nav destinations, permissions, grouping, interaction behavior (C-SHELL, FR-012/013/014). No Stitch-only destinations; no permanent top-nav addition. Story: foundational for US1/US2/US4.
 
-- [ ] **T009** [B1] Desktop sidebar visual restyle in `src/components/layout/app-navigation.tsx` (surfaces, brand tile, typography, icons)
+- [x] **T009** [B1] Desktop sidebar visual restyle in `src/components/layout/app-navigation.tsx` (surfaces, brand tile, typography, icons)
   - **Phase**: B · **Story**: — · **[P]**: no · **Prereq**: T008
   - **Objective**: Sidebar to Stitch: `bg-surface-container-lowest` (white), warm `border` treatment, brand tile `bg-primary-container text-on-primary-container`, Be Vietnam Pro/label-scale nav text, icon styling, numbering markers where the Stitch sidebar shows them. **Do not** change width (T011) or active-state (T010) yet.
   - **Files likely to change**: `src/components/layout/app-navigation.tsx`.
@@ -143,6 +143,7 @@
   - **Stitch reference**: audit §1 shell (sidebar `surface-container-lowest`, `w-72` visual) + sidebar visuals on `lesson-render.png`.
   - **Verification**: browser desktop at 1280×800 — synthetic target; `app-navigation.test.tsx` still green (assertions on destinations unchanged; update only if it asserted colors); `npm run lint`, `typecheck`, `build`.
   - **Completion**: desktop sidebar visually warm + orange-branded; tests + gates green.
+    - **T009 record**: desktop sidebar restyled to Stitch tokens (class-only, `app-navigation.tsx`): `bg-surface-container-lowest` warm-white sidebar, `border-border` warm separator, brand tile `bg-primary-container text-on-primary-container`, brand/tagline `text-text-primary`/`text-text-secondary`, marker numerals `text-text-secondary`, auth-footer tokenized (register CTA `bg-primary text-on-primary hover:bg-primary-hover`, outline login/sign-out `border-border` + `hover:bg-surface-subtle`, error `text-danger`). Width `w-64` kept (T011); active/hover ternary byte-identical (T010); mobile bars untouched (T012); routes, destinations, grouping order, role visibility, `isActivePath`, sign-out handler byte-identical; 0 Stitch-only destinations. Added `app-navigation.test.tsx` contract case (semantic tokens + no-Stitch-destination guard); suite 4 tests. Gates: focused `src/components/layout` 10/10; lint/typecheck/build exit 0; `git diff --check` clean. Browser (dev server, /courses, 1440×900 light+dark then 390×844 mobile): aside 256px `surface-container-lowest` (#ffffff light / #1b1612 dark), warm border both modes (#e8e8e8 / #544940), brand tile + register CTA orange in both modes, content offset `lg:pl-64` (256px) === sidebar width, 0 horizontal overflow at 1440 and 390, mobile bars render unchanged, guest destinations + `aria-current` unchanged, register CTA navigates to /register, 0 console errors (pre-existing guest refresh-token warnings only). Guarded backend/API/supabase diff: 0.
 
 - [ ] **T010** [B2] Active-navigation treatment in `src/components/layout/app-navigation.tsx`
   - **Phase**: B · **Story**: — · **[P]**: no · **Prereq**: T009
