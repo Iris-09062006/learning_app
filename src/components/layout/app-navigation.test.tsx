@@ -48,7 +48,7 @@ describe("AppNavigation", () => {
 
     const aside = document.querySelector("aside");
     expect(aside).not.toBeNull();
-    expect(aside?.className).toContain("w-64");
+    expect(aside?.className).toContain("w-72");
     expect(aside?.className).toContain("bg-surface-container-lowest");
     expect(aside?.className).toContain("border-border");
     expect(aside?.className).toContain("hidden");

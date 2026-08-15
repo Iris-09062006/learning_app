@@ -155,7 +155,7 @@
   - **Verification**: browser click through routes — active item orange with visible focus when tabbing; `npm run test -- src/components/layout`; lint/typecheck/build.
   - **Completion**: active + focus states per tokens; keyboard walk-through clean.
 
-- [ ] **T011** [B3] Sidebar width/spacing + content-offset sync (`w-64`→`w-72`, `(main)/layout.tsx`)
+- [x] **T011** [B3] Sidebar width/spacing + content-offset sync (`w-64`→`w-72`, `(main)/layout.tsx`)
   - **Phase**: B · **Story**: — · **[P]**: no · **Prereq**: T009, T010
   - **Objective**: Desktop sidebar `w-64`→`w-72` (288px) with safe internal spacing/gutter per Stitch (16/24 rhythm); update the `src/app/(main)/layout.tsx` content offset so content starts exactly after the sidebar — no overlay/gap; page padding per Stitch gutter.
   - **Files likely to change**: `src/components/layout/app-navigation.tsx`, `src/app/(main)/layout.tsx`.

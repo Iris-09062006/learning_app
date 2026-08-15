@@ -13,7 +13,7 @@ export default async function MainLayout({ children }: MainLayoutProps) {
   return (
     <div className="min-h-screen bg-slate-50 text-slate-950 dark:bg-slate-950 dark:text-white">
       <AppNavigation user={user ? { username: user.username, role: user.role } : null} />
-      <div className="pt-14 lg:pl-64 lg:pt-0">{children}</div>
+      <div className="pt-14 lg:pl-72 lg:pt-0">{children}</div>
     </div>
   );
 }

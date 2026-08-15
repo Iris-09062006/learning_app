@@ -64,7 +64,7 @@ export function AppNavigation({ user }: AppNavigationProps) {
 
   return (
     <>
-      <aside className="fixed inset-y-0 left-0 z-40 hidden w-64 flex-col border-r border-border bg-surface-container-lowest px-4 py-6 lg:flex">
+      <aside className="fixed inset-y-0 left-0 z-40 hidden w-72 flex-col border-r border-border bg-surface-container-lowest px-4 py-6 lg:flex">
         <Link href="/" className="flex items-center gap-3 rounded-xl px-2 py-2 text-text-primary">
           <span className="flex size-10 items-center justify-center rounded-xl bg-primary-container font-mono text-sm font-bold text-on-primary-container">Py</span>
           <span>
