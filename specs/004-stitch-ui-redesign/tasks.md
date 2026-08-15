@@ -70,7 +70,7 @@
 
 ### A3 — Derived dark semantic tokens
 
-- [ ] **T004** [A3] Add derived warm-dark `.dark` tokens in `src/app/globals.css` (centralized only)
+- [x] **T004** [A3] Add derived warm-dark `.dark` tokens in `src/app/globals.css` (centralized only)
   - **Phase**: A · **Story**: — · **[P]**: no · **Prereq**: T003
   - **Objective**: Derive `.dark` semantics from plan Phase A: warm-dark surface family (`#171210`→`#2e2722`), `--primary #ffb595`, `--primary-hover #ffceb4`, `--primary-active #ff9666`, `--primary-soft #4a2a15`, `--primary-container #8a3400`, `--on-primary-container #ffdbcd`; status + code families rebased warm; `--focus-ring`/outline visible in dark. C-DARK: semantics over pixel parity, centralized only.
   - **Files likely to change**: `src/app/globals.css` (`.dark` block).

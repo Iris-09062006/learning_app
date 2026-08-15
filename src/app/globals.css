@@ -82,44 +82,83 @@
 }
 
 .dark {
-  --background: #0d1020;
-  --surface: #15192b;
-  --surface-subtle: #1b2034;
-  --surface-elevated: #20263b;
+  /* ==== Derived Stitch warm-dark semantic tokens (Phase A3 / T004) ====
+     Stitch is light-only (no authoritative dark reference). Values are
+     derived centrally here per C-DARK: the SAME semantic hierarchy from
+     the :root block is preserved, luminance is inverted to warm dark
+     neutrals (#171210 → #2e2722), and every pair is accessible. No
+     component-local dark-orange values. */
 
-  --text-primary: #f4f6fb;
-  --text-secondary: #b8c0d4;
-  --text-muted: #8791a9;
-  --text-inverse: #101426;
+  /* C — Neutral layout (warm-dark, background < low < surface < elevated) */
+  --background: #171210; /* darkest page surface */
+  --surface: #28221d; /* cards, elevated panels */
+  --surface-subtle: #201b16; /* = surface-container-low (search inputs, stacked cards) */
+  --surface-elevated: #2e2722;
 
-  --border: #2a3148;
-  --border-strong: #3b455f;
+  /* C — Text hierarchy (warm light-on-dark) */
+  --text-primary: #f5efe9; /* strong primary text */
+  --text-secondary: #d3c6bc; /* readable secondary text */
+  --text-muted: #a99a90; /* subdued, still readable */
+  --text-inverse: #3b1a02; /* dark text on filled (light) primary */
 
-  --primary: #8d80ff;
-  --primary-hover: #9d92ff;
-  --primary-active: #7162eb;
-  --primary-soft: #272249;
+  /* C — Borders & outlines (visible on warm dark) */
+  --border: #544940;
+  --border-strong: #6b5f55;
+  --border-light: #453c35; /* Stitch-named alias family of --border */
+  --outline: #e0a57d; /* focus/hover accents */
+  --outline-variant: #8a6a5c;
 
+  /* A — Brand primary (derived from approved orange family) */
+  --primary: #ffb595;
+  --primary-hover: #ffceb4;
+  --primary-active: #ff9666;
+  --primary-soft: #4a2a15; /* = primary-fixed (low-emphasis orange surface) */
+  --primary-container: #8a3400; /* stronger orange treatment */
+  --on-primary: #3b1a02;
+  --on-primary-container: #ffdbcd;
+  --primary-fixed: #4a2a15;
+  --primary-fixed-dim: #61361b;
+
+  /* C — Warm surface container family (dark steps stay distinguishable) */
+  --surface-container-lowest: #1b1612; /* sidebar */
+  --surface-container-low: #201b16;
+  --surface-container: #241f1a;
+  --surface-container-highest: #2b2520;
+  --surface-dim: #15110e;
+
+  /* B — Semantic status (hue families preserved — never orange) */
+  --success: #6fd392;
+  --success-soft: #1a3323;
+
+  --warning: #e8b04b;
+  --warning-soft: #3a2c14;
+
+  --danger: #f0828a;
+  --danger-soft: #432129;
+
+  --info: #8db9f2;
+  --info-soft: #1c3049;
+
+  /* B — Status container tokens (dark containers with readable fg) */
+  --danger-container: #6b2a33;
+  --on-danger-container: #ffdbd6;
+  --success-container: #2f6d44;
+  --info-container: #2b4f80;
+  --on-info-container: #d7e7ff;
+
+  /* D — AI accent (teal family preserved) */
   --ai: #45c7e2;
   --ai-hover: #61d2e9;
   --ai-soft: #17343e;
 
-  --success: #4ecb7b;
-  --success-soft: #183b2a;
+  /* D — Code block layers (rebased warm-dark, readable) */
+  --code-background: #14100d;
+  --code-surface: #1c1712;
+  --code-text: #f0e9df;
+  --code-muted: #9b8d80;
 
-  --warning: #f2b84b;
-  --warning-soft: #3d3016;
-
-  --danger: #f2737e;
-  --danger-soft: #432128;
-
-  --info: #6aa5f5;
-  --info-soft: #1c3150;
-
-  --code-background: #090c15;
-  --code-surface: #111626;
-  --code-text: #eef2ff;
-  --code-muted: #8791aa;
+  /* A — Focus ring (light orange, visible on dark) */
+  --focus-ring: #ffb595;
 }
 
 * {
