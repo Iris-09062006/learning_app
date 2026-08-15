@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const navigationMocks = vi.hoisted(() => ({
@@ -16,6 +16,16 @@ import { AppNavigation } from "./app-navigation";
 
 function getDesktopNavLink(name: string) {
   return screen.getAllByRole("link", { name })[0];
+}
+
+function getMobileNav() {
+  const nav = document.querySelector("nav[aria-label='Điều hướng di động']");
+  if (!nav) throw new Error("Mobile navigation not found");
+  return nav as HTMLElement;
+}
+
+function getMobileNavLink(name: string) {
+  return within(getMobileNav()).getByRole("link", { name });
 }
 
 describe("AppNavigation", () => {
@@ -109,6 +119,85 @@ describe("AppNavigation", () => {
 
       const desktopCurrent = document.querySelectorAll("aside [aria-current='page']");
       expect(desktopCurrent).toHaveLength(1);
+    } finally {
+      navigationMocks.pathname = originalPathname;
+    }
+  });
+
+  it("restyles the mobile top bar with Stitch semantic tokens", () => {
+    render(<AppNavigation user={null} />);
+
+    const topBar = document.querySelector("div.fixed.inset-x-0.top-0.z-30");
+    expect(topBar).not.toBeNull();
+    expect(topBar?.className).toContain("bg-surface");
+    expect(topBar?.className).toContain("border-border");
+    expect(topBar?.className).toContain("lg:hidden");
+
+    const brandLink = within(topBar as HTMLElement).getByRole("link", { name: "Python Learning" });
+    expect(brandLink).toHaveAttribute("href", "/");
+    expect(brandLink.className).toContain("text-text-primary");
+    expect(brandLink.className).toContain("focus-visible:ring-focus-ring");
+
+    const loginLink = within(topBar as HTMLElement).getByRole("link", { name: "Đăng nhập" });
+    expect(loginLink).toHaveAttribute("href", "/login");
+    expect(loginLink.className).toContain("text-primary");
+  });
+
+  it("shows the signed-in username in the mobile top bar with neutral tokens", () => {
+    render(<AppNavigation user={{ username: "Lan", role: "learner" }} />);
+
+    const topBar = document.querySelector("div.fixed.inset-x-0.top-0.z-30") as HTMLElement;
+    expect(topBar.textContent).toContain("Lan");
+    expect(within(topBar).queryByRole("link", { name: "Đăng nhập" })).not.toBeInTheDocument();
+
+    const usernameSpan = Array.from(topBar.querySelectorAll("span")).find((el) => el.textContent === "Lan");
+    expect(usernameSpan?.className).toContain("text-text-secondary");
+  });
+
+  it("restyles the mobile bottom nav with Stitch semantic tokens", () => {
+    render(<AppNavigation user={null} />);
+
+    const nav = getMobileNav();
+    expect(nav.className).toContain("bg-surface");
+    expect(nav.className).toContain("border-border");
+    expect(nav.className).toContain("min-h-16");
+    expect(nav.className).toContain("pb-[env(safe-area-inset-bottom)]");
+    expect(nav.className).toContain("lg:hidden");
+
+    const coursesLink = getMobileNavLink("Khóa học");
+    expect(coursesLink).toHaveAttribute("href", "/courses");
+  });
+
+  it("marks the active mobile tab with primary-soft surface and primary foreground", () => {
+    render(<AppNavigation user={null} />);
+
+    const coursesLink = getMobileNavLink("Khóa học");
+    expect(coursesLink).toHaveAttribute("aria-current", "page");
+    expect(coursesLink.className).toContain("rounded-xl");
+    expect(coursesLink.className).toContain("bg-primary-soft");
+    expect(coursesLink.className).toContain("text-primary");
+    expect(coursesLink.className).toContain("focus-visible:ring-focus-ring");
+  });
+
+  it("keeps inactive mobile tabs neutral with a subtle hover treatment", () => {
+    render(<AppNavigation user={{ username: "Admin", role: "admin" }} />);
+
+    const overviewLink = getMobileNavLink("Tổng quan");
+    expect(overviewLink).not.toHaveAttribute("aria-current");
+    expect(overviewLink.className).toContain("text-text-muted");
+    expect(overviewLink.className).toContain("hover:bg-surface-subtle");
+    expect(overviewLink.className).not.toContain("bg-primary-soft");
+  });
+
+  it("keeps a single aria-current inside the mobile nav", () => {
+    const originalPathname = navigationMocks.pathname;
+    navigationMocks.pathname = "/courses/python-co-ban";
+    try {
+      render(<AppNavigation user={{ username: "Admin", role: "admin" }} />);
+
+      const mobileCurrent = getMobileNav().querySelectorAll("[aria-current='page']");
+      expect(mobileCurrent).toHaveLength(1);
+      expect(mobileCurrent[0] as HTMLElement).toHaveAttribute("href", "/courses");
     } finally {
       navigationMocks.pathname = originalPathname;
     }

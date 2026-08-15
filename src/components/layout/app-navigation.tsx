@@ -121,12 +121,26 @@ export function AppNavigation({ user }: AppNavigationProps) {
         </div>
       </aside>
 
-      <div className="fixed inset-x-0 top-0 z-30 flex h-14 items-center justify-between border-b border-slate-200 bg-white/95 px-4 backdrop-blur lg:hidden">
-        <Link href="/" className="font-bold tracking-tight text-slate-950">Python Learning</Link>
-        {user ? <span className="max-w-32 truncate text-sm text-slate-600">{user.username}</span> : <Link href="/login" className="text-sm font-semibold text-indigo-700">Đăng nhập</Link>}
+      <div className="fixed inset-x-0 top-0 z-30 flex h-14 items-center justify-between border-b border-border bg-surface px-4 lg:hidden">
+        <Link
+          href="/"
+          className="font-bold tracking-tight text-text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-focus-ring"
+        >
+          Python Learning
+        </Link>
+        {user ? (
+          <span className="max-w-32 truncate text-sm text-text-secondary">{user.username}</span>
+        ) : (
+          <Link
+            href="/login"
+            className="text-sm font-semibold text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-focus-ring"
+          >
+            Đăng nhập
+          </Link>
+        )}
       </div>
 
-      <nav aria-label="Điều hướng di động" className="fixed inset-x-0 bottom-0 z-40 flex min-h-16 items-stretch overflow-x-auto border-t border-slate-200 bg-white px-2 pb-[env(safe-area-inset-bottom)] lg:hidden">
+      <nav aria-label="Điều hướng di động" className="fixed inset-x-0 bottom-0 z-40 flex min-h-16 items-stretch gap-1 overflow-x-auto border-t border-border bg-surface px-2 pb-[env(safe-area-inset-bottom)] lg:hidden">
         {visibleItems.map((item) => {
           const active = isActivePath(pathname, item.href);
           return (
@@ -134,7 +148,9 @@ export function AppNavigation({ user }: AppNavigationProps) {
               key={item.href}
               href={item.href}
               aria-current={active ? "page" : undefined}
-              className={`flex min-w-20 flex-1 flex-col items-center justify-center gap-1 px-2 py-2 text-xs font-semibold ${active ? "text-indigo-700" : "text-slate-500"}`}
+              className={`flex min-w-20 flex-1 flex-col items-center justify-center gap-1 rounded-xl px-2 py-2 text-xs font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-focus-ring ${
+                active ? "bg-primary-soft text-primary" : "text-text-muted hover:bg-surface-subtle active:bg-surface-container"
+              }`}
             >
               <span aria-hidden="true" className="font-mono text-[10px]">{item.marker}</span>
               {item.shortLabel}

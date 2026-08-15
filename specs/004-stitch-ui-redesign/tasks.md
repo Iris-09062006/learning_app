@@ -165,7 +165,7 @@
   - **Verification**: browser 1280×800 — sidebar 288px, content begins exactly beside it; resize 1440 ok; at <1024px the mobile breakpoint renders unchanged.
   - **Completion**: desktop shell offset correct; no overlap/scroll gap.
 
-- [ ] **T012** [B4] Mobile navigation visual restyle (top bar + bottom tab bar, in place)
+- [x] **T012** [B4] Mobile navigation visual restyle (top bar + bottom tab bar, in place)
   - **Phase**: B · **Story**: — · **[P]**: no · **Prereq**: T010, T011
   - **Objective**: Restyle mobile top bar and bottom tab bar in place: warm surfaces, orange active tab, warm borders, Be Vietnam Pro labels, preserved `env(safe-area-inset-*)` padding and z-index/overlay behavior.
   - **Files likely to change**: `src/components/layout/app-navigation.tsx` (mobile bars).
@@ -174,6 +174,7 @@
   - **Stitch reference**: audit §1 shell (top nav visual) — pattern only; app mobile arrangement stays authoritative.
   - **Verification**: browser 390×844 — bars render, links/tabs work, active tab orange, safe-area padding intact; `app-navigation.test.tsx` green; lint/typecheck/build.
   - **Completion**: mobile shell restyled with behavior unchanged.
+- **T012 record**: mobile bars restyled in place (`app-navigation.tsx` class/JSX only): top bar → `bg-surface` + `border-border` (opaque — Tailwind 3.4.17 drops `/95` alpha on `var()` colors; verified compiled CSS contains no `bg-surface/95`/color-mix), brand link `text-text-primary`, username `text-text-secondary`, guest login CTA `text-primary`; bottom nav → `bg-surface` + `border-border` with `gap-1` tab rhythm, active tab `bg-primary-soft text-primary` pill (`rounded-xl`) + preserved `aria-current`, inactive `text-text-muted` with `hover:bg-surface-subtle`/`active:bg-surface-container`; `:focus-visible` inset ring (`ring-focus-ring`) added to top-bar links and bottom tabs. Preserved byte-identical: h-14 top bar, `min-h-16` + `pb-[env(safe-area-inset-bottom)]`, z-order, `lg:hidden` breakpoints, routes, nav order, `shortLabel` markers, `isActivePath`, login/user display, sign-out handler, desktop sidebar/`w-72`/`lg:pl-72`. No raw hex or `dark:*` classes added; dark mode follows tokens (top bar `#28221d`, active pill `#4a2a15`/`#ffb595`). Tests: `app-navigation.test.tsx` 13/13 green (new: top-bar tokens, signed-in username, bottom-nav tokens, active pill, inactive hover, single mobile `aria-current`); layout dir 19/19. Gates: lint/typecheck/build exit 0; `git diff --check` clean. Browser 390×844 + 375×667 light/dark: sidebar hidden, top bar 56px, bottom nav 64px, `/courses` tab orange pill active, 0 horizontal overflow, links navigate, content not covered; desktop 1440×900 regression clean (288px sidebar, `lg:pl-72` offset, desktop active pill, register CTA). Guarded backend/API/supabase diff: 0.
 
 - [ ] **T013** [B5] Shell functional regression + responsive verification; commit Phase B
   - **Phase**: B · **Story**: — · **[P]**: no · **Prereq**: T009–T012
