@@ -58,7 +58,7 @@
 
 ### A2 — Light semantic design tokens
 
-- [ ] **T003** [A2] Rewrite `:root` tokens in `src/app/globals.css` to the Stitch warm palette
+- [x] **T003** [A2] Rewrite `:root` tokens in `src/app/globals.css` to the Stitch warm palette
   - **Phase**: A · **Story**: — · **[P]**: no · **Prereq**: T002
   - **Objective**: Redraw light tokens per plan Phase A + audit §1/§2 (sanctioned ranges): `--primary #a23f00`, `--primary-hover #8a3400`, `--primary-active #7a2d00`, `--primary-soft #ffdbcd`, `--primary-container #f76b1c`, `--on-primary #ffffff`, `--on-primary-container #541d00`, `--primary-fixed-dim #ffb595`; warm neutrals `--background #fcf9f8`, `--surface #ffffff`, `--surface-subtle #f6f3f2`, surface-container family (`low/lowest/highest`), text `--text-primary #1b1c1c` / `--text-secondary #594137` / `--text-muted #8c8c8c`; borders `--border #e8e8e8`, `--border-strong`, `--outline`, `--outline-variant`; keep `success/warning/danger/info/ai` semantic families; add status **container** tokens (error-container `#ffdad6`, success tag `#52c41a`, tertiary/info-container); keep `code-*` layers; add `--focus-ring`.
   - **Files likely to change**: `src/app/globals.css` (`:root` block).
