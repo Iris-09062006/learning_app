@@ -81,11 +81,16 @@ export function AppNavigation({ user }: AppNavigationProps) {
                 key={item.href}
                 href={item.href}
                 aria-current={active ? "page" : undefined}
-                className={`flex min-h-11 items-center gap-3 rounded-xl px-3 text-sm font-semibold transition-colors ${
-                  active ? "bg-indigo-50 text-indigo-700" : "text-slate-600 hover:bg-slate-100 hover:text-slate-950"
+                className={`flex min-h-11 items-center gap-3 rounded-xl px-3 text-sm font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring focus-visible:ring-offset-2 focus-visible:ring-offset-surface-container-lowest ${
+                  active ? "bg-primary-soft text-primary" : "text-text-secondary hover:bg-surface-subtle hover:text-text-primary"
                 }`}
               >
-                <span aria-hidden="true" className="font-mono text-xs text-text-secondary">{item.marker}</span>
+                <span
+                  aria-hidden="true"
+                  className={`font-mono text-xs ${active ? "text-primary" : "text-text-secondary"}`}
+                >
+                  {item.marker}
+                </span>
                 {item.label}
               </Link>
             );

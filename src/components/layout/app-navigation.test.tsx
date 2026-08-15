@@ -14,6 +14,10 @@ vi.mock("next/navigation", () => ({
 
 import { AppNavigation } from "./app-navigation";
 
+function getDesktopNavLink(name: string) {
+  return screen.getAllByRole("link", { name })[0];
+}
+
 describe("AppNavigation", () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -60,6 +64,54 @@ describe("AppNavigation", () => {
 
     // No Stitch-only navigation destinations were added.
     expect(screen.queryByRole("link", { name: /AI Tutor|Upgrade to Pro|Support|Bạn bè|Khu vườn/i })).not.toBeInTheDocument();
+  });
+
+  it("marks the matching route item active with Stitch semantic classes", () => {
+    render(<AppNavigation user={null} />);
+
+    const coursesLink = getDesktopNavLink("Khóa học");
+    expect(coursesLink).toHaveAttribute("aria-current", "page");
+    expect(coursesLink.className).toContain("bg-primary-soft");
+    expect(coursesLink.className).toContain("text-primary");
+    expect(coursesLink.className).toContain("focus-visible:ring-focus-ring");
+
+    // Active marker text shares the primary foreground for a coherent pill.
+    const marker = coursesLink.querySelector('[aria-hidden="true"]');
+    expect(marker?.className).toContain("text-primary");
+  });
+
+  it("keeps non-matching desktop items inactive with semantic neutral classes", () => {
+    render(<AppNavigation user={{ username: "Admin", role: "admin" }} />);
+
+    const overviewLink = getDesktopNavLink("Tổng quan");
+    expect(overviewLink).not.toHaveAttribute("aria-current");
+    expect(overviewLink.className).toContain("text-text-secondary");
+    expect(overviewLink.className).toContain("hover:bg-surface-subtle");
+    expect(overviewLink.className).toContain("hover:text-text-primary");
+
+    const coursesLink = getDesktopNavLink("Khóa học");
+    expect(coursesLink).toHaveAttribute("aria-current", "page");
+    expect(coursesLink.className).toContain("bg-primary-soft");
+    expect(coursesLink.className).toContain("text-primary");
+  });
+
+  it("keeps nested route matching active and a single aria-current per page", () => {
+    const originalPathname = navigationMocks.pathname;
+    navigationMocks.pathname = "/courses/python-co-ban";
+    try {
+      render(<AppNavigation user={{ username: "Admin", role: "admin" }} />);
+
+      const coursesLink = getDesktopNavLink("Khóa học");
+      expect(coursesLink).toHaveAttribute("aria-current", "page");
+
+      const overviewLink = getDesktopNavLink("Tổng quan");
+      expect(overviewLink).not.toHaveAttribute("aria-current");
+
+      const desktopCurrent = document.querySelectorAll("aside [aria-current='page']");
+      expect(desktopCurrent).toHaveLength(1);
+    } finally {
+      navigationMocks.pathname = originalPathname;
+    }
   });
 
   it("signs out through the auth API and returns to login", async () => {
