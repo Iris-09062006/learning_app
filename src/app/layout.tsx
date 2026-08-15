@@ -1,6 +1,19 @@
 import type { Metadata } from "next";
+import { Be_Vietnam_Pro, JetBrains_Mono } from "next/font/google";
 
 import "./globals.css";
+
+const beVietnamPro = Be_Vietnam_Pro({
+  subsets: ["latin", "vietnamese"],
+  weight: ["400", "500", "600", "700"],
+  variable: "--font-sans",
+});
+
+const jetBrainsMono = JetBrains_Mono({
+  subsets: ["latin"],
+  weight: ["400", "500"],
+  variable: "--font-mono",
+});
 
 export const metadata: Metadata = {
   title: "Python Learning Platform",
@@ -14,7 +27,9 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="vi">
-      <body>{children}</body>
+      <body className={`${beVietnamPro.variable} ${jetBrainsMono.variable}`}>
+        {children}
+      </body>
     </html>
   );
 }
