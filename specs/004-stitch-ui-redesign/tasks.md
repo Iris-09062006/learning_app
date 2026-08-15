@@ -94,7 +94,7 @@
 
 ### A5 — Existing shared primitives (Button / Badge / Card / Input)
 
-- [ ] **T006** [A5, P] Extend `src/components/ui/{button,badge,card,input}.tsx` to tokens in place (APIs unchanged)
+- [x] **T006** [A5, P] Extend `src/components/ui/{button,badge,card,input}.tsx` to tokens in place (APIs unchanged)
   - **Phase**: A · **Story**: — · **[P]**: yes (parallel with T007; disjoint files) · **Prereq**: T005
   - **Objective**: Tokenize in place, no public API change (forwardRef, variants, sizes, `isLoading`, label/error/helperText preserved): **Button** primary `bg-primary text-text-inverse hover:bg-primary-hover`, secondary `bg-surface-subtle text-text-primary`, outline `border-border bg-surface`, ghost `hover:bg-surface-subtle`, danger `bg-danger text-text-inverse`, focus `ring-primary/40`; **Badge** variants → token softs (`success-soft text-success`, `danger-soft text-danger`, `warning-soft text-warning`, `ai-soft text-ai`, `surface-subtle text-text-secondary`, `outline border-border`); **Card** `border-border bg-surface text-text-primary rounded-xl` (12px Stitch card radius); **Input** `border-border bg-surface text-text-primary placeholder:text-text-muted`, focus `ring-primary/40`, error `border-danger`, tokenized label/helper/error text.
   - **Files likely to change**: `src/components/ui/{button,badge,card,input}.tsx` + their `*.test.tsx`.

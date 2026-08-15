@@ -9,7 +9,10 @@ describe("Input", () => {
 
     const input = screen.getByLabelText("Email") as HTMLInputElement;
     expect(input.name).toBe("email");
-    expect(input.className).toContain("focus-visible:ring-indigo-500");
+    expect(input.className).toContain("border-border");
+    expect(input.className).toContain("bg-surface");
+    expect(input.className).toContain("text-text-primary");
+    expect(input.className).toContain("focus-visible:ring-focus-ring");
   });
 
   it("connects helper and error messages through aria-describedby", () => {
@@ -27,6 +30,7 @@ describe("Input", () => {
     expect(input.getAttribute("aria-describedby")).toBe(
       "password-helper password-error",
     );
+    expect(input.className).toContain("border-danger");
     expect(screen.getByText("Use at least eight characters.").id).toBe(
       "password-helper",
     );

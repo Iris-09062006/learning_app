@@ -15,12 +15,12 @@ export interface BadgeProps extends HTMLAttributes<HTMLSpanElement> {
 }
 
 const variantClasses: Record<BadgeVariant, string> = {
-  default: "bg-slate-100 text-slate-700",
-  success: "bg-emerald-100 text-emerald-700",
-  error: "bg-red-100 text-red-700",
-  warning: "bg-amber-100 text-amber-700",
-  ai: "bg-cyan-50 text-cyan-700",
-  outline: "border border-slate-200 bg-transparent text-slate-700",
+  default: "bg-surface-subtle text-text-secondary",
+  success: "bg-success-soft text-success",
+  error: "bg-danger-soft text-danger",
+  warning: "bg-warning-soft text-warning",
+  ai: "bg-ai-soft text-ai",
+  outline: "border border-border bg-transparent text-text-secondary",
 };
 
 export const Badge = forwardRef<HTMLSpanElement, BadgeProps>(function Badge(

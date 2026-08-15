@@ -5,12 +5,12 @@ import { Badge, type BadgeVariant } from "./badge";
 
 describe("Badge", () => {
   it.each<[BadgeVariant, string]>([
-    ["default", "bg-slate-100"],
-    ["success", "bg-emerald-100"],
-    ["error", "bg-red-100"],
-    ["warning", "bg-amber-100"],
-    ["ai", "bg-cyan-50"],
-    ["outline", "border-slate-200"],
+    ["default", "bg-surface-subtle"],
+    ["success", "bg-success-soft"],
+    ["error", "bg-danger-soft"],
+    ["warning", "bg-warning-soft"],
+    ["ai", "bg-ai-soft"],
+    ["outline", "border-border"],
   ])("applies the %s status variant", (variant, expectedClass) => {
     render(<Badge variant={variant}>{variant}</Badge>);
 
@@ -25,6 +25,6 @@ describe("Badge", () => {
 
     const className = screen.getByText("Custom").className;
     expect(className).toContain("bg-indigo-500");
-    expect(className).not.toContain("bg-slate-100");
+    expect(className).not.toContain("bg-surface-subtle");
   });
 });
