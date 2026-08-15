@@ -82,7 +82,7 @@
 
 ### A4 — Tailwind token mapping
 
-- [ ] **T005** [A4] Extend `tailwind.config.ts` color map + `fontFamily`; preserve the existing class API
+- [x] **T005** [A4] Extend `tailwind.config.ts` color map + `fontFamily`; preserve the existing class API
   - **Phase**: A · **Story**: — · **[P]**: no · **Prereq**: T003, T004
   - **Objective**: Add Tailwind color keys backing the new vars: `primary-container`, `on-primary`, `on-primary-container`, `primary-fixed-dim`, `primary-soft` (if absent), surface-container family (`surface-container-low/lowest/highest`, `surface-subtle`), `border.light`, outline tokens (`outline`, `outline-variant`), status container tokens (`danger-container`, `success-container`, `warning-container`, `info-container` per existing naming), `focus-ring`; ensure `fontFamily.sans/mono` = CSS vars (if not already in T002).
   - **Files likely to change**: `tailwind.config.ts`.
