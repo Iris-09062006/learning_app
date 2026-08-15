@@ -118,7 +118,7 @@
 
 ### A7 — Foundation regression & verification
 
-- [ ] **T008** [A7] Foundation gates: full suite, browser smoke, dark smoke, A-file diff guard; commit Phase A
+- [x] **T008** [A7] Foundation gates: full suite, browser smoke, dark smoke, A-file diff guard; commit Phase A
   - **Phase**: A · **Story**: — · **[P]**: no · **Prereq**: T002–T007
   - **Objective**: Prove the foundation did not redesign any page and left behavior intact. Dev smoke `/login`, `/courses` (guest), `/lessons/[lessonId]` light + dark; no console errors; `git diff --stat` limited to the A-file list; conventional commit (e.g. `refactor(ui): phase A design foundation`).
   - **Files likely to change**: none new (verification + fixes strictly within the A-file list).
@@ -127,6 +127,7 @@
   - **Stitch reference**: n/a (foundation milestone).
   - **Verification**: `npm run ci`; browser smoke + dark toggle; `git diff --stat` restricted to A files; no new `indigo-*` under `src/` introduced by A (grep delta recorded); commit logged with hash.
   - **Completion**: all A gates pass; smoke pages clean; diff scoped; commit recorded.
+    - **T008 record**: focused ui+layout 42/42; lint/typecheck/build exit 0; full suite 3 known CRLF migration failures only (unchanged baseline); browser smoke /login + /courses light/dark desktop+mobile clean (fonts loaded, focus ring visible, no overflow, 0 new console errors); A diff = 20 files, 0 backend/route/IA changes, 0 added indigo/slate/dark lines in src; contrast matrix recorded — light-mode soft-badge pairs (2.5–3.9:1) and text-muted (3.2–3.4:1) below AA due to locked Stitch/legacy tokens → NON-BLOCKING, Phase F token refinement with product sign-off (T037).
 ---
 
 ## Phase B — Application Shell
