@@ -123,7 +123,7 @@ function renderInline(content: string, keyPrefix: string): ReactNode[] {
       nodes.push(<br key={key} />);
     } else if (token.startsWith("`")) {
       nodes.push(
-        <code key={key} className="rounded-md bg-primary-soft px-1.5 py-0.5 font-mono text-[0.9em] text-primary-active dark:text-primary-hover">
+        <code key={key} className="rounded bg-surface-subtle px-1.5 py-0.5 font-mono text-[0.9em] text-text-secondary">
           {token.slice(1, -1)}
         </code>,
       );
@@ -168,19 +168,19 @@ export function LessonMarkdown({ content }: LessonMarkdownProps) {
         }
         if (block.type === "code") {
           return (
-            <div key={key} className="overflow-hidden rounded-2xl border border-white/10 bg-code-background shadow-lg shadow-slate-950/10">
-              {block.language && <div className="border-b border-white/10 bg-code-surface px-4 py-2 font-mono text-xs uppercase tracking-wider text-code-muted">{block.language}</div>}
-              <pre className="overflow-x-auto p-5 text-sm leading-7 text-code-text"><code>{block.content}</code></pre>
+            <div key={key} className="overflow-hidden rounded-xl bg-code-background">
+              {block.language && <div className="border-b border-border bg-code-surface px-4 py-2 font-mono text-xs uppercase tracking-wider text-code-muted">{block.language}</div>}
+              <pre className="overflow-x-auto p-5 font-mono text-sm leading-7 text-code-text"><code>{block.content}</code></pre>
             </div>
           );
         }
         if (block.type === "blockquote") {
-          return <blockquote key={key} className="rounded-r-xl border-l-4 border-primary bg-primary-soft/70 px-5 py-4 italic text-text-primary">{renderInline(block.content, key)}</blockquote>;
+          return <blockquote key={key} className="rounded-r-xl border-l-4 border-primary bg-primary-soft px-5 py-4 text-text-primary">{renderInline(block.content, key)}</blockquote>;
         }
         if (block.type === "unordered-list" || block.type === "ordered-list") {
           const ListTag = block.type === "ordered-list" ? "ol" : "ul";
           return (
-            <ListTag key={key} className={`space-y-2 pl-6 marker:text-primary ${block.type === "ordered-list" ? "list-decimal" : "list-disc"}`}>
+            <ListTag key={key} className={`space-y-1 pl-6 marker:text-primary ${block.type === "ordered-list" ? "list-decimal" : "list-disc"}`}>
               {block.content.split("\n").map((item, itemIndex) => <li key={`${key}-${itemIndex}`} className="pl-1">{renderInline(item, `${key}-${itemIndex}`)}</li>)}
             </ListTag>
           );

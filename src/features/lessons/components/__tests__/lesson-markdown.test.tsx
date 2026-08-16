@@ -107,31 +107,65 @@ describe("LessonMarkdown", () => {
     const { container } = renderMarkdown();
 
     const ul = container.querySelector("ul");
-    expect(ul).toHaveClass("list-disc", "marker:text-primary", "space-y-2", "pl-6");
+    expect(ul).toHaveClass("list-disc", "marker:text-primary", "space-y-1", "pl-6");
     expect(ul?.querySelectorAll("li")).toHaveLength(2);
 
     const ol = container.querySelector("ol");
-    expect(ol).toHaveClass("list-decimal", "marker:text-primary", "space-y-2", "pl-6");
+    expect(ol).toHaveClass("list-decimal", "marker:text-primary", "space-y-1", "pl-6");
     expect(ol?.querySelectorAll("li")).toHaveLength(2);
   });
 
-  it("does not redesign specialized T017 blocks (code, blockquote, inline code, list spacing)", () => {
+  it("styles fenced code blocks with semantic code tokens and internal overflow", () => {
+    const { container } = renderMarkdown();
+
+    const codeBlock = container.querySelector('[class*="bg-code-background"]') as HTMLElement;
+    expect(codeBlock).not.toBeNull();
+    expect(codeBlock).toHaveClass("rounded-xl", "overflow-hidden", "bg-code-background");
+    expect(codeBlock.className).not.toContain("border-white/10");
+    expect(codeBlock.className).not.toContain("shadow-slate");
+    expect(codeBlock.className).not.toMatch(/bg-\[#|text-\[#|dark:/);
+
+    const languageHeader = codeBlock?.querySelector("div");
+    expect(languageHeader).not.toBeNull();
+    expect(languageHeader).toHaveClass("bg-code-surface", "text-code-muted");
+
+    const pre = container.querySelector("pre");
+    expect(pre).toHaveClass("overflow-x-auto", "font-mono", "text-code-text");
+    expect(container.querySelector('[class*="text-code-text"]')).not.toBeNull();
+  });
+
+  it("styles inline code as a neutral instructional chip without CTA-like surface", () => {
+    renderMarkdown();
+
+    const inlineCode = screen.getByText("print()");
+
+    expect(inlineCode.tagName).toBe("CODE");
+    expect(inlineCode).toHaveClass("rounded", "bg-surface-subtle", "px-1.5", "py-0.5", "font-mono", "text-text-secondary");
+    expect(inlineCode).not.toHaveClass("bg-primary-soft");
+    expect(inlineCode.className).not.toMatch(/dark:|bg-\[#|text-\[#/);
+  });
+
+  it("styles blockquotes as non-italic informational callouts with the orange quote bar", () => {
     const { container } = renderMarkdown();
 
     const blockquote = container.querySelector("blockquote");
-    expect(blockquote).toHaveClass("rounded-r-xl", "border-l-4", "border-primary", "bg-primary-soft/70");
+    expect(blockquote).toHaveClass("rounded-r-xl", "border-l-4", "border-primary", "bg-primary-soft", "text-text-primary");
+    expect(blockquote).not.toHaveClass("italic");
+    expect(blockquote?.textContent).toBe("Lưu ý: tên biến phân biệt hoa thường.");
+  });
 
-    const codeBlock = container.querySelector('[class*="bg-code-background"]');
-    expect(codeBlock).not.toBeNull();
-    expect(container.querySelector("pre")).toHaveClass("overflow-x-auto");
-    expect(container.querySelector('[class*="text-code-text"]')).not.toBeNull();
+  it("keeps tight instructional list rhythm without altering list structure", () => {
+    const { container } = renderMarkdown();
 
-    const inlineCode = screen.getByText("print()");
-    expect(inlineCode.tagName).toBe("CODE");
-    expect(inlineCode).toHaveClass("bg-primary-soft", "font-mono");
+    const ul = container.querySelector("ul");
+    expect(ul).toHaveClass("list-disc", "marker:text-primary", "space-y-1", "pl-6");
+    expect(ul?.querySelectorAll("li")).toHaveLength(2);
 
-    const listItem = container.querySelector("li");
-    expect(listItem).toHaveClass("pl-1");
+    const ol = container.querySelector("ol");
+    expect(ol).toHaveClass("list-decimal", "marker:text-primary", "space-y-1", "pl-6");
+    expect(ol?.querySelectorAll("li")).toHaveLength(2);
+
+    expect(container.querySelector("li")).toHaveClass("pl-1");
   });
 
   it("keeps sanitization behavior for unsafe link protocols", () => {
