@@ -136,7 +136,7 @@ function renderInline(content: string, keyPrefix: string): ReactNode[] {
       const href = link ? safeHref(link[2]) : null;
       nodes.push(
         href ? (
-          <a key={key} href={href} className="font-medium text-primary underline decoration-primary/30 underline-offset-4 transition hover:decoration-primary" rel={href.startsWith("http") ? "noreferrer" : undefined} target={href.startsWith("http") ? "_blank" : undefined}>
+          <a key={key} href={href} className="font-medium text-primary underline decoration-primary/30 underline-offset-4 transition hover:decoration-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2" rel={href.startsWith("http") ? "noreferrer" : undefined} target={href.startsWith("http") ? "_blank" : undefined}>
             {link?.[1]}
           </a>
         ) : (
@@ -157,14 +157,14 @@ export function LessonMarkdown({ content }: LessonMarkdownProps) {
   const blocks = parseBlocks(content);
 
   return (
-    <div data-testid="lesson-markdown" className="space-y-5 text-[1.02rem] leading-8 text-text-secondary">
+    <div data-testid="lesson-markdown" className="space-y-4 text-base leading-6 text-text-secondary">
       {blocks.map((block, index) => {
         const key = `block-${index}`;
         if (block.type === "heading") {
-          const headingClass = "scroll-mt-24 font-bold tracking-tight text-text-primary";
-          if (block.level === 1) return <h2 key={key} className={`${headingClass} pt-3 text-3xl`}>{renderInline(block.content, key)}</h2>;
-          if (block.level === 2) return <h2 key={key} className={`${headingClass} pt-3 text-2xl`}>{renderInline(block.content, key)}</h2>;
-          return <h3 key={key} className={`${headingClass} pt-2 text-xl`}>{renderInline(block.content, key)}</h3>;
+          const headingClass = "scroll-mt-24 pt-2 text-text-primary";
+          if (block.level === 1) return <h2 key={key} className={`${headingClass} text-xl font-semibold leading-7`}>{renderInline(block.content, key)}</h2>;
+          if (block.level === 2) return <h2 key={key} className={`${headingClass} text-xl font-semibold leading-7`}>{renderInline(block.content, key)}</h2>;
+          return <h3 key={key} className={`${headingClass} text-base font-semibold leading-6`}>{renderInline(block.content, key)}</h3>;
         }
         if (block.type === "code") {
           return (
@@ -180,12 +180,12 @@ export function LessonMarkdown({ content }: LessonMarkdownProps) {
         if (block.type === "unordered-list" || block.type === "ordered-list") {
           const ListTag = block.type === "ordered-list" ? "ol" : "ul";
           return (
-            <ListTag key={key} className={`space-y-2 pl-6 ${block.type === "ordered-list" ? "list-decimal" : "list-disc marker:text-primary"}`}>
+            <ListTag key={key} className={`space-y-2 pl-6 marker:text-primary ${block.type === "ordered-list" ? "list-decimal" : "list-disc"}`}>
               {block.content.split("\n").map((item, itemIndex) => <li key={`${key}-${itemIndex}`} className="pl-1">{renderInline(item, `${key}-${itemIndex}`)}</li>)}
             </ListTag>
           );
         }
-        if (block.type === "rule") return <hr key={key} className="my-8 border-border" />;
+        if (block.type === "rule") return <hr key={key} className="border-border" />;
         return <p key={key}>{renderInline(block.content, key)}</p>;
       })}
     </div>
