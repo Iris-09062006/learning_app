@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import React, { useEffect, useRef, useState } from "react";
 
+import { Button } from "@/components/ui/button";
 import { LessonMarkdown } from "@/features/lessons/components/lesson-markdown";
 import type { LessonResponse } from "@/features/lessons/types";
 import type { ProgressStatus } from "@/features/courses/types";
@@ -116,37 +117,37 @@ export const LessonContentView: React.FC<LessonContentViewProps> = ({ lesson }) 
         </Link>
       </nav>
 
-      <header className="relative overflow-hidden rounded-[2rem] border border-border bg-surface p-6 shadow-[0_24px_70px_-40px_rgba(61,52,139,0.45)] sm:p-9 lg:p-11">
-        <div aria-hidden="true" className="absolute -right-20 -top-24 size-72 rounded-full bg-primary-soft blur-3xl" />
-        <div className="relative grid gap-8 lg:grid-cols-[1fr_auto] lg:items-end">
+      <header className="rounded-xl border border-border bg-surface p-6 shadow-sm sm:p-8">
+        <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-end">
           <div className="max-w-3xl">
             <div className="flex flex-wrap items-center gap-3">
-              <span className="rounded-full bg-primary-soft px-3 py-1 text-xs font-bold uppercase tracking-[0.16em] text-primary">Bài {lesson.order}</span>
+              <span className="rounded-full bg-primary-container px-3 py-1 text-xs font-bold uppercase tracking-[0.16em] text-on-primary-container">Bài {lesson.order}</span>
               <span className={`rounded-full px-3 py-1 text-xs font-semibold ${visibleStatus.classes}`}>{visibleStatus.label}</span>
               {lesson.estimatedMinutes !== null && <span className="text-sm text-text-muted">Khoảng {lesson.estimatedMinutes} phút</span>}
             </div>
-            <h1 className="mt-6 max-w-3xl text-3xl font-extrabold leading-tight tracking-tight text-text-primary sm:text-4xl lg:text-5xl">{lesson.title}</h1>
-            <p className="mt-4 max-w-2xl text-base leading-7 text-text-secondary sm:text-lg">
+            <h1 className="mt-4 max-w-3xl text-2xl font-bold tracking-tight text-text-primary sm:text-[2rem] sm:leading-10">{lesson.title}</h1>
+            <p className="mt-3 max-w-2xl text-base leading-7 text-text-secondary sm:text-lg">
               {isContentVisible ? "Tiếp tục từ nội dung bên dưới và hoàn thành các bài tập để củng cố kiến thức." : "Bắt đầu khi bạn đã sẵn sàng. Nội dung bài học sẽ mở ngay tại đây."}
             </p>
           </div>
 
-          <div className="flex min-w-48 flex-col items-stretch gap-3 lg:items-end">
-            <button
+          <div className="flex min-w-48 flex-col items-stretch gap-2 lg:items-end">
+            <Button
               type="button"
               onClick={handleStartLesson}
-              disabled={isStarting}
+              isLoading={isStarting}
+              size="lg"
+              className="gap-2"
               aria-describedby={errorMessage ? "lesson-start-error" : undefined}
-              className="inline-flex min-h-12 items-center justify-center gap-2 rounded-xl bg-primary px-6 py-3 text-sm font-bold text-text-inverse shadow-lg shadow-primary/20 transition hover:-translate-y-0.5 hover:bg-primary-hover hover:shadow-xl focus-visible:outline-none disabled:cursor-not-allowed disabled:opacity-60 disabled:hover:translate-y-0 motion-reduce:transform-none"
             >
-              <span aria-hidden="true">{isStarting ? "···" : isContentVisible ? "↓" : "▶"}</span>
+              <span aria-hidden="true">{isContentVisible ? "↓" : "▶"}</span>
               {isStarting ? "Đang mở bài học..." : isContentVisible ? (status === "completed" ? "Ôn lại nội dung" : "Tiếp tục học") : "Bắt đầu bài học"}
-            </button>
+            </Button>
             <p className="text-center text-xs text-text-muted lg:text-right">Tiến độ được lưu tự động</p>
           </div>
         </div>
 
-        {errorMessage && <p id="lesson-start-error" role="alert" className="relative mt-5 rounded-xl border border-danger/20 bg-danger-soft px-4 py-3 text-sm font-medium text-danger">{errorMessage}</p>}
+        {errorMessage && <p id="lesson-start-error" role="alert" className="mt-5 rounded-xl border border-danger/20 bg-danger-soft px-4 py-3 text-sm font-medium text-danger">{errorMessage}</p>}
         <p className="sr-only" aria-live="polite">{isStarting ? "Đang mở bài học" : isContentVisible ? "Nội dung bài học đã sẵn sàng" : ""}</p>
       </header>
 

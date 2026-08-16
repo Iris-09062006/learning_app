@@ -66,6 +66,13 @@ describe("LessonContentView", () => {
     expect(screen.getByRole("button", { name: /Bắt đầu bài học/ })).toBeInTheDocument();
     expect(screen.getByText("Nội dung đang chờ bạn")).toBeInTheDocument();
     expect(screen.queryByTestId("lesson-markdown")).not.toBeInTheDocument();
+
+    // Header metadata stays data-driven (order, status label, duration) with no
+    // fabricated Stitch content.
+    expect(screen.getByText("Bài 1")).toBeInTheDocument();
+    expect(screen.getByText("Sẵn sàng")).toBeInTheDocument();
+    expect(screen.getByText("Khoảng 15 phút")).toBeInTheDocument();
+    expect(screen.getByText("Tiến độ được lưu tự động")).toBeInTheDocument();
   });
 
   it("reveals and focuses content immediately after start succeeds", async () => {

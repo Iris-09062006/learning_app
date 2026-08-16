@@ -194,7 +194,7 @@
 
 **Purpose**: `/lessons/[lessonId]` becomes the first representative screen vs `lesson-render.png`. This phase is a **HARD VISUAL CHECKPOINT**. `LessonContentView` is already token-based — this is surgical visual alignment, **not a rewrite**. **Preserved**: learner DTO, status model, start/advance API calls + error handling, focus management (`shouldFocusContent`/`contentRef`), Markdown parser semantics, action labels and flows.
 
-- [ ] **T014** [C1] Lesson page/container/header visual structure
+- [x] **T014** [C1] Lesson page/container/header visual structure
   - **Phase**: C · **Story**: US1 · **[P]**: no · **Prereq**: T013
   - **Objective**: `src/app/(main)/lessons/[lessonId]/page.tsx` swaps `max-w-6xl` for `PageContainer` (~75rem/1200px), keeps `bg-background`, Stitch page padding. `lesson-content-view.tsx` header → Stitch header card (`bg-surface border-border rounded-xl`): chapter tag pill (`bg-primary-container text-on-primary-container`), title at `headline-lg` scale (Be Vietnam Pro), description, status badge, progress text + bar, primary start/continue action using shared `Button`.
   - **Files likely to change**: `src/app/(main)/lessons/[lessonId]/page.tsx`, `src/features/lessons/components/lesson-content-view.tsx`.
@@ -203,6 +203,7 @@
   - **Stitch reference**: `lesson-render.png` header + audit §4.1.
   - **Verification**: browser 1280×800 — header matches ref (chapter pill, title, progress, action); functional start still flips status and moves focus; lint/typecheck/build.
   - **Completion**: header/container per Stitch; no functional change.
+- **T014 record**: page.tsx `max-w-6xl` → `PageContainer` (75rem/1200px cap); keeps `bg-background` + top padding. Header → Stitch card `bg-surface border-border rounded-xl shadow-sm p-6 sm:p-8` (dropped `rounded-[2rem]`, indigo rgba shadow, blur blob); chapter pill `bg-primary-container text-on-primary-container`; title `text-2xl sm:text-[2rem] sm:leading-10 font-bold` (headline-lg Be Vietnam Pro); start/continue action → shared `Button` (size lg, `isLoading`, labels/icons/aria kept). No fake data: no lesson-level % exists → no progress bar added. Tests: lesson-content-view 9/9. Gates: lint/typecheck/build exit 0, `git diff --check` clean. Browser (e2e mock backend, real `/lessons/101`): desktop 1440×900 container 1200px, card 12px radius + #E8E8E8 border + shadow-sm, title 32px/700, pill #F76B1C on #541D00, Button 48px `rounded-lg` #A23F00; start flips unlocked→inProgress + focuses content; no overflow. Dark (`html.dark`) + mobile 390×844 light/dark OK (derived tokens only, no overflow). Console: only pre-existing 403 recommendations. Evidence: `tmp/t014-lesson-{desktop-1440,desktop-dark,mobile-dark,mobile-light}.png`. Deferred T015+: markdown/body typography, exercise cards, next-lesson nav, aside radius, breadcrumbs (no data on route — back-link kept). Guarded feature-003 diff = 0.
 
 - [ ] **T015** [C2] Lesson typography/content sections
   - **Phase**: C · **Story**: US1 · **[P]**: no · **Prereq**: T014
