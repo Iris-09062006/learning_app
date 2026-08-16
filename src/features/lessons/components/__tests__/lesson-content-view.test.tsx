@@ -274,6 +274,49 @@ describe("LessonContentView", () => {
     expect(screen.queryByText(/Bài trước/)).not.toBeInTheDocument();
   });
 
+  it("hardens the responsive grid so ultra-long content cannot stretch the page", () => {
+    const { container } = render(
+      <LessonContentView
+        lesson={{
+          ...mockLesson,
+          status: "inProgress",
+          title: "Bài học với tiêu đề thật sự rất dài để kiểm tra khả năng xuống dòng an toàn trong vùng chứa",
+          content: ["## Đề mục", "", "```python", "x".repeat(400), "```", "", "> Ghi chú quan trọng."].join("\n"),
+        }}
+      />,
+    );
+
+    // Content column is a min-w-0 grid item so ultra-long unbreakable content
+    // (fenced code lines) cannot blow out the grid track width.
+    const article = screen.getByRole("article", { name: "Bài học" });
+    const contentColumn = article.parentElement as HTMLElement;
+    expect(contentColumn).toHaveClass("min-w-0");
+    expect(contentColumn).toHaveClass("space-y-8");
+
+    // Base track is an explicit single column (minmax(0,1fr) semantics); the lg
+    // track keeps an explicit zero-minimum first column. Both contain items.
+    const grid = contentColumn.parentElement as HTMLElement;
+    expect(grid).toHaveClass("grid-cols-1");
+    expect(grid.className).toContain("lg:grid-cols-[minmax(0,1fr)_15rem]");
+
+    // Mobile stacking order: content column first, aside below it (DOM order is
+    // the visual order under the single-column base grid).
+    const aside = screen.getByRole("complementary", { name: "Thông tin bài học" });
+    expect(grid.children[0]).toBe(contentColumn);
+    expect(grid.children[1]).toBe(aside);
+
+    // Header title column is also a min-w-0 grid item (long-title resilience).
+    const heading = screen.getByRole("heading", { level: 1 });
+    expect((heading.parentElement as HTMLElement).className).toContain("min-w-0");
+    expect(heading).toHaveClass("break-words");
+
+    // The fenced code block keeps internal horizontal scrolling instead of
+    // widening the page: overflow-hidden wrapper + overflow-x-auto pre.
+    const pre = container.querySelector("pre") as HTMLElement;
+    expect(pre).toHaveClass("overflow-x-auto");
+    expect((pre.parentElement as HTMLElement).className).toContain("overflow-hidden");
+  });
+
   it("emits no slash-opacity utilities on any lesson control surface", () => {
     const { container } = render(
       <LessonContentView

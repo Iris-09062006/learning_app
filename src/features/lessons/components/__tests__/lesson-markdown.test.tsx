@@ -82,7 +82,7 @@ describe("LessonMarkdown", () => {
     renderMarkdown();
 
     const container = screen.getByTestId("lesson-markdown");
-    expect(container).toHaveClass("space-y-4", "text-base", "leading-6", "text-text-secondary");
+    expect(container).toHaveClass("break-words", "space-y-4", "text-base", "leading-6", "text-text-secondary");
 
     const h2 = screen.getByRole("heading", { level: 2, name: "Biến là gì?" });
     expect(h2).toHaveClass("text-text-primary", "text-xl", "font-semibold", "leading-7");

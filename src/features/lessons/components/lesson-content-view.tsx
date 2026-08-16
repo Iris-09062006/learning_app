@@ -109,7 +109,7 @@ export const LessonContentView: React.FC<LessonContentViewProps> = ({ lesson }) 
   }
 
   return (
-    <div data-testid="lesson-content-view" className="space-y-8">
+    <div data-testid="lesson-content-view" className="space-y-8 pb-16 lg:pb-0">
       <nav aria-label="Điều hướng bài học">
         <Link href="/courses" className="inline-flex items-center gap-2 text-sm font-medium text-text-secondary transition hover:text-primary">
           <span aria-hidden="true">←</span>
@@ -118,14 +118,14 @@ export const LessonContentView: React.FC<LessonContentViewProps> = ({ lesson }) 
       </nav>
 
       <header className="rounded-xl border border-border bg-surface p-6 shadow-sm sm:p-8">
-        <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-end">
-          <div className="max-w-3xl">
+        <div className="grid grid-cols-1 gap-6 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-end">
+          <div className="min-w-0 max-w-3xl">
             <div className="flex flex-wrap items-center gap-3">
               <span className="rounded-full bg-primary-container px-3 py-1 text-xs font-bold uppercase tracking-[0.16em] text-on-primary-container">Bài {lesson.order}</span>
               <span className={`rounded-full px-3 py-1 text-xs font-semibold ${visibleStatus.classes}`}>{visibleStatus.label}</span>
               {lesson.estimatedMinutes !== null && <span className="text-sm text-text-muted">Khoảng {lesson.estimatedMinutes} phút</span>}
             </div>
-            <h1 className="mt-4 max-w-3xl text-2xl font-bold tracking-tight text-text-primary sm:text-[2rem] sm:leading-10">{lesson.title}</h1>
+            <h1 className="mt-4 max-w-3xl break-words text-2xl font-bold tracking-tight text-text-primary sm:text-[2rem] sm:leading-10">{lesson.title}</h1>
             <p className="mt-3 max-w-2xl text-base leading-7 text-text-secondary sm:text-lg">
               {isContentVisible ? "Tiếp tục từ nội dung bên dưới và hoàn thành các bài tập để củng cố kiến thức." : "Bắt đầu khi bạn đã sẵn sàng. Nội dung bài học sẽ mở ngay tại đây."}
             </p>
@@ -158,8 +158,8 @@ export const LessonContentView: React.FC<LessonContentViewProps> = ({ lesson }) 
           <p className="mx-auto mt-2 max-w-lg text-sm leading-6 text-text-secondary">Nhấn “Bắt đầu bài học” để ghi nhận tiến độ và mở toàn bộ nội dung.</p>
         </section>
       ) : (
-        <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_15rem] lg:items-start">
-          <div className="space-y-8">
+        <div className="grid grid-cols-1 gap-6 lg:grid-cols-[minmax(0,1fr)_15rem] lg:items-start">
+          <div className="min-w-0 space-y-8">
             <article ref={contentRef} tabIndex={-1} aria-labelledby="lesson-body-title" className="scroll-mt-20 rounded-xl border border-border bg-surface p-6 shadow-sm outline-none sm:p-8">
               <div className="mb-8 flex items-center gap-4 border-b border-border pb-4">
                 <span className="flex size-10 items-center justify-center rounded-xl bg-primary-soft text-lg" aria-hidden="true">✦</span>
@@ -204,9 +204,9 @@ export const LessonContentView: React.FC<LessonContentViewProps> = ({ lesson }) 
               <nav aria-label="Bài tiếp theo" className="relative rounded-xl border border-border bg-surface p-5">
                 <span aria-hidden="true" className="absolute inset-y-5 left-0 w-1 rounded-r-md bg-primary" />
                 <div className="sm:flex sm:items-center sm:justify-between sm:gap-4">
-                  <div>
+                  <div className="min-w-0">
                     <p className="text-xs font-bold uppercase tracking-[0.16em] text-primary">Bài tiếp theo</p>
-                    <p className="mt-1 font-bold text-text-primary">{lesson.nextLesson.title}</p>
+                    <p className="mt-1 break-words font-bold text-text-primary">{lesson.nextLesson.title}</p>
                     <p className="mt-1 text-sm text-text-secondary">Bạn có thể tiếp tục ngay; bài hiện tại vẫn giữ đúng tiến độ đã đạt.</p>
                   </div>
                   <Button
@@ -229,7 +229,7 @@ export const LessonContentView: React.FC<LessonContentViewProps> = ({ lesson }) 
             ) : null}
           </div>
 
-          <aside aria-label="Thông tin bài học" className="space-y-4 lg:sticky lg:top-6">
+          <aside aria-label="Thông tin bài học" className="min-w-0 space-y-4 lg:sticky lg:top-6">
             <div className="rounded-xl border border-border bg-surface p-5 shadow-sm">
               <p className="text-xs font-bold uppercase tracking-[0.16em] text-text-muted">Tổng quan</p>
               <dl className="mt-4 space-y-4 text-sm">

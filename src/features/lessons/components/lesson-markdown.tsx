@@ -157,7 +157,7 @@ export function LessonMarkdown({ content }: LessonMarkdownProps) {
   const blocks = parseBlocks(content);
 
   return (
-    <div data-testid="lesson-markdown" className="space-y-4 text-base leading-6 text-text-secondary">
+    <div data-testid="lesson-markdown" className="break-words space-y-4 text-base leading-6 text-text-secondary">
       {blocks.map((block, index) => {
         const key = `block-${index}`;
         if (block.type === "heading") {
