@@ -194,4 +194,101 @@ describe("LessonContentView", () => {
     render(<LessonContentView lesson={{ ...mockLesson, status: "inProgress", nextLesson: null }} />);
     expect(screen.queryByRole("navigation", { name: "Bài tiếp theo" })).not.toBeInTheDocument();
   });
+
+  it("keeps data-driven status chips on the approved semantic token families", () => {
+    const { unmount } = render(<LessonContentView lesson={mockLesson} />);
+    const unlockedChip = screen.getByText("Sẵn sàng");
+    expect(unlockedChip.className).toContain("bg-warning-soft");
+    expect(unlockedChip.className).toContain("text-warning");
+    unmount();
+
+    render(<LessonContentView lesson={{ ...mockLesson, status: "inProgress" }} />);
+    const infoChips = screen.getAllByText("Đang học");
+    expect(infoChips.length).toBeGreaterThanOrEqual(1);
+    expect(infoChips[0].className).toContain("bg-info-soft");
+    expect(infoChips[0].className).toContain("text-info");
+    unmount();
+
+    render(<LessonContentView lesson={{ ...mockLesson, status: "completed" }} />);
+    const successChips = screen.getAllByText("Hoàn thành");
+    expect(successChips[0].className).toContain("bg-success-soft");
+    expect(successChips[0].className).toContain("text-success");
+  });
+
+  it("renders the next-lesson card with token surfaces, primary accent, and shared Button", () => {
+    render(
+      <LessonContentView
+        lesson={{ ...mockLesson, status: "inProgress", nextLesson: { id: 11, title: "Hàm Python" } }}
+      />,
+    );
+
+    const nav = screen.getByRole("navigation", { name: "Bài tiếp theo" });
+    expect(nav).toHaveTextContent("Bài tiếp theo");
+    expect(nav).toHaveTextContent("Hàm Python");
+    expect(nav.className).toContain("rounded-xl");
+    expect(nav.className).toContain("border-border");
+    expect(nav.className).toContain("bg-surface");
+
+    // Stitch left accent bar (primary) carries the next-lesson affordance.
+    const accentBar = Array.from(nav.querySelectorAll("span")).find((span) =>
+      span.className.includes("bg-primary") && span.className.includes("left-0"),
+    );
+    expect(accentBar).toBeDefined();
+
+    // The advance action is the shared Button: primary surface + focus ring token.
+    const nextButton = screen.getByRole("button", { name: /Tiếp theo/ });
+    expect(nextButton.className).toContain("bg-primary");
+    expect(nextButton.className).toContain("focus-visible:ring-focus-ring");
+  });
+
+  it("keeps the aside overview data-driven with token surface classes", () => {
+    render(<LessonContentView lesson={{ ...mockLesson, status: "inProgress" }} />);
+
+    const aside = screen.getByRole("complementary", { name: "Thông tin bài học" });
+    expect(aside).toHaveTextContent("Tổng quan");
+    expect(aside).toHaveTextContent("Trạng thái");
+    expect(aside).toHaveTextContent("Đang học");
+    expect(aside).toHaveTextContent("Thời lượng");
+    expect(aside).toHaveTextContent("15 phút");
+    expect(aside).toHaveTextContent("Bài tập");
+    expect(aside).toHaveTextContent("2");
+
+    const card = aside.querySelector(":scope > div:first-child") as HTMLElement;
+    expect(card.className).toContain("rounded-xl");
+    expect(card.className).toContain("border-border");
+    expect(card.className).toContain("bg-surface");
+
+    const roadmapLink = screen.getByRole("link", { name: "Xem lộ trình khác" });
+    expect(roadmapLink).toHaveAttribute("href", "/courses");
+    expect(roadmapLink.className).toContain("hover:text-primary");
+  });
+
+  it("does not fabricate a previous-lesson navigation", () => {
+    render(
+      <LessonContentView
+        lesson={{ ...mockLesson, status: "inProgress", nextLesson: { id: 11, title: "Hàm Python" } }}
+      />,
+    );
+    expect(screen.queryByRole("navigation", { name: /Bài trước/ })).not.toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: /Bài trước/ })).not.toBeInTheDocument();
+    expect(screen.queryByText(/Bài trước/)).not.toBeInTheDocument();
+  });
+
+  it("emits no slash-opacity utilities on any lesson control surface", () => {
+    const { container } = render(
+      <LessonContentView
+        lesson={{ ...mockLesson, status: "inProgress", nextLesson: { id: 11, title: "Hàm Python" } }}
+      />,
+    );
+
+    const slashOpacityToken = /(^|\s)(bg|text|border|hover:border|hover:bg)-(primary|danger|surface-subtle|warning|info|success)(-\S*)?\/\d+/;
+    const offenders: string[] = [];
+    container.querySelectorAll<HTMLElement>("div, section, nav, span, p, a, button").forEach((element) => {
+      const className = element.className;
+      if (typeof className === "string" && slashOpacityToken.test(className)) {
+        offenders.push(className);
+      }
+    });
+    expect(offenders).toEqual([]);
+  });
 });
