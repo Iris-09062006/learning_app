@@ -152,8 +152,8 @@ export const LessonContentView: React.FC<LessonContentViewProps> = ({ lesson }) 
       </header>
 
       {!isContentVisible ? (
-        <section aria-labelledby="lesson-preview-title" className="rounded-3xl border border-dashed border-primary bg-primary-soft px-6 py-10 text-center sm:px-10">
-          <div className="mx-auto flex size-14 items-center justify-center rounded-2xl bg-surface text-2xl shadow-sm" aria-hidden="true">📖</div>
+        <section aria-labelledby="lesson-preview-title" className="rounded-xl border border-dashed border-primary bg-primary-soft px-6 py-10 text-center sm:px-10">
+          <div className="mx-auto flex size-14 items-center justify-center rounded-xl bg-surface text-2xl shadow-sm" aria-hidden="true">📖</div>
           <h2 id="lesson-preview-title" className="mt-5 text-xl font-bold text-text-primary">Nội dung đang chờ bạn</h2>
           <p className="mx-auto mt-2 max-w-lg text-sm leading-6 text-text-secondary">Nhấn “Bắt đầu bài học” để ghi nhận tiến độ và mở toàn bộ nội dung.</p>
         </section>
