@@ -158,24 +158,24 @@ export const LessonContentView: React.FC<LessonContentViewProps> = ({ lesson }) 
           <p className="mx-auto mt-2 max-w-lg text-sm leading-6 text-text-secondary">Nhấn “Bắt đầu bài học” để ghi nhận tiến độ và mở toàn bộ nội dung.</p>
         </section>
       ) : (
-        <div className="grid gap-8 lg:grid-cols-[minmax(0,1fr)_15rem] lg:items-start">
+        <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_15rem] lg:items-start">
           <div className="space-y-8">
-            <article ref={contentRef} tabIndex={-1} aria-labelledby="lesson-body-title" className="scroll-mt-20 rounded-[2rem] border border-border bg-surface px-6 py-8 shadow-sm outline-none sm:px-10 sm:py-10 lg:px-12">
-              <div className="mb-8 flex items-center gap-3 border-b border-border pb-5">
+            <article ref={contentRef} tabIndex={-1} aria-labelledby="lesson-body-title" className="scroll-mt-20 rounded-xl border border-border bg-surface p-6 shadow-sm outline-none sm:p-8">
+              <div className="mb-8 flex items-center gap-4 border-b border-border pb-4">
                 <span className="flex size-10 items-center justify-center rounded-xl bg-primary-soft text-lg" aria-hidden="true">✦</span>
                 <div>
                   <p className="text-xs font-bold uppercase tracking-[0.16em] text-primary">Nội dung chính</p>
-                  <h2 id="lesson-body-title" className="text-xl font-bold text-text-primary">Bài học</h2>
+                  <h2 id="lesson-body-title" className="mt-2 text-xl font-semibold leading-7 text-text-primary">Bài học</h2>
                 </div>
               </div>
               {lesson.content?.trim() ? <LessonMarkdown content={lesson.content} /> : <div className="rounded-2xl bg-surface-subtle px-5 py-8 text-center text-sm text-text-secondary">Nội dung bài học đang được cập nhật.</div>}
             </article>
 
-            <section aria-labelledby="lesson-exercises-title" className="rounded-[2rem] border border-border bg-surface p-6 shadow-sm sm:p-8">
+            <section aria-labelledby="lesson-exercises-title" className="rounded-xl border border-border bg-surface p-6 shadow-sm sm:p-8">
               <div className="flex flex-wrap items-end justify-between gap-3">
                 <div>
                   <p className="text-xs font-bold uppercase tracking-[0.16em] text-primary">Luyện tập</p>
-                  <h2 id="lesson-exercises-title" className="mt-1 text-2xl font-bold text-text-primary">Bài tập của bài học</h2>
+                  <h2 id="lesson-exercises-title" className="mt-2 text-xl font-semibold leading-7 text-text-primary">Bài tập của bài học</h2>
                 </div>
                 {lesson.exercises.length > 0 && <span className="rounded-full bg-surface-subtle px-3 py-1 text-xs font-semibold text-text-secondary">{lesson.exercises.length} bài</span>}
               </div>
@@ -185,11 +185,11 @@ export const LessonContentView: React.FC<LessonContentViewProps> = ({ lesson }) 
               ) : (
                 <div className="mt-6 grid gap-4">
                   {lesson.exercises.map((exercise) => (
-                    <article key={exercise.id} className="group flex flex-col gap-4 rounded-2xl border border-border bg-background/50 p-5 transition hover:border-primary/30 hover:bg-primary-soft/30 sm:flex-row sm:items-center sm:justify-between">
+                    <article key={exercise.id} className="group flex flex-col gap-4 rounded-xl border border-border bg-surface p-5 transition hover:border-primary/30 hover:bg-primary-soft/30 sm:flex-row sm:items-center sm:justify-between">
                       <div className="flex min-w-0 items-start gap-4">
                         <span className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-primary-soft text-sm font-extrabold text-primary">{exercise.order}</span>
                         <div>
-                          <h3 className="font-bold text-text-primary">{exercise.title}</h3>
+                          <h3 className="text-base font-semibold leading-6 text-text-primary">{exercise.title}</h3>
                           <p className="mt-1 text-sm text-text-secondary">{formatExerciseType(exercise.type)} · {formatDifficulty(exercise.difficulty)}</p>
                         </div>
                       </div>
