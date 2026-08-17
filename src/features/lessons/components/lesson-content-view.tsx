@@ -137,10 +137,33 @@ export const LessonContentView: React.FC<LessonContentViewProps> = ({ lesson }) 
               onClick={handleStartLesson}
               isLoading={isStarting}
               size="lg"
-              className="gap-2"
+              className="gap-2 font-bold dark:bg-primary-container dark:text-on-primary-container dark:hover:bg-primary-fixed-dim dark:hover:text-on-primary-container dark:active:bg-primary-soft dark:active:text-on-primary-container"
               aria-describedby={errorMessage ? "lesson-start-error" : undefined}
             >
-              <span aria-hidden="true">{isContentVisible ? "↓" : "▶"}</span>
+              <span aria-hidden="true">
+                {isContentVisible ? (
+                  <svg
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth={2}
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    className="size-4"
+                  >
+                    <path d="m6 9 6 6 6-6" />
+                  </svg>
+                ) : (
+                  <svg
+                    viewBox="0 0 24 24"
+                    fill="currentColor"
+                    shapeRendering="crispEdges"
+                    className="size-4"
+                  >
+                    <polygon points="6 3 20 12 6 21 6 3" />
+                  </svg>
+                )}
+              </span>
               {isStarting ? "Đang mở bài học..." : isContentVisible ? (status === "completed" ? "Ôn lại nội dung" : "Tiếp tục học") : "Bắt đầu bài học"}
             </Button>
             <p className="text-center text-xs text-text-muted lg:text-right">Tiến độ được lưu tự động</p>
@@ -168,7 +191,7 @@ export const LessonContentView: React.FC<LessonContentViewProps> = ({ lesson }) 
                   <h2 id="lesson-body-title" className="mt-2 text-xl font-semibold leading-7 text-text-primary">Bài học</h2>
                 </div>
               </div>
-              {lesson.content?.trim() ? <LessonMarkdown content={lesson.content} /> : <div className="rounded-2xl bg-surface-subtle px-5 py-8 text-center text-sm text-text-secondary">Nội dung bài học đang được cập nhật.</div>}
+              {lesson.content?.trim() ? <LessonMarkdown content={lesson.content} /> : <div className="rounded-xl bg-surface-subtle px-5 py-8 text-center text-sm text-text-secondary">Nội dung bài học đang được cập nhật.</div>}
             </article>
 
             <section aria-labelledby="lesson-exercises-title" className="rounded-xl border border-border bg-surface p-6 shadow-sm sm:p-8">
@@ -181,7 +204,7 @@ export const LessonContentView: React.FC<LessonContentViewProps> = ({ lesson }) 
               </div>
 
               {lesson.exercises.length === 0 ? (
-                <div className="mt-6 rounded-2xl border border-dashed border-border-strong bg-surface-subtle px-5 py-8 text-center text-sm text-text-secondary">Chưa có bài tập cho bài học này. Bạn có thể xem lại nội dung phía trên.</div>
+                <div className="mt-6 rounded-xl border border-dashed border-border-strong bg-surface-subtle px-5 py-8 text-center text-sm text-text-secondary">Chưa có bài tập cho bài học này. Bạn có thể xem lại nội dung phía trên.</div>
               ) : (
                 <div className="mt-6 grid gap-4">
                   {lesson.exercises.map((exercise) => (

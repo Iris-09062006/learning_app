@@ -18,7 +18,7 @@
   /* C — Text hierarchy */
   --text-primary: #1b1c1c; /* Stitch on-surface */
   --text-secondary: #594137; /* Stitch on-surface-variant */
-  --text-muted: #8c8c8c; /* Stitch text-secondary */
+  --text-muted: #6f655b; /* Stitch text-secondary — T021: darkened for WCAG AA on white (5.7:1) */
   --text-inverse: #ffffff; /* text on filled primary */
 
   /* C — Borders & outlines (warm neutrals) */
@@ -50,13 +50,13 @@
   --success: #22a559;
   --success-soft: #e9f8ef;
 
-  --warning: #d98b0b;
+  --warning: #8a5a00; /* T021: darkened amber for WCAG AA on warning-soft (5.5:1) */
   --warning-soft: #fff5dd;
 
   --danger: #dc4554;
   --danger-soft: #fdecef;
 
-  --info: #3778d4;
+  --info: #2f66c2; /* T021: darkened blue for WCAG AA on info-soft (4.9:1) */
   --info-soft: #eaf2ff;
 
   /* B — Status container tokens (moderation chips; Stitch values) */
