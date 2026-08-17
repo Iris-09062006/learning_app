@@ -12,9 +12,9 @@ export const CourseList: React.FC<CourseListProps> = ({ courses, search }) => {
     return (
       <div
         data-testid="course-list-empty"
-        className="rounded-lg border border-dashed border-slate-300 p-12 text-center dark:border-slate-700"
+        className="rounded-xl border border-dashed border-border bg-surface p-12 text-center"
       >
-        <p className="text-sm text-slate-500 dark:text-slate-400">
+        <p className="text-sm text-text-muted">
           {search
             ? `Không tìm thấy khóa học phù hợp với “${search}”.`
             : "Hiện chưa có khóa học nào được phát hành."}

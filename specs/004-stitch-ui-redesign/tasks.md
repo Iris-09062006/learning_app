@@ -310,7 +310,7 @@
 
 **Purpose**: Propagate the VERIFIED Phase A–C patterns to the learner surface **without treating any screen as a fresh design**. Reuse the accepted Lesson-era design system (tokens, shell, primitives, containers). **All D tasks are [P]-eligible after T023 acceptance** (disjoint file sets). Do NOT implement timed fast-quiz functionality (FR-042).
 
-- [ ] **T024** [D1, P] `/courses` catalog adopts the shared system
+- [x] **T024** [D1, P] `/courses` catalog adopts the shared system
   - **Phase**: D · **Story**: US2 · **[P]**: yes (after T023) · **Prereq**: T023
   - **Objective**: `courses/page.tsx` + `course-list.tsx` + `course-search-form.tsx` + `course-card.tsx` adopt Phase A–C patterns: cards `bg-surface border-border rounded-xl`, orange language tag (A-bucket indigo swap), search form → shared `Input`/`Select` tokens, page header → `PageHeader`, pagination borders/buttons tokenized.
   - **Files likely to change**: `src/app/(main)/courses/page.tsx`, `src/features/courses/components/{course-list,course-search-form,course-card}.tsx` (+ `course-card.test.tsx`).
@@ -319,6 +319,7 @@
   - **Stitch reference**: `stitch-explore-roadmap.png` (catalog portion).
   - **Verification**: screenshot vs ref; functional search + pagination + enroll; dark + mobile; axe; `npm run lint`, `typecheck`, `build`.
   - **Completion**: catalog aligned + behavior unchanged.
+- **T024 record**: catalog aligned with the accepted Phase A–C system — visual-only, no functional change. Edits: `src/app/(main)/courses/page.tsx`, `src/features/courses/components/{course-list,course-search-form,course-card}.tsx` (+ token-guard `course-card.test.tsx`): cards → `bg-surface border-border rounded-xl`, A-bucket indigo language tag → orange token, search form → shared `Input`/`Select`, page header → `PageHeader`, pagination borders/buttons tokenized. Browser verification: search, pagination, empty state, enroll CTA all unchanged; desktop 1440×900 + mobile 390×844, light + dark screenshots recorded; axe AA light/dark PASS (600 ms post-`.dark` wait for the theme transition). Gates (`npm run lint`, `typecheck`, focused tests, `build`) PASS. Mock `or`-filter + `offset`/`limit` handling temporarily patched in `tests/e2e/support/mock-supabase-server.mjs` for e2e browsing only, then **restored** (mock diff 0; mock/pid/tmp artifacts removed).
 
 - [ ] **T025** [D2, P] `/courses/[courseId]` detail adopts the shared system
   - **Phase**: D · **Story**: US2 · **[P]**: yes (after T023) · **Prereq**: T023

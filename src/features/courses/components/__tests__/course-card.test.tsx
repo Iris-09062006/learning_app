@@ -50,4 +50,62 @@ describe("CourseCard", () => {
       screen.getByText(/Chưa có mô tả cho khóa học này/),
     ).toBeInTheDocument();
   });
+
+  it("adopts shared surface/border tokens and the orange language tag", () => {
+    render(<CourseCard course={baseCourse} />);
+
+    expect(screen.getByTestId("course-card")).toHaveClass(
+      "bg-surface",
+      "border-border",
+      "rounded-xl",
+    );
+
+    // A-bucket indigo swap: the language tag is now a primary-soft/orange chip.
+    expect(screen.getByText("PYTHON")).toHaveClass(
+      "bg-primary-soft",
+      "text-primary",
+    );
+    expect(screen.getByRole("link", { name: /xem chi tiết/i })).toHaveClass(
+      "text-primary",
+    );
+    expect(screen.getByRole("heading", { name: "Python Basic" })).toHaveClass(
+      "text-text-primary",
+    );
+  });
+
+  it("marks enrolled status with the semantic success token", () => {
+    render(
+      <CourseCard
+        course={{ ...baseCourse, isEnrolled: true, completionPercentage: 42 }}
+      />,
+    );
+    expect(screen.getByText(/Đã đăng ký/)).toHaveClass("text-success");
+    expect(screen.getByRole("link", { name: /tiếp tục học/i })).toHaveClass(
+      "text-primary",
+    );
+  });
+
+  it("does not reintroduce legacy palette utilities or slash-opacity tokens", () => {
+    const { container } = render(<CourseCard course={baseCourse} />);
+
+    const legacyPalette =
+      /(^|\s)(bg|text|border|shadow|ring)-(slate|indigo|emerald|white)-\d+/;
+    const slashOpacityToken =
+      /(^|\s)(bg|text|border|hover:border|hover:bg)-(primary|danger|surface-subtle|warning|info|success)(-\S*)?\/\d+/;
+
+    const offenders: string[] = [];
+    container
+      .querySelectorAll<HTMLElement>("div, span, p, a, h3")
+      .forEach((element) => {
+        const className = element.className;
+        if (
+          typeof className === "string" &&
+          (legacyPalette.test(className) || slashOpacityToken.test(className))
+        ) {
+          offenders.push(className);
+        }
+      });
+
+    expect(offenders).toEqual([]);
+  });
 });
