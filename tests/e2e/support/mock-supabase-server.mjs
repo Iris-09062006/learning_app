@@ -195,7 +195,7 @@ function tableRows(table) {
         lesson_order: 1,
         estimated_minutes: 8,
         is_published: true,
-        chapters: { course_id: 1 },
+        chapters: { course_id: 1, is_published: true },
       },
       {
         id: 102,
@@ -205,7 +205,7 @@ function tableRows(table) {
         lesson_order: 2,
         estimated_minutes: 10,
         is_published: true,
-        chapters: { course_id: 1 },
+        chapters: { course_id: 1, is_published: true },
       },
     ],
     exercises: [
@@ -268,6 +268,18 @@ function parseValue(raw) {
   return raw.replace(/^"|"$/gu, "");
 }
 
+function resolveFieldValue(row, field) {
+  // PostgREST supports embedded-resource filters such as `chapters.course_id`;
+  // resolve those against the nested object(s) already embedded in the row.
+  if (!field.includes(".")) return row[field];
+  let value = row;
+  for (const segment of field.split(".")) {
+    if (value == null || typeof value !== "object") return undefined;
+    value = value[segment];
+  }
+  return value;
+}
+
 function applyFilters(rows, url) {
   let filtered = [...rows];
   const ignored = new Set(["select", "order", "offset", "limit", "or"]);
@@ -276,10 +288,10 @@ function applyFilters(rows, url) {
     if (ignored.has(field)) continue;
     if (expression.startsWith("eq.")) {
       const expected = parseValue(expression.slice(3));
-      filtered = filtered.filter((row) => row[field] === expected);
+      filtered = filtered.filter((row) => resolveFieldValue(row, field) === expected);
     } else if (expression.startsWith("in.(") && expression.endsWith(")")) {
       const values = expression.slice(4, -1).split(",").map(parseValue);
-      filtered = filtered.filter((row) => values.includes(row[field]));
+      filtered = filtered.filter((row) => values.includes(resolveFieldValue(row, field)));
     }
   }
 
