@@ -292,7 +292,7 @@
   - **Completion**: lesson behavior verified identical; full C gates green.
 ### ★ Hard gate — Phase C Acceptance
 
-- [ ] **T023** [G1] ⛔ PHASE C ACCEPTANCE GATE — review & accept before any Phase D work
+- [x] **T023** [G1] ⛔ PHASE C ACCEPTANCE GATE — review & accept before any Phase D work
   - **Phase**: C (Gate) · **Story**: US1/US4 · **[P]**: no · **Prereq**: T020, T021, T022
   - **Objective**: Mandatory **human/visual acceptance checkpoint**. Review all Phase C evidence (10-point checklists, screenshot sets, axe/UI UX Pro Max records, functional regression, gate outputs). **PHASE D MUST NOT begin automatically after C implementation completes. T024–T029 are blocked until this task is ACCEPTED and marked DONE.** If any high/medium Stitch discrepancy remains → findings return to C tasks (fix → re-verify → re-review).
   - **Files likely to change**: none (review record; status updates in this file + project tracking).
@@ -302,6 +302,7 @@
   - **Stitch reference**: `lesson-render.png` (comparison basis).
   - **Verification**: exit-state checklist signed off with artifact links; verdict recorded (ACCEPTED → D unlocked; FIX_REQUIRED → loop back).
   - **Completion**: gate ACCEPTED and recorded; only then do T024–T029 become eligible.
+- **T023 record**: ⛔ Phase C human acceptance gate — **VERDICT: ACCEPTED** (human reviewer, 2026-08-17). Reviewer explicitly accepted the **current Lesson design**; evidence package `tmp/stitch-screens/t023-human-acceptance-gate.md` (8 raw PNGs — 1440×900 + 390×844 × light/dark × pre-start/in-progress) + `tmp/stitch-screens/t020/` sets + `t020-visual-notes.md`. (1) **T020 visual parity = PASS** (10-point checklist, zero BLOCKING/MAJOR); (2) **T021 accessibility = PASS** (axe + UI UX Pro Max + keyboard/focus/contrast incl. dark ramp); (3) **T022 functional regression = PASS** (start/continue/next/persist + markdown block semantics + lint/typecheck/test/build). (4) **Dark evidence** — the corrected recaptured dark PNGs (forced `.dark` post-hydration, harness-only; runtime `rgb(23, 18, 16)` verified; **no `src/` change**) were reviewed and accepted. (5) **Propagation** — Lesson Phase C **approved as the visual pattern** for Phase D–F propagation; T024–T029 now eligible. (6) **Scope** — review-only: **no production source change** was required for T023; guarded feature-003 diff = 0; **T024+ remain untouched** (all unchecked).
 
 ---
 
