@@ -31,4 +31,26 @@ describe("DashboardView", () => {
     expect(screen.getByText("Bạn chưa đăng ký khóa học nào.")).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "Khám phá khóa học" })).toHaveAttribute("href", "/courses");
   });
+
+  it("adopts shared semantic design tokens without legacy palette or slash-opacity utilities", () => {
+    const { container } = render(<DashboardView data={data} />);
+
+    expect(screen.getByRole("progressbar", { name: "Tiến độ Python Basics" })).toHaveClass("bg-surface-container");
+    expect(screen.getByRole("link", { name: "Tiếp tục học" })).toHaveClass("bg-primary", "text-on-primary");
+
+    const legacyPalette = /^(bg|text|border|shadow|ring|outline)-(slate|indigo|emerald|blue|amber|orange|red|white|gray)-\d+/;
+    const slashOpacity = /^(bg|text|border)-(primary|danger|surface-subtle|warning|info|success|ai)(-[a-z-]+)?\/\d+/;
+
+    const offenders: string[] = [];
+    container.querySelectorAll<HTMLElement>("[class]").forEach((element) => {
+      const className = element.className;
+      if (typeof className !== "string") return;
+      for (const raw of className.split(/\s+/)) {
+        const token = raw.replace(/^(dark:)?(hover:)?(focus-visible:)?/, "");
+        if (legacyPalette.test(token) || slashOpacity.test(token)) offenders.push(raw);
+      }
+    });
+
+    expect(offenders).toEqual([]);
+  });
 });
