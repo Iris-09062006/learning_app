@@ -15,19 +15,19 @@ export const CourseRoadmapView: React.FC<CourseRoadmapViewProps> = ({
   return (
     <div data-testid="course-roadmap-view" className="space-y-8">
       {/* Header section with progress */}
-      <div className="rounded-xl border border-slate-200 bg-white p-8 shadow-sm dark:border-slate-800 dark:bg-slate-900">
-        <h1 className="text-3xl font-extrabold text-slate-900 dark:text-white">
+      <div data-testid="roadmap-header-card" className="rounded-xl border border-border bg-surface p-8 shadow-sm">
+        <h1 className="text-3xl font-bold tracking-tight text-text-primary">
           Lộ trình học: {roadmap.course.title}
         </h1>
         <div className="mt-6 space-y-2">
-          <div className="flex justify-between text-sm font-medium text-slate-700 dark:text-slate-300">
+          <div className="flex justify-between text-sm font-medium text-text-secondary">
             <span>Tiến độ hoàn thành</span>
             <span>{roadmap.completionPercentage}%</span>
           </div>
-          <div className="h-2 w-full overflow-hidden rounded-full bg-slate-100 dark:bg-slate-800">
+          <div className="h-2 w-full overflow-hidden rounded-full bg-surface-container">
             <div
               data-testid="progress-bar-fill"
-              className="h-full rounded-full bg-indigo-600 transition-all duration-500 dark:bg-indigo-500"
+              className="h-full rounded-full bg-primary transition-all duration-500"
               style={{ width: `${roadmap.completionPercentage}%` }}
             />
           </div>
@@ -37,23 +37,23 @@ export const CourseRoadmapView: React.FC<CourseRoadmapViewProps> = ({
       {/* Chapters & Lessons */}
       <div className="space-y-6">
         {roadmap.chapters.length === 0 ? (
-          <p className="text-sm text-slate-500 dark:text-slate-400">
+          <p className="text-sm text-text-muted">
             Chưa có bài học nào được xuất bản.
           </p>
         ) : (
           roadmap.chapters.map((chapter) => (
             <div
               key={chapter.id}
-              className="rounded-lg border border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-900"
+              className="rounded-xl border border-border bg-surface"
             >
-              <div className="border-b border-slate-100 bg-slate-50/50 px-6 py-4 dark:border-slate-800 dark:bg-slate-900/50">
-                <h2 className="text-lg font-bold text-slate-900 dark:text-white">
+              <div className="border-b border-border bg-surface-subtle px-6 py-4">
+                <h2 className="text-lg font-bold text-text-primary">
                   Chương {chapter.order}: {chapter.title}
                 </h2>
               </div>
-              <div className="divide-y divide-slate-100 dark:divide-slate-800">
+              <div className="divide-y divide-border">
                 {chapter.lessons.length === 0 ? (
-                  <p className="px-6 py-4 text-sm text-slate-500 dark:text-slate-400">
+                  <p className="px-6 py-4 text-sm text-text-muted">
                     Chương này chưa có bài học.
                   </p>
                 ) : (
@@ -69,17 +69,17 @@ export const CourseRoadmapView: React.FC<CourseRoadmapViewProps> = ({
                         data-status={lesson.status}
                         className={`flex items-center justify-between gap-4 p-6 transition-colors ${
                           isLocked
-                            ? "bg-slate-50 dark:bg-slate-900/40"
-                            : "hover:bg-slate-50 dark:hover:bg-slate-800/50"
+                            ? "bg-surface-subtle"
+                            : "hover:bg-surface-subtle"
                         }`}
                       >
                         <div className="flex-1">
                           <div className="flex items-center gap-4">
-                            <div className="flex size-10 shrink-0 items-center justify-center rounded-full bg-slate-100 dark:bg-slate-800">
+                            <div className="flex size-10 shrink-0 items-center justify-center rounded-full bg-surface-container">
                               {isCompleted && (
                                 <svg
                                   data-testid="icon-completed"
-                                  className="h-6 w-6 text-green-500 dark:text-green-400"
+                                  className="h-6 w-6 text-success"
                                   fill="none"
                                   viewBox="0 0 24 24"
                                   stroke="currentColor"
@@ -95,7 +95,7 @@ export const CourseRoadmapView: React.FC<CourseRoadmapViewProps> = ({
                               {isInProgress && (
                                 <svg
                                   data-testid="icon-in-progress"
-                                  className="h-6 w-6 text-indigo-500 dark:text-indigo-400"
+                                  className="h-6 w-6 text-primary"
                                   fill="none"
                                   viewBox="0 0 24 24"
                                   stroke="currentColor"
@@ -116,7 +116,7 @@ export const CourseRoadmapView: React.FC<CourseRoadmapViewProps> = ({
                               {lesson.status === "unlocked" && (
                                 <svg
                                   data-testid="icon-unlocked"
-                                  className="h-6 w-6 text-slate-300 dark:text-slate-600"
+                                  className="h-6 w-6 text-text-muted"
                                   fill="none"
                                   viewBox="0 0 24 24"
                                   stroke="currentColor"
@@ -128,7 +128,7 @@ export const CourseRoadmapView: React.FC<CourseRoadmapViewProps> = ({
                               {isLocked && (
                                 <svg
                                   data-testid="icon-locked"
-                                  className="h-5 w-5 text-slate-400 dark:text-slate-500"
+                                  className="h-6 w-6 text-text-muted"
                                   fill="none"
                                   viewBox="0 0 24 24"
                                   stroke="currentColor"
@@ -147,25 +147,25 @@ export const CourseRoadmapView: React.FC<CourseRoadmapViewProps> = ({
                                 <h3
                                   className={`font-medium ${
                                     isLocked
-                                      ? "text-slate-500 dark:text-slate-400"
-                                      : "text-slate-900 dark:text-white"
+                                      ? "text-text-muted"
+                                      : "text-text-primary"
                                   }`}
                                 >
                                   Bài {lesson.order}: {lesson.title}
                                 </h3>
                                 {isCompleted && (
-                                  <span className="inline-flex items-center rounded-full bg-green-50 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-green-800 dark:bg-green-950 dark:text-green-300">
+                                  <span className="inline-flex items-center rounded-full bg-success-soft px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-success">
                                     Hoàn thành
                                   </span>
                                 )}
                                 {isInProgress && (
-                                  <span className="inline-flex items-center rounded-full bg-indigo-50 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-indigo-600 dark:bg-indigo-950 dark:text-indigo-400">
+                                  <span className="inline-flex items-center rounded-full bg-info-soft px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-info">
                                     Đang học
                                   </span>
                                 )}
                               </div>
                               {lesson.estimatedMinutes && (
-                                <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
+                                <p className="mt-1 text-xs text-text-muted">
                                   Thời gian ước tính: {lesson.estimatedMinutes}{" "}
                                   phút
                                 </p>
@@ -177,7 +177,7 @@ export const CourseRoadmapView: React.FC<CourseRoadmapViewProps> = ({
                         {!isLocked && (
                           <Link
                             href={`/lessons/${lesson.id}`}
-                            className="inline-flex shrink-0 items-center rounded-md border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-900 transition hover:bg-slate-50 hover:text-indigo-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:ring-offset-2 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700 dark:hover:text-white"
+                            className="inline-flex shrink-0 items-center rounded-lg border border-border bg-surface px-4 py-2 text-sm font-medium text-text-primary transition hover:bg-surface-subtle hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring focus-visible:ring-offset-2"
                           >
                             {isCompleted ? "Xem lại" : "Học tiếp"}
                           </Link>

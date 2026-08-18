@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { notFound, redirect } from "next/navigation";
 import { cache } from "react";
 
+import { PageContainer } from "@/components/layout/page-container";
 import { CourseRoadmapView } from "@/features/courses/components/course-roadmap-view";
 import {
   getCourseRoadmap,
@@ -52,10 +53,10 @@ export default async function CourseRoadmapPage({
     const roadmap = await getCachedCourseRoadmap(numId);
 
     return (
-      <main className="min-h-screen bg-slate-50 px-4 py-12 dark:bg-slate-950 sm:px-6 lg:px-8">
-        <div className="mx-auto max-w-4xl">
+      <main className="min-h-screen bg-background py-8 sm:py-10 lg:py-12">
+        <PageContainer className="max-w-4xl space-y-6 pb-16 lg:pb-0">
           <CourseRoadmapView roadmap={roadmap} />
-        </div>
+        </PageContainer>
       </main>
     );
   } catch (error: unknown) {

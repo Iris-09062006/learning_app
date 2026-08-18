@@ -47,7 +47,7 @@
   --surface-dim: #dcd9d9;
 
   /* B — Semantic status (hue families preserved — never orange) */
-  --success: #22a559;
+  --success: #15803d; /* T026: darkened green for WCAG AA on success-soft (4.5:1) — mirrors T021 warning/info precedent */
   --success-soft: #e9f8ef;
 
   --warning: #8a5a00; /* T021: darkened amber for WCAG AA on warning-soft (5.5:1) */

@@ -7,13 +7,15 @@ import type { RoadmapResponse } from "@/features/courses/types";
 vi.mock("next/link", () => ({
   default: function Link({
     children,
+    className,
     href,
   }: {
     children: React.ReactNode;
+    className?: string;
     href: string;
   }) {
     return (
-      <a href={href} data-testid="lesson-link" data-href={href}>
+      <a href={href} className={className} data-testid="lesson-link" data-href={href}>
         {children}
       </a>
     );
@@ -179,5 +181,78 @@ describe("CourseRoadmapView", () => {
     expect(
       screen.getByText("Chương này chưa có bài học.")
     ).toBeInTheDocument();
+  });
+
+  it("adopts shared surface/border tokens and status accents", () => {
+    render(<CourseRoadmapView roadmap={baseRoadmap} />);
+
+    // Header card → shared C-era card tokens.
+    expect(screen.getByTestId("roadmap-header-card")).toHaveClass(
+      "bg-surface",
+      "border-border",
+      "rounded-xl"
+    );
+
+    // A-bucket swap: progress fill is the orange primary.
+    expect(screen.getByTestId("progress-bar-fill")).toHaveClass("bg-primary");
+
+    // Chapter cards reuse C-era surfaces; chapter headers use surface-subtle.
+    const chapterHeading = screen.getByRole("heading", {
+      level: 2,
+      name: "Chương 1: Giới thiệu",
+    });
+    expect(chapterHeading).toHaveClass("text-text-primary");
+    const chapterCard = chapterHeading.closest("div.rounded-xl");
+    expect(chapterCard).not.toBeNull();
+    expect(chapterCard).toHaveClass("bg-surface", "border-border");
+
+    // Status chips → B-bucket soft tokens.
+    expect(screen.getByText("Hoàn thành")).toHaveClass(
+      "bg-success-soft",
+      "text-success"
+    );
+    expect(screen.getByText("Đang học")).toHaveClass(
+      "bg-info-soft",
+      "text-info"
+    );
+
+    // Status icons → semantic accents.
+    expect(screen.getByTestId("icon-completed")).toHaveClass("text-success");
+    expect(screen.getByTestId("icon-in-progress")).toHaveClass("text-primary");
+    expect(screen.getByTestId("icon-unlocked")).toHaveClass("text-text-muted");
+    expect(screen.getByTestId("icon-locked")).toHaveClass("text-text-muted");
+
+    // Lesson links use shared outline/surface tokens with a focus ring.
+    const [lessonLink] = screen.getAllByTestId("lesson-link");
+    expect(lessonLink).toHaveClass(
+      "border-border",
+      "bg-surface",
+      "text-text-primary",
+      "focus-visible:ring-focus-ring"
+    );
+  });
+
+  it("does not reintroduce legacy palette utilities or slash-opacity tokens", () => {
+    const { container } = render(<CourseRoadmapView roadmap={baseRoadmap} />);
+
+    const legacyPalette =
+      /(^|\s)(bg|text|border|shadow|ring)-(slate|indigo|emerald|white)-\d+/;
+    const slashOpacityToken =
+      /(^|\s)(bg|text|border|hover:border|hover:bg)-(primary|danger|surface-subtle|warning|info|success)(-\S*)?\/\d+/;
+
+    const offenders: string[] = [];
+    container
+      .querySelectorAll<HTMLElement>("h1, h2, h3, p, span, div, button, svg, a")
+      .forEach((element) => {
+        const className = element.className;
+        if (
+          typeof className === "string" &&
+          (legacyPalette.test(className) || slashOpacityToken.test(className))
+        ) {
+          offenders.push(className);
+        }
+      });
+
+    expect(offenders).toEqual([]);
   });
 });
