@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { render, screen, fireEvent, waitFor } from "@testing-library/react";
+import { render, screen, fireEvent, waitFor, within } from "@testing-library/react";
 import { CourseDetailView } from "../course-detail-view";
 
 const mockPush = vi.fn();
@@ -126,5 +126,65 @@ describe("CourseDetailView", () => {
     expect(
       screen.getByText("Nội dung bài học đang được cập nhật.")
     ).toBeInTheDocument();
+  });
+
+  it("adopts shared surface/border tokens and the orange brand accent", () => {
+    render(<CourseDetailView course={baseDetail} />);
+
+    // Header summary card → shared card tokens.
+    expect(screen.getByTestId("course-detail-header")).toHaveClass(
+      "bg-surface",
+      "border-border",
+      "rounded-xl",
+    );
+
+    // A-bucket indigo swap: language tag + chapter ordinal are primary-soft/orange chips.
+    expect(screen.getByText("PYTHON")).toHaveClass(
+      "bg-primary-soft",
+      "text-primary",
+    );
+
+    const firstChapterRow = screen.getAllByTestId("course-chapter-row")[0];
+    expect(firstChapterRow).toHaveClass(
+      "bg-surface",
+      "border-border",
+      "rounded-xl",
+    );
+    expect(within(firstChapterRow).getByText("1")).toHaveClass(
+      "bg-primary-soft",
+      "text-primary",
+    );
+
+    // Headings and stats use text tokens; CTA is the shared primary Button.
+    expect(
+      screen.getByRole("heading", { level: 1, name: "Python Basic" })
+    ).toHaveClass("text-text-primary");
+    expect(
+      screen.getByRole("button", { name: "Đăng ký khóa học" })
+    ).toHaveClass("bg-primary", "text-on-primary");
+  });
+
+  it("does not reintroduce legacy palette utilities or slash-opacity tokens", () => {
+    const { container } = render(<CourseDetailView course={baseDetail} />);
+
+    const legacyPalette =
+      /(^|\s)(bg|text|border|shadow|ring)-(slate|indigo|emerald|white)-\d+/;
+    const slashOpacityToken =
+      /(^|\s)(bg|text|border|hover:border|hover:bg)-(primary|danger|surface-subtle|warning|info|success)(-\S*)?\/\d+/;
+
+    const offenders: string[] = [];
+    container
+      .querySelectorAll<HTMLElement>("h1, h2, h3, p, span, div, button, svg")
+      .forEach((element) => {
+        const className = element.className;
+        if (
+          typeof className === "string" &&
+          (legacyPalette.test(className) || slashOpacityToken.test(className))
+        ) {
+          offenders.push(className);
+        }
+      });
+
+    expect(offenders).toEqual([]);
   });
 });
