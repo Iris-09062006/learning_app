@@ -142,4 +142,25 @@ describe("ExerciseView (fix_the_bug)", () => {
 
     expect(await screen.findByText("Đúng rồi!")).toBeInTheDocument();
   });
+it("uses Stitch design tokens and no legacy palette classes", () => {
+    const { container } = render(<ExerciseView exercise={fixTheBugExercise} />);
+
+    // Badge → orange container pill.
+    expect(screen.getByText("Bài tập 1")).toHaveClass(
+      "bg-primary-container",
+      "text-on-primary-container",
+      "rounded-full"
+    );
+
+    // Submit action → shared primary Button.
+    expect(screen.getByRole("button", { name: "Nộp bài" })).toHaveClass(
+      "bg-primary",
+      "text-on-primary"
+    );
+
+    // No legacy palette utilities (slate/indigo/emerald/rose/white) remain.
+    expect(container.innerHTML).not.toMatch(
+      /(^|\s)(bg|text|border|shadow|ring)-(slate|indigo|emerald|rose|white)-\d+/
+    );
+  });
 });
