@@ -55,28 +55,21 @@ export function ProfileForm({ initialUsername }: ProfileFormProps) {
 
   return (
     <form onSubmit={handleSubmit} className="space-y-5" noValidate>
-      <div>
-        <label htmlFor="username" className="mb-2 block text-sm font-semibold text-slate-800 dark:text-slate-200">
-          Username
-        </label>
-        <Input
-          id="username"
-          name="username"
-          value={username}
-          onChange={(event) => setUsername(event.target.value)}
-          minLength={3}
-          maxLength={50}
-          required
-          aria-describedby="username-help"
-        />
-        <p id="username-help" className="mt-2 text-xs text-slate-500 dark:text-slate-400">
-          Từ 3 đến 50 ký tự. Đây là tên hiển thị, không thay đổi email đăng nhập.
-        </p>
-      </div>
+      <Input
+        id="username"
+        name="username"
+        label="Username"
+        value={username}
+        onChange={(event) => setUsername(event.target.value)}
+        minLength={3}
+        maxLength={50}
+        required
+        helperText="Từ 3 đến 50 ký tự. Đây là tên hiển thị, không thay đổi email đăng nhập."
+      />
       {message ? (
         <p
           role={message.type === "error" ? "alert" : "status"}
-          className={message.type === "error" ? "text-sm text-red-600" : "text-sm text-emerald-600"}
+          className={message.type === "error" ? "text-sm text-danger" : "text-sm text-success"}
         >
           {message.text}
         </p>
