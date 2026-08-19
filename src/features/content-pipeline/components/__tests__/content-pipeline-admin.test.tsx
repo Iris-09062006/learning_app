@@ -617,4 +617,56 @@ describe("content pipeline Admin", () => {
     fireEvent.click((await screen.findAllByRole("button", { name: /Biến Python/ }))[0]);
     expect(await screen.findByText(/python\.pdf.*chunk 0: Nguồn PDF/u)).toBeInTheDocument();
   });
+
+  it("renders with the shared Stitch tokens and no legacy or dark-hardcoded palette", async () => {
+    const containers: HTMLElement[] = [];
+
+    vi.spyOn(globalThis, "fetch").mockImplementation(async (input) => {
+      const url = String(input);
+      if (url === "/api/admin/course-drafts") return json({ success: true, data: { items: [importItem()] } });
+      if (url === "/api/admin/content-targets") return json({ success: true, data: { items: [] } });
+      throw new Error(`Unexpected request: ${url}`);
+    });
+    const first = render(<ContentPipelineAdmin />);
+    containers.push(first.container);
+
+    expect(await screen.findByDisplayValue("Python nền tảng")).toBeInTheDocument();
+
+    const courseCard = screen.getByRole("heading", { name: "PDF → Course outline → Lesson contents" }).closest("section") as HTMLElement | null;
+    expect(courseCard).not.toBeNull();
+    expect(courseCard!).toHaveClass("rounded-xl", "border-border", "bg-surface", "shadow-sm");
+
+    expect(screen.getByRole("button", { name: "Continue: sinh Lesson contents" })).toHaveClass("bg-primary", "text-on-primary", "rounded-lg");
+    expect(screen.getByText("outline_review · outline r1")).toHaveClass("bg-primary-soft", "text-primary");
+
+    for (const field of [
+      screen.getByLabelText("Course title"),
+      screen.getByLabelText("Description"),
+      screen.getByLabelText("Course learning objectives (mỗi dòng một mục tiêu)"),
+    ]) {
+      expect(field).toHaveClass("border-border", "bg-surface", "rounded-lg");
+    }
+
+    vi.restoreAllMocks();
+    vi.spyOn(globalThis, "fetch").mockImplementation(async (input) => {
+      const url = String(input);
+      if (url === "/api/admin/course-drafts") return json({ success: true, data: { items: [importItem("content_review")] } });
+      if (url === "/api/admin/content-targets") return json({ success: true, data: { items: [] } });
+      throw new Error(`Unexpected request: ${url}`);
+    });
+    const second = render(<ContentPipelineAdmin />);
+    containers.push(second.container);
+
+    expect(await screen.findByRole("button", { name: "Publish Course" })).toHaveClass("bg-primary", "text-on-primary", "rounded-lg");
+
+    for (const container of containers) {
+      for (const element of Array.from(container.querySelectorAll<HTMLElement>("*"))) {
+        const className = element.getAttribute("class") ?? "";
+        for (const legacy of ["slate-", "indigo-", "violet-", "emerald-", "amber-", "blue-", "red-", "dark:"]) {
+          expect(className).not.toContain(legacy);
+        }
+        expect(className).not.toMatch(/\/\d+$/u);
+      }
+    }
+  });
 });

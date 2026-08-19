@@ -3,6 +3,11 @@
 import Link from "next/link";
 import { FormEvent, useCallback, useEffect, useMemo, useRef, useState } from "react";
 
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+
 import type {
   CourseImportDraft,
   CourseImportLessonDraft,
@@ -633,166 +638,152 @@ export function ContentPipelineAdmin() {
   const canReviewContent = selectedImport && ["content_review", "ready_to_publish"].includes(selectedImport.status);
 
   return <div className="space-y-8">
-    <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm" aria-labelledby="course-generation-title">
-      <h2 id="course-generation-title" className="text-xl font-semibold text-slate-950">PDF → Course outline → Lesson contents</h2>
-      <p className="mt-2 text-sm text-slate-600">AI tạo outline trước. Chỉ sau khi Admin bấm Continue mới sinh nội dung Lesson. Pipeline này không tạo bài tập.</p>
+    <section className="rounded-xl border border-border bg-surface p-6 shadow-sm" aria-labelledby="course-generation-title">
+      <h2 id="course-generation-title" className="text-xl font-semibold text-text-primary">PDF → Course outline → Lesson contents</h2>
+      <p className="mt-2 text-sm text-text-secondary">AI tạo outline trước. Chỉ sau khi Admin bấm Continue mới sinh nội dung Lesson. Pipeline này không tạo bài tập.</p>
       <form className="mt-5 flex flex-col gap-4 sm:flex-row sm:items-end" onSubmit={submitSource}>
-        <label className="flex-1 text-sm font-medium text-slate-800">Tài liệu nguồn
-          <input className="mt-2 block w-full rounded-lg border border-slate-300 p-2" name="source" type="file" accept=".pdf,.txt,.md,.docx" disabled={busy} />
-        </label>
-        <button className="rounded-lg bg-slate-950 px-5 py-2.5 text-sm font-semibold text-white disabled:opacity-50" disabled={busy} type="submit">Tạo Course outline</button>
+        <div className="min-w-0 flex-1">
+          <Input label="Tài liệu nguồn" name="source" type="file" accept=".pdf,.txt,.md,.docx" disabled={busy} />
+        </div>
+        <Button type="submit" disabled={busy}>Tạo Course outline</Button>
       </form>
-      {pendingGeneration ? <div className="mt-4 rounded-lg border border-amber-300 bg-amber-50 p-3 text-sm text-amber-950">
-        Chưa hoàn tất: {pendingGeneration.sourceFilename}. <button className="font-semibold underline" type="button" onClick={retryOutline} disabled={busy}>Thử sinh lại outline</button>
+      {pendingGeneration ? <div className="mt-4 rounded-lg border border-warning bg-warning-soft p-3 text-sm text-warning">
+        Chưa hoàn tất: {pendingGeneration.sourceFilename}. <Button variant="ghost" size="sm" type="button" className="px-0 font-semibold underline" onClick={retryOutline} disabled={busy}>Thử sinh lại outline</Button>
       </div> : null}
     </section>
 
-    <section key={initializationKey} className="rounded-2xl border border-blue-200 bg-blue-50 p-6" aria-labelledby="source-review-title">
+    <section key={initializationKey} className="rounded-xl border border-border bg-surface p-6 shadow-sm" aria-labelledby="source-review-title">
       <div className="flex flex-wrap items-start justify-between gap-3">
-        <h2 id="source-review-title" className="text-xl font-semibold text-slate-950">Nguồn cho Course đa nguồn</h2>
-        <button className="rounded border border-blue-600 bg-white px-3 py-1.5 text-sm font-semibold text-blue-800 disabled:opacity-50"
-          type="button" onClick={startNewWorkflow} disabled={busy || researchBusy}>Bắt đầu workflow mới</button>
+        <h2 id="source-review-title" className="text-xl font-semibold text-text-primary">Nguồn cho Course đa nguồn</h2>
+        <Button variant="outline" type="button" onClick={startNewWorkflow} disabled={busy || researchBusy}>Bắt đầu workflow mới</Button>
       </div>
-      <p className="mt-2 text-sm text-slate-700">Thêm URL công khai và/hoặc tài liệu tùy chọn. Chỉ nguồn trích xuất thành công mới có thể trở thành evidence.</p>
-      <form className="mt-5 rounded-lg border border-blue-200 bg-white p-4" onSubmit={researchTopic}>
-        <label className="text-sm font-medium text-slate-800" htmlFor="course-research-topic">Chủ đề Course</label>
-        <div className="mt-2 flex flex-col gap-3 sm:flex-row">
-          <input id="course-research-topic" className="block min-w-0 flex-1 rounded-lg border border-slate-300 p-2"
-            value={topic} onChange={(event) => setTopic(event.target.value)} minLength={3} maxLength={300}
-            required disabled={researchBusy} aria-describedby="course-research-help" />
-          <button className="rounded bg-indigo-700 px-4 py-2 text-sm font-semibold text-white disabled:opacity-50"
-            type="submit" disabled={researchBusy}>{researchBusy ? "Đang nghiên cứu…" : "Nghiên cứu"}</button>
+      <p className="mt-2 text-sm text-text-secondary">Thêm URL công khai và/hoặc tài liệu tùy chọn. Chỉ nguồn trích xuất thành công mới có thể trở thành evidence.</p>
+      <form className="mt-5 rounded-lg border border-border bg-surface p-4" onSubmit={researchTopic}>
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-end">
+          <div className="min-w-0 flex-1">
+            <Input id="course-research-topic" label="Chủ đề Course" value={topic} onChange={(event) => setTopic(event.target.value)}
+              minLength={3} maxLength={300} required disabled={researchBusy} aria-describedby="course-research-help" />
+          </div>
+          <Button type="submit" disabled={researchBusy}>{researchBusy ? "Đang nghiên cứu…" : "Nghiên cứu"}</Button>
         </div>
-        <p id="course-research-help" className="mt-2 text-xs text-slate-600">Tìm kiếm ưu tiên tiếng Việt; kết quả chỉ là ứng viên cho đến khi Admin xác nhận ingest.</p>
+        <p id="course-research-help" className="mt-2 text-xs text-text-muted">Tìm kiếm ưu tiên tiếng Việt; kết quả chỉ là ứng viên cho đến khi Admin xác nhận ingest.</p>
       </form>
       {researchError ? <div ref={researchErrorAlert} tabIndex={-1} role="alert"
-        className="mt-3 rounded-lg border border-red-300 bg-red-50 p-3 text-sm text-red-800">{researchError}
-        <button type="button" className="ml-2 font-semibold underline" onClick={() => runResearch(researchCandidates.length > 0 && researchHasMore)} disabled={researchBusy}>Thử lại nghiên cứu</button>
+        className="mt-3 rounded-lg border border-danger bg-danger-soft p-3 text-sm text-danger">{researchError}
+        <Button variant="ghost" size="sm" type="button" className="ml-2 px-0 font-semibold underline" onClick={() => runResearch(researchCandidates.length > 0 && researchHasMore)} disabled={researchBusy}>Thử lại nghiên cứu</Button>
       </div> : null}
-      {researchCandidates.length ? <div className="mt-5 rounded-lg border border-blue-200 bg-white p-4">
+      {researchCandidates.length ? <div className="mt-5 rounded-lg border border-border bg-surface p-4">
         <div className="flex flex-wrap items-center justify-between gap-3">
-          <h3 ref={researchResultsHeading} tabIndex={-1} className="font-semibold text-slate-950">Ứng viên nguồn nghiên cứu</h3>
-          <button type="button" className="rounded border border-indigo-500 px-3 py-1.5 text-sm font-semibold text-indigo-800 disabled:opacity-50"
-            onClick={() => runResearch(true)} disabled={researchBusy || !researchHasMore}>
+          <h3 ref={researchResultsHeading} tabIndex={-1} className="font-semibold text-text-primary">Ứng viên nguồn nghiên cứu</h3>
+          <Button variant="outline" size="sm" type="button" onClick={() => runResearch(true)} disabled={researchBusy || !researchHasMore}>
             {researchBusy ? "Đang nghiên cứu…" : "Nghiên cứu thêm"}
-          </button>
+          </Button>
         </div>
-        <p className="mt-1 text-xs text-slate-600" aria-live="polite">{researchCandidates.length}/20 ứng viên đang hiển thị · {reviewedSourceCount}/8 nguồn đã chọn</p>
+        <p className="mt-1 text-xs text-text-muted" aria-live="polite">{researchCandidates.length}/20 ứng viên đang hiển thị · {reviewedSourceCount}/8 nguồn đã chọn</p>
         <ul className="mt-3 space-y-3" aria-label="Ứng viên nguồn nghiên cứu">
           {researchCandidates.map((candidate) => {
             const checked = selectedCandidateKeys.includes(candidate.candidateKey);
             const materialized = sourceAttempts.some((attempt) => attempt.candidateKey === candidate.candidateKey);
-            return <li key={candidate.candidateKey} className="rounded-lg border border-slate-200 p-3">
+            return <li key={candidate.candidateKey} className="rounded-lg border border-border bg-surface p-3">
               <label className="flex cursor-pointer items-start gap-3">
-                <input type="checkbox" className="mt-1 size-4" checked={checked}
+                <input type="checkbox" className="mt-1 size-4 accent-primary" checked={checked}
                   onChange={(event) => toggleResearchCandidate(candidate.candidateKey, event.target.checked)}
                   disabled={busy || researchBusy || materialized || (!checked && reviewedSourceCount >= 8)} />
                 <span className="min-w-0">
-                  <span className="block font-semibold text-slate-950">{candidate.title}</span>
-                  <span className="block text-xs text-slate-600">{candidate.domain}{candidate.language ? ` · ${candidate.language}` : ""} · discovered</span>
-                  <span className="mt-1 block text-sm text-slate-700">{candidate.snippet}</span>
-                  <span className="mt-1 block text-xs text-indigo-800">Điểm tư vấn: authority {Math.round(candidate.authorityScore * 100)}% · relevance {Math.round(candidate.relevanceScore * 100)}%</span>
-                  {materialized ? <span className="mt-1 block text-xs font-semibold text-emerald-700">Đã chuyển sang source review</span> : null}
+                  <span className="block font-semibold text-text-primary">{candidate.title}</span>
+                  <span className="block text-xs text-text-muted">{candidate.domain}{candidate.language ? ` · ${candidate.language}` : ""} · discovered</span>
+                  <span className="mt-1 block text-sm text-text-secondary">{candidate.snippet}</span>
+                  <span className="mt-1 block text-xs text-info">Điểm tư vấn: authority {Math.round(candidate.authorityScore * 100)}% · relevance {Math.round(candidate.relevanceScore * 100)}%</span>
+                  {materialized ? <span className="mt-1 block text-xs font-semibold text-success">Đã chuyển sang source review</span> : null}
                 </span>
               </label>
             </li>;
           })}
         </ul>
-        <button className="mt-4 rounded bg-emerald-700 px-4 py-2 text-sm font-semibold text-white disabled:opacity-50"
-          type="button" onClick={ingestSelectedResearchCandidates}
+        <Button className="mt-4" type="button" onClick={ingestSelectedResearchCandidates}
           disabled={busy || researchBusy || !selectedCandidateKeys.some((key) => !sourceAttempts.some((attempt) => attempt.candidateKey === key))}>
           Xác nhận và ingest nguồn đã chọn
-        </button>
-      </div> : researchBusy ? <p className="mt-3 text-sm text-slate-700" role="status">Đang tìm ứng viên nguồn…</p> : null}
+        </Button>
+      </div> : researchBusy ? <p className="mt-3 text-sm text-text-secondary" role="status">Đang tìm ứng viên nguồn…</p> : null}
       <div className="mt-5 grid gap-4 md:grid-cols-2">
-        <form className="rounded-lg border border-blue-200 bg-white p-4" onSubmit={ingestManualUrl}>
-          <label className="text-sm font-medium text-slate-800">URL thủ công
-            <input className="mt-2 block w-full rounded-lg border border-slate-300 p-2" name="manualUrl" type="url" required disabled={busy || reviewedSourceCount >= 8} />
-          </label>
-          <button className="mt-3 rounded bg-blue-700 px-4 py-2 text-sm font-semibold text-white disabled:opacity-50" type="submit" disabled={busy || reviewedSourceCount >= 8}>Ingest URL</button>
+        <form className="rounded-lg border border-border bg-surface p-4" onSubmit={ingestManualUrl}>
+          <Input label="URL thủ công" name="manualUrl" type="url" required disabled={busy || reviewedSourceCount >= 8} />
+          <Button className="mt-3" type="submit" disabled={busy || reviewedSourceCount >= 8}>Ingest URL</Button>
         </form>
-        <form className="rounded-lg border border-blue-200 bg-white p-4" onSubmit={ingestOptionalFile}>
-          <label className="text-sm font-medium text-slate-800">Tài liệu tùy chọn
-            <input className="mt-2 block w-full rounded-lg border border-slate-300 p-2" name="optionalSource" type="file" accept=".pdf,.txt,.md,.docx" required disabled={busy || reviewedSourceCount >= 8} />
-          </label>
-          <button className="mt-3 rounded bg-blue-700 px-4 py-2 text-sm font-semibold text-white disabled:opacity-50" type="submit" disabled={busy || reviewedSourceCount >= 8}>Ingest file</button>
+        <form className="rounded-lg border border-border bg-surface p-4" onSubmit={ingestOptionalFile}>
+          <Input label="Tài liệu tùy chọn" name="optionalSource" type="file" accept=".pdf,.txt,.md,.docx" required disabled={busy || reviewedSourceCount >= 8} />
+          <Button className="mt-3" type="submit" disabled={busy || reviewedSourceCount >= 8}>Ingest file</Button>
         </form>
       </div>
-      <p className="mt-3 text-sm font-medium text-slate-700">{reviewedSourceCount}/8 nguồn đã chọn · {sourceAttempts.filter((attempt) => attempt.status === "extracted").length} usable</p>
-      {sourceAttempts.length ? <ul className="mt-3 space-y-2" aria-label="Trạng thái nguồn">{sourceAttempts.map((attempt) => <li className="rounded-lg border border-slate-200 bg-white p-3 text-sm" key={attempt.clientKey}>
+      <p className="mt-3 text-sm font-medium text-text-secondary">{reviewedSourceCount}/8 nguồn đã chọn · {sourceAttempts.filter((attempt) => attempt.status === "extracted").length} usable</p>
+      {sourceAttempts.length ? <ul className="mt-3 space-y-2" aria-label="Trạng thái nguồn">{sourceAttempts.map((attempt) => <li className="rounded-lg border border-border bg-surface p-3 text-sm" key={attempt.clientKey}>
         <div className="flex flex-wrap items-start justify-between gap-3">
-          <div><p className="font-semibold text-slate-900">{attempt.label}</p><p className="text-slate-600">{attempt.kind === "manual_url" ? "URL thủ công" : attempt.kind === "discovered" ? "Nguồn nghiên cứu" : "File upload"} · {attempt.status}{attempt.attached ? " · attached" : " · staged"}</p>
-            {attempt.error ? <p role="alert" className="mt-1 text-red-700">{attempt.error}</p> : null}</div>
-          <div className="flex gap-2">{attempt.status === "failed" ? <button className="rounded border px-2 py-1 font-semibold" type="button" onClick={() => retrySourceAttempt(attempt)} disabled={busy}>Retry</button> : null}
-            {!attempt.attached ? <button className="rounded border border-red-400 px-2 py-1 font-semibold text-red-700" type="button" onClick={() => removeSourceAttempt(attempt)} disabled={busy || attempt.status === "ingesting"}>Remove</button> : null}</div>
+          <div><p className="font-semibold text-text-primary">{attempt.label}</p><p className="text-text-muted">{attempt.kind === "manual_url" ? "URL thủ công" : attempt.kind === "discovered" ? "Nguồn nghiên cứu" : "File upload"} · {attempt.status}{attempt.attached ? " · attached" : " · staged"}</p>
+            {attempt.error ? <p role="alert" className="mt-1 text-danger">{attempt.error}</p> : null}</div>
+          <div className="flex gap-2">{attempt.status === "failed" ? <Button variant="outline" size="sm" type="button" onClick={() => retrySourceAttempt(attempt)} disabled={busy}>Retry</Button> : null}
+            {!attempt.attached ? <Button variant="outline" size="sm" type="button" className="border-danger text-danger" onClick={() => removeSourceAttempt(attempt)} disabled={busy || attempt.status === "ingesting"}>Remove</Button> : null}</div>
         </div>
-      </li>)}</ul> : <p className="mt-3 text-sm text-slate-600">Chưa có nguồn staged.</p>}
+      </li>)}</ul> : <p className="mt-3 text-sm text-text-muted">Chưa có nguồn staged.</p>}
       <div className="mt-4 flex flex-wrap gap-3">
-        <button className="rounded bg-emerald-700 px-4 py-2 text-sm font-semibold text-white disabled:opacity-50" type="button" onClick={initializeOrAttachSources}
-          disabled={busy || !sourceAttempts.some((attempt) => attempt.status === "extracted" && !attempt.attached)}> {sourceReviewJobId ? "Attach nguồn usable" : "Khởi tạo Course import"}</button>
-        <button className="rounded border border-blue-600 bg-white px-4 py-2 text-sm font-semibold text-blue-800 disabled:opacity-50" type="button" onClick={generateReviewedSourceOutline}
-          disabled={busy || !sourceReviewJobId || !sourceAttempts.some((attempt) => attempt.attached)}>Tạo outline từ evidence đã review</button>
+        <Button type="button" onClick={initializeOrAttachSources}
+          disabled={busy || !sourceAttempts.some((attempt) => attempt.status === "extracted" && !attempt.attached)}> {sourceReviewJobId ? "Attach nguồn usable" : "Khởi tạo Course import"}</Button>
+        <Button variant="outline" type="button" onClick={generateReviewedSourceOutline}
+          disabled={busy || !sourceReviewJobId || !sourceAttempts.some((attempt) => attempt.attached)}>Tạo outline từ evidence đã review</Button>
       </div>
     </section>
 
-    <div aria-live="polite" className="text-sm text-slate-700">{message}</div>
-    {error ? <div role="alert" className="rounded-lg border border-red-300 bg-red-50 p-3 text-sm text-red-800">{error}</div> : null}
-    {published ? <div className="rounded-lg border border-emerald-300 bg-emerald-50 p-4 text-sm text-emerald-900">Course đã xuất bản. <Link className="font-semibold underline" href={`/courses/${published.courseId}`}>Mở Course</Link></div> : null}
+    <div aria-live="polite" className="text-sm text-text-secondary">{message}</div>
+    {error ? <div role="alert" className="rounded-lg border border-danger bg-danger-soft p-3 text-sm text-danger">{error}</div> : null}
+    {published ? <div className="rounded-lg border border-success bg-success-soft p-4 text-sm text-success">Course đã xuất bản. <Link className="font-semibold underline" href={`/courses/${published.courseId}`}>Mở Course</Link></div> : null}
 
     <section className="grid gap-6 lg:grid-cols-[minmax(16rem,0.75fr)_minmax(0,2fr)]" aria-labelledby="review-title">
-      <div className="rounded-2xl border border-slate-200 bg-white p-4">
-        <h2 id="review-title" className="font-semibold text-slate-950">Course import queue</h2>
-        {imports.length === 0 ? <p className="mt-3 text-sm text-slate-500">Hàng chờ trống.</p> : <ul className="mt-3 space-y-2">{imports.map((item) => <li key={item.jobId}>
-          <button className={`w-full rounded-lg border p-3 text-left text-sm ${selectedJobId === item.jobId ? "border-blue-500 bg-blue-50" : "border-slate-200"}`}
-            type="button" onClick={() => { setSelectedJobId(item.jobId); setSourceReviewJobId(item.jobId); setSelectedOutlineLessonId(null); }}>
-            <span className="block font-semibold text-slate-900">{item.title}</span>
-            <span className="text-slate-600">{item.status} · {item.lessons.length} Lessons</span>
-          </button>
+      <div className="rounded-xl border border-border bg-surface p-4 shadow-sm">
+        <h2 id="review-title" className="font-semibold text-text-primary">Course import queue</h2>
+        {imports.length === 0 ? <p className="mt-3 text-sm text-text-muted">Hàng chờ trống.</p> : <ul className="mt-3 space-y-2">{imports.map((item) => <li key={item.jobId}>
+          <Button variant="outline" type="button" className={`h-auto w-full flex-col items-start py-2 ${selectedJobId === item.jobId ? "border-primary bg-primary-soft text-text-primary" : "border-border bg-surface text-text-primary"}`}
+            onClick={() => { setSelectedJobId(item.jobId); setSourceReviewJobId(item.jobId); setSelectedOutlineLessonId(null); }}>
+            <span className="block font-semibold">{item.title}</span>
+            <span className="block text-text-muted">{item.status} · {item.lessons.length} Lessons</span>
+          </Button>
         </li>)}</ul>}
       </div>
 
-      <div className="rounded-2xl border border-slate-200 bg-white p-6">
-        {!selectedImport ? <p className="text-sm text-slate-500">Chọn một Course import.</p> : <div className="space-y-5">
-          <p className="text-xs font-semibold uppercase tracking-wide text-blue-700">{selectedImport.status} · outline r{selectedImport.outlineRevision}</p>
-          <div className="rounded-lg border border-slate-200 bg-slate-50 p-3 text-sm">
-            <p className="font-semibold text-slate-900">Nguồn evidence ({selectedImport.sources.length})</p>
+      <div className="rounded-xl border border-border bg-surface p-6 shadow-sm">
+        {!selectedImport ? <p className="text-sm text-text-muted">Chọn một Course import.</p> : <div className="space-y-5">
+          <Badge className="bg-primary-soft text-primary">{selectedImport.status} · outline r{selectedImport.outlineRevision}</Badge>
+          <div className="rounded-lg border border-border bg-surface-subtle p-3 text-sm">
+            <p className="font-semibold text-text-primary">Nguồn evidence ({selectedImport.sources.length})</p>
             <ul className="mt-2 space-y-1">{selectedImport.sources.map((source) => <li key={source.sourceDocumentId}>
-              <span>{source.title}{source.domain ? ` · ${source.domain}` : ""} · {source.ingestionMethod} · {source.status} · {source.chunkCount} chunks</span>
-              {source.authorityScore !== null ? <span> · authority {source.authorityScore.toFixed(2)}</span> : null}
-              {source.relevanceScore !== null ? <span> · relevance {source.relevanceScore.toFixed(2)}</span> : null}
+              <span className="text-text-secondary">{source.title}{source.domain ? ` · ${source.domain}` : ""} · {source.ingestionMethod} · {source.status} · {source.chunkCount} chunks</span>
+              {source.authorityScore !== null ? <span className="text-text-muted"> · authority {source.authorityScore.toFixed(2)}</span> : null}
+              {source.relevanceScore !== null ? <span className="text-text-muted"> · relevance {source.relevanceScore.toFixed(2)}</span> : null}
               {["uploaded", "processing", "outline_review", "failed"].includes(selectedImport.status) && selectedImport.approvedOutlineRevision === null
-                ? <button className="ml-2 font-semibold text-red-700 underline disabled:opacity-50" type="button" onClick={() => detachReviewedSource(source.sourceDocumentId)} disabled={busy || selectedImport.sources.length <= 1}>Detach</button> : null}
+                ? <Button variant="ghost" size="sm" type="button" className="ml-2 px-0 font-semibold text-danger underline disabled:opacity-50" onClick={() => detachReviewedSource(source.sourceDocumentId)} disabled={busy || selectedImport.sources.length <= 1}>Detach</Button> : null}
             </li>)}</ul>
           </div>
-          {selectedImport.outlineStale ? <div role="alert" className="rounded-lg border border-amber-300 bg-amber-50 p-3 text-sm text-amber-950">
+          {selectedImport.outlineStale ? <div role="alert" className="rounded-lg border border-warning bg-warning-soft p-3 text-sm text-warning">
             Evidence đã thay đổi. Hãy tạo outline revision mới trước khi Continue.
-            <button className="ml-2 font-semibold underline" type="button" onClick={generateReviewedSourceOutline} disabled={busy}>Tạo outline thay thế</button>
-            {!canEditOutline ? <button className="ml-2 rounded border px-2 py-1 font-semibold opacity-60" type="button" disabled>Continue: sinh Lesson contents</button> : null}
+            <Button variant="ghost" size="sm" type="button" className="ml-2 px-0 font-semibold text-warning underline" onClick={generateReviewedSourceOutline} disabled={busy}>Tạo outline thay thế</Button>
+            {!canEditOutline ? <Button variant="outline" size="sm" type="button" className="ml-2" disabled>Continue: sinh Lesson contents</Button> : null}
           </div> : null}
-          <label className="block text-sm font-medium">Course title
-            <input className="mt-1 w-full rounded-lg border border-slate-300 p-2" value={selectedImport.title} disabled={!canEditOutline}
-              onChange={(event) => updateSelected((draft) => ({ ...draft, title: event.target.value }))} />
-          </label>
-          <label className="block text-sm font-medium">Description
-            <textarea className="mt-1 w-full rounded-lg border border-slate-300 p-2" value={selectedImport.description} disabled={!canEditOutline}
-              onChange={(event) => updateSelected((draft) => ({ ...draft, description: event.target.value }))} />
-          </label>
-          <label className="block text-sm font-medium">Course learning objectives (mỗi dòng một mục tiêu)
-            <textarea className="mt-1 w-full rounded-lg border border-slate-300 p-2" value={selectedImport.learningObjectives.join("\n")} disabled={!canEditOutline}
-              onChange={(event) => updateSelected((draft) => ({ ...draft, learningObjectives: event.target.value.split("\n").filter(Boolean) }))} />
-          </label>
-          <ol className="space-y-3">{selectedImport.lessons.map((lesson, index) => <li className="rounded-lg border border-slate-200 p-3" key={lesson.clientKey}>
+          <Input label="Course title" value={selectedImport.title} disabled={!canEditOutline}
+            onChange={(event) => updateSelected((draft) => ({ ...draft, title: event.target.value }))} />
+          <Textarea label="Description" value={selectedImport.description} disabled={!canEditOutline}
+            onChange={(event) => updateSelected((draft) => ({ ...draft, description: event.target.value }))} />
+          <Textarea label="Course learning objectives (mỗi dòng một mục tiêu)" value={selectedImport.learningObjectives.join("\n")} disabled={!canEditOutline}
+            onChange={(event) => updateSelected((draft) => ({ ...draft, learningObjectives: event.target.value.split("\n").filter(Boolean) }))} />
+          <ol className="space-y-3">{selectedImport.lessons.map((lesson, index) => <li className="rounded-lg border border-border bg-surface p-3" key={lesson.clientKey}>
             {canEditOutline ? <div className="grid gap-2">
-              <label className="text-sm font-medium">Lesson {index + 1} title<input className="mt-1 w-full rounded border p-2" value={lesson.title} onChange={(e) => editLesson(lesson.id, { title: e.target.value })} /></label>
-              <label className="text-sm font-medium">Summary<textarea className="mt-1 w-full rounded border p-2" value={lesson.summary} onChange={(e) => editLesson(lesson.id, { summary: e.target.value })} /></label>
-              <label className="text-sm font-medium">Learning objectives<textarea className="mt-1 w-full rounded border p-2" value={lesson.learningObjectives.join("\n")} onChange={(e) => editLesson(lesson.id, { learningObjectives: e.target.value.split("\n").filter(Boolean) })} /></label>
-              {selectedImport.sources.length > 1 ? <fieldset className="rounded border p-3">
-                <legend className="px-1 text-sm font-medium">Nguồn tham chiếu</legend>
+              <Input label={`Lesson ${index + 1} title`} value={lesson.title} onChange={(e) => editLesson(lesson.id, { title: e.target.value })} />
+              <Textarea label="Summary" value={lesson.summary} onChange={(e) => editLesson(lesson.id, { summary: e.target.value })} />
+              <Textarea label="Learning objectives" value={lesson.learningObjectives.join("\n")} onChange={(e) => editLesson(lesson.id, { learningObjectives: e.target.value.split("\n").filter(Boolean) })} />
+              {selectedImport.sources.length > 1 ? <fieldset className="rounded-lg border border-border p-3">
+                <legend className="px-1 text-sm font-medium text-text-primary">Nguồn tham chiếu</legend>
                 <div className="grid gap-2 sm:grid-cols-2">{availableOutlineRefs(selectedImport).map((ref) => {
                     const source = selectedImport.sources.find((item) => item.sourceDocumentId === ref.sourceDocumentId);
                     const checked = (lesson.sourceRefs ?? []).some((item) => sameSourceRef(item, ref));
                     return <label className="flex items-center gap-2 text-sm" key={`${ref.sourceDocumentId}:${ref.chunkIndex}`}>
-                      <input type="checkbox" checked={checked} onChange={(event) => {
+                      <input type="checkbox" className="accent-primary" checked={checked} onChange={(event) => {
                         const current = lesson.sourceRefs ?? [];
                         const next = event.target.checked
                           ? [...current, ref]
@@ -802,33 +793,33 @@ export function ContentPipelineAdmin() {
                       {source?.title ?? `Source ${ref.sourceDocumentId}`} · chunk {ref.chunkIndex}
                     </label>;
                   })}</div>
-              </fieldset> : <label className="text-sm font-medium">Source chunk indexes<input className="mt-1 w-full rounded border p-2" value={lesson.sourceChunkIndexes.join(",")}
-                onChange={(e) => editLesson(lesson.id, { sourceChunkIndexes: e.target.value.split(",").map(Number).filter(Number.isInteger), sourceRefs: undefined })} /></label>}
+              </fieldset> : <Input label="Source chunk indexes" value={lesson.sourceChunkIndexes.join(",")}
+                onChange={(e) => editLesson(lesson.id, { sourceChunkIndexes: e.target.value.split(",").map(Number).filter(Number.isInteger), sourceRefs: undefined })} />}
               <div className="flex flex-wrap gap-2">
-                <button type="button" className="rounded border px-2 py-1" onClick={() => reorderLesson(lesson.id, -1)} disabled={index === 0}>Di chuyển lên</button>
-                <button type="button" className="rounded border px-2 py-1" onClick={() => reorderLesson(lesson.id, 1)} disabled={index === selectedImport.lessons.length - 1}>Di chuyển xuống</button>
-                <button type="button" className="rounded border border-red-400 px-2 py-1 text-red-700" onClick={() => removeLesson(lesson.id)} disabled={selectedImport.lessons.length <= 2}>Xóa Lesson</button>
+                <Button variant="outline" size="sm" type="button" onClick={() => reorderLesson(lesson.id, -1)} disabled={index === 0}>Di chuyển lên</Button>
+                <Button variant="outline" size="sm" type="button" onClick={() => reorderLesson(lesson.id, 1)} disabled={index === selectedImport.lessons.length - 1}>Di chuyển xuống</Button>
+                <Button variant="outline" size="sm" type="button" className="border-danger text-danger" onClick={() => removeLesson(lesson.id)} disabled={selectedImport.lessons.length <= 2}>Xóa Lesson</Button>
               </div>
-            </div> : <button className="w-full text-left" type="button" onClick={() => setSelectedOutlineLessonId(lesson.id)}>
-              <span className="font-semibold">{index + 1}. {lesson.title}</span>
-              <span className="block text-sm text-slate-600">{lesson.summary} · {lesson.contentDraft ? `content r${lesson.contentDraft.revision}` : "chưa có content"}</span>
-            </button>}
+            </div> : <Button variant="ghost" type="button" className="h-auto w-full flex-col items-start py-2" onClick={() => setSelectedOutlineLessonId(lesson.id)}>
+              <span className="block font-semibold">{index + 1}. {lesson.title}</span>
+              <span className="block text-sm text-text-muted">{lesson.summary} · {lesson.contentDraft ? `content r${lesson.contentDraft.revision}` : "chưa có content"}</span>
+            </Button>}
           </li>)}</ol>
           {canEditOutline ? <div className="flex flex-wrap gap-3">
-            <button className="rounded border px-4 py-2 text-sm font-semibold" type="button" onClick={addLesson} disabled={busy || selectedImport.lessons.length >= 20}>Thêm Lesson</button>
-            <button className="rounded bg-blue-700 px-4 py-2 text-sm font-semibold text-white" type="button" onClick={saveOutline} disabled={busy}>Lưu outline</button>
-            <button className="rounded border border-blue-500 px-4 py-2 text-sm font-semibold text-blue-800" type="button" onClick={regenerateOutline} disabled={busy}>Regenerate outline</button>
-            <button className="rounded bg-emerald-700 px-4 py-2 text-sm font-semibold text-white" type="button" onClick={continueToLessons} disabled={busy || selectedImport.outlineStale}>Continue: sinh Lesson contents</button>
+            <Button variant="outline" type="button" onClick={addLesson} disabled={busy || selectedImport.lessons.length >= 20}>Thêm Lesson</Button>
+            <Button type="button" onClick={saveOutline} disabled={busy}>Lưu outline</Button>
+            <Button variant="outline" type="button" onClick={regenerateOutline} disabled={busy}>Regenerate outline</Button>
+            <Button type="button" onClick={continueToLessons} disabled={busy || selectedImport.outlineStale}>Continue: sinh Lesson contents</Button>
           </div> : null}
-          {selectedImport.status === "failed" ? <button className="rounded bg-amber-700 px-4 py-2 text-sm font-semibold text-white" type="button" onClick={selectedImport.approvedOutlineRevision ? continueToLessons : regenerateOutline} disabled={busy}>Thử lại bước bị lỗi</button> : null}
-          {selectedImport.status === "generating_content" ? <button className="rounded border border-blue-500 px-4 py-2 text-sm font-semibold text-blue-800" type="button"
-            onClick={() => { setError(null); refresh().catch((cause: unknown) => setError(cause instanceof Error ? cause.message : "Không thể làm mới trạng thái.")); }} disabled={busy}>Làm mới trạng thái</button> : null}
+          {selectedImport.status === "failed" ? <Button type="button" onClick={selectedImport.approvedOutlineRevision ? continueToLessons : regenerateOutline} disabled={busy}>Thử lại bước bị lỗi</Button> : null}
+          {selectedImport.status === "generating_content" ? <Button variant="outline" type="button"
+            onClick={() => { setError(null); refresh().catch((cause: unknown) => setError(cause instanceof Error ? cause.message : "Không thể làm mới trạng thái.")); }} disabled={busy}>Làm mới trạng thái</Button> : null}
           {canReviewContent ? <div className="space-y-3">
-            <label className="block text-sm font-medium">Ghi chú review<textarea className="mt-1 w-full rounded border p-2" value={reviewComment} onChange={(event) => setReviewComment(event.target.value)} /></label>
+            <Textarea label="Ghi chú review" value={reviewComment} onChange={(event) => setReviewComment(event.target.value)} />
             <div className="flex flex-wrap gap-3">
-              <button className="rounded bg-emerald-700 px-4 py-2 text-sm font-semibold text-white" type="button" onClick={() => reviewImport("published")} disabled={busy}>Publish Course</button>
-              <button className="rounded border border-amber-500 px-4 py-2 text-sm font-semibold" type="button" onClick={() => reviewImport("needs_revision")} disabled={busy}>Cần chỉnh sửa</button>
-              <button className="rounded border border-red-500 px-4 py-2 text-sm font-semibold text-red-700" type="button" onClick={() => reviewImport("rejected")} disabled={busy}>Từ chối</button>
+              <Button type="button" onClick={() => reviewImport("published")} disabled={busy}>Publish Course</Button>
+              <Button variant="outline" type="button" className="border-warning text-warning" onClick={() => reviewImport("needs_revision")} disabled={busy}>Cần chỉnh sửa</Button>
+              <Button variant="outline" type="button" className="border-danger text-danger" onClick={() => reviewImport("rejected")} disabled={busy}>Từ chối</Button>
             </div>
           </div> : null}
         </div>}
@@ -838,10 +829,10 @@ export function ContentPipelineAdmin() {
     {selectedContent && selectedOutlineLesson ? <ContentEditor content={selectedContent} onChange={(content) => editLesson(selectedOutlineLesson.id, { contentDraft: content })}
       onSave={() => saveContent(selectedContent)} onRegenerate={() => regenerateLesson(selectedOutlineLesson.id)} busy={busy} /> : null}
 
-    <section className="rounded-2xl border border-violet-200 bg-violet-50 p-6">
-      <h2 className="text-xl font-semibold text-slate-950">Lesson → Exercise là pipeline riêng</h2>
-      <p className="mt-2 text-sm text-slate-700">Chọn một Lesson đã publish từ khu vực moderation để tạo và duyệt bài tập.</p>
-      <Link className="mt-4 inline-flex rounded-lg bg-violet-700 px-5 py-2.5 text-sm font-semibold text-white" href="/moderation/lessons">Mở danh sách Lesson</Link>
+    <section className="rounded-xl border border-border bg-surface p-6 shadow-sm">
+      <h2 className="text-xl font-semibold text-text-primary">Lesson → Exercise là pipeline riêng</h2>
+      <p className="mt-2 text-sm text-text-secondary">Chọn một Lesson đã publish từ khu vực moderation để tạo và duyệt bài tập.</p>
+      <Link className="mt-4 inline-flex items-center rounded-lg bg-primary px-5 py-2.5 text-sm font-semibold text-on-primary transition-colors hover:bg-primary-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background" href="/moderation/lessons">Mở danh sách Lesson</Link>
     </section>
   </div>;
 }
@@ -856,17 +847,17 @@ function ContentEditor({ content, onChange, onSave, onRegenerate, busy }: {
   function updateSection(index: number, field: "heading" | "bodyMarkdown", value: string) {
     onChange({ ...content, sections: content.sections.map((section, sectionIndex) => sectionIndex === index ? { ...section, [field]: value } : section) });
   }
-  return <section className="rounded-2xl border border-slate-200 bg-white p-6" aria-labelledby="lesson-editor-title">
-    <h2 id="lesson-editor-title" className="text-xl font-semibold">Lesson content review</h2>
+  return <section className="rounded-xl border border-border bg-surface p-6 shadow-sm" aria-labelledby="lesson-editor-title">
+    <h2 id="lesson-editor-title" className="text-xl font-semibold text-text-primary">Lesson content review</h2>
     <div className="mt-4 grid gap-4">
-      <label className="text-sm font-medium">Tiêu đề<input className="mt-1 w-full rounded border p-2" value={content.title} onChange={(e) => onChange({ ...content, title: e.target.value })} /></label>
-      <label className="text-sm font-medium">Tóm tắt<textarea className="mt-1 w-full rounded border p-2" value={content.summary} onChange={(e) => onChange({ ...content, summary: e.target.value })} /></label>
-      {content.sections.map((section, index) => <fieldset className="rounded border p-4" key={index}>
-        <legend>Phần {index + 1}</legend>
-        <input aria-label={`Tiêu đề phần ${index + 1}`} className="mb-2 w-full rounded border p-2" value={section.heading} onChange={(e) => updateSection(index, "heading", e.target.value)} />
-        <textarea aria-label={`Nội dung phần ${index + 1}`} className="min-h-36 w-full rounded border p-2" value={section.bodyMarkdown} onChange={(e) => updateSection(index, "bodyMarkdown", e.target.value)} />
-        <p className="mt-2 text-xs text-slate-500">Nguồn chunk: {section.citationChunkIndexes.join(", ")}</p>
-        <ul className="mt-2 space-y-1 text-xs text-slate-600">{content.citations
+      <Input label="Tiêu đề" value={content.title} onChange={(e) => onChange({ ...content, title: e.target.value })} />
+      <Textarea label="Tóm tắt" value={content.summary} onChange={(e) => onChange({ ...content, summary: e.target.value })} />
+      {content.sections.map((section, index) => <fieldset className="rounded-lg border border-border p-4" key={index}>
+        <legend className="px-1 text-sm font-medium text-text-primary">Phần {index + 1}</legend>
+        <Input aria-label={`Tiêu đề phần ${index + 1}`} className="mb-2" value={section.heading} onChange={(e) => updateSection(index, "heading", e.target.value)} />
+        <Textarea aria-label={`Nội dung phần ${index + 1}`} className="min-h-36" value={section.bodyMarkdown} onChange={(e) => updateSection(index, "bodyMarkdown", e.target.value)} />
+        <p className="mt-2 text-xs text-text-muted">Nguồn chunk: {section.citationChunkIndexes.join(", ")}</p>
+        <ul className="mt-2 space-y-1 text-xs text-text-secondary">{content.citations
           .filter((citation) => citation.sectionIndex === index)
           .map((citation) => <li key={`${citation.documentChunkId ?? citation.chunkIndex}`}>
             {citation.sourceTitle
@@ -874,8 +865,8 @@ function ContentEditor({ content, onChange, onSave, onRegenerate, busy }: {
               : `Chunk ${citation.chunkIndex}: ${citation.quote}`}
           </li>)}</ul>
       </fieldset>)}
-      <div className="flex gap-3"><button className="rounded bg-blue-700 px-4 py-2 text-white" type="button" onClick={onSave} disabled={busy}>Lưu Lesson content</button>
-        <button className="rounded border border-blue-500 px-4 py-2 text-blue-800" type="button" onClick={onRegenerate} disabled={busy}>Regenerate Lesson này</button></div>
+      <div className="flex gap-3"><Button type="button" onClick={onSave} disabled={busy}>Lưu Lesson content</Button>
+        <Button variant="outline" type="button" onClick={onRegenerate} disabled={busy}>Regenerate Lesson này</Button></div>
     </div>
   </section>;
 }
