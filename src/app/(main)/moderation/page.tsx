@@ -1,3 +1,4 @@
+import { PageContainer } from "@/components/layout/page-container";
 import { ModerationQueueView } from "@/features/moderation/components/moderation-queue-view";
 
 export const metadata = {
@@ -7,8 +8,10 @@ export const metadata = {
 
 export default function ModerationPage() {
   return (
-    <div className="space-y-6">
-      <ModerationQueueView />
-    </div>
+    <main className="min-h-screen bg-background py-8 sm:py-10 lg:py-12">
+      <PageContainer className="pb-16 lg:pb-0">
+        <ModerationQueueView />
+      </PageContainer>
+    </main>
   );
 }

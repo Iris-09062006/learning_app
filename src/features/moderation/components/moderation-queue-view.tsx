@@ -4,6 +4,9 @@ import { useState, useEffect, useCallback } from "react";
 import type { ModerationQueueItem, ModerationQueueResult } from "../types";
 import { ModerationQueueItemCard } from "./moderation-queue-item-card";
 import Link from "next/link";
+import { Button } from "@/components/ui/button";
+import { PageHeader } from "@/components/layout/page-header";
+import { Select } from "@/components/ui/select";
 
 const statusOptions = [
   { value: "pending", label: "Chờ duyệt" },
@@ -69,62 +72,72 @@ export function ModerationQueueView() {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col gap-4 rounded-xl border border-slate-200 bg-white p-5 shadow-sm sm:flex-row sm:items-center sm:justify-between dark:border-slate-800 dark:bg-slate-900">
-        <div>
-          <h2 className="text-xl font-bold text-slate-900 dark:text-white">
-            Hàng đợi kiểm duyệt bài tập
-          </h2>
-          <p className="mt-0.5 text-sm text-slate-500 dark:text-slate-400">
-            Rà soát bài tập do AI tạo trước khi xuất bản
-          </p>
-        </div>
-
-        <div className="flex items-center gap-2">
-          <Link href="/moderation/lessons" className="rounded-md bg-violet-700 px-3 py-2 text-sm font-semibold text-white">Tạo Exercise</Link>
-          <label
-            htmlFor="status-filter"
-            className="text-sm font-medium text-slate-700 dark:text-slate-300"
-          >
-            Trạng thái:
-          </label>
-          <select
-            id="status-filter"
-            value={statusFilter}
-            onChange={(e) => {
-              setStatusFilter(e.target.value);
-              setPage(1);
-            }}
-            className="rounded-md border border-slate-300 bg-white px-3 py-1.5 text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-500 dark:border-slate-700 dark:bg-slate-800 dark:text-white"
-          >
-            {statusOptions.map((option) => (
-              <option key={option.value} value={option.value}>
-                {option.label}
-              </option>
-            ))}
-          </select>
-        </div>
-      </div>
+      <PageHeader
+        title="Hàng đợi kiểm duyệt bài tập"
+        description="Rà soát bài tập do AI tạo trước khi xuất bản"
+        actions={
+          <div className="flex flex-col items-start gap-3 sm:flex-row sm:items-center">
+            <Link
+              href="/moderation/lessons"
+              className="inline-flex min-h-10 items-center justify-center rounded-lg bg-primary px-4 text-sm font-semibold text-on-primary transition-colors hover:bg-primary-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+            >
+              Tạo Exercise
+            </Link>
+            <div className="flex items-center gap-2">
+              <label
+                htmlFor="status-filter"
+                className="text-sm font-medium text-text-primary"
+              >
+                Trạng thái:
+              </label>
+              <div className="w-44">
+                <Select
+                  id="status-filter"
+                  value={statusFilter}
+                  onChange={(e) => {
+                    setStatusFilter(e.target.value);
+                    setPage(1);
+                  }}
+                >
+                  {statusOptions.map((option) => (
+                    <option key={option.value} value={option.value}>
+                      {option.label}
+                    </option>
+                  ))}
+                </Select>
+              </div>
+            </div>
+          </div>
+        }
+      />
 
       {loading ? (
-        <div className="flex flex-col items-center justify-center gap-3 rounded-xl border border-slate-200 bg-white py-16 shadow-sm dark:border-slate-800 dark:bg-slate-900">
-          <div className="h-8 w-8 animate-spin rounded-full border-2 border-slate-300 border-t-indigo-600" />
-          <p className="text-sm text-slate-500 dark:text-slate-400">
+        <div className="flex flex-col items-center justify-center gap-3 rounded-xl border border-border bg-surface py-16 shadow-sm">
+          <div
+            aria-hidden="true"
+            className="h-8 w-8 animate-spin rounded-full border-2 border-surface-container-highest border-t-primary"
+          />
+          <p className="text-sm text-text-muted">
             Đang tải danh sách...
           </p>
         </div>
       ) : error ? (
-        <div className="rounded-xl border border-red-200 bg-red-50 p-4 dark:border-red-800 dark:bg-red-950">
-          <p className="font-semibold text-red-700 dark:text-red-400">
+        <div
+          role="alert"
+          className="rounded-xl border border-danger bg-danger-soft px-4 py-3"
+        >
+          <p className="font-semibold text-danger">
             Lỗi tải danh sách
           </p>
-          <p className="mt-0.5 text-sm text-red-600 dark:text-red-300">
+          <p className="mt-0.5 text-sm text-danger">
             {error}
           </p>
         </div>
       ) : items.length === 0 ? (
-        <div className="flex flex-col items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white py-16 text-center shadow-sm dark:border-slate-800 dark:bg-slate-900">
+        <div className="flex flex-col items-center justify-center gap-2 rounded-xl border border-border bg-surface py-16 text-center shadow-sm">
           <svg
-            className="h-10 w-10 text-slate-300 dark:text-slate-600"
+            aria-hidden="true"
+            className="h-10 w-10 text-text-muted"
             fill="none"
             viewBox="0 0 24 24"
             stroke="currentColor"
@@ -136,7 +149,7 @@ export function ModerationQueueView() {
               d="M20.25 7.5l-.625 10.632a2.25 2.25 0 01-2.247 2.118H6.622a2.25 2.25 0 01-2.247-2.118L3.75 7.5m8.25 3v6.75m0 0l-3-3m3 3l3-3M3.375 7.5h17.25c.621 0 1.125-.504 1.125-1.125v-1.5c0-.621-.504-1.125-1.125-1.125H3.375c-.621 0-1.125.504-1.125 1.125v1.5c0 .621.504 1.125 1.125 1.125z"
             />
           </svg>
-          <p className="text-sm text-slate-500 dark:text-slate-400">
+          <p className="text-sm text-text-muted">
             Không có bài tập nào khớp với bộ lọc hiện tại.
           </p>
         </div>
@@ -149,24 +162,26 @@ export function ModerationQueueView() {
       )}
 
       {totalPages > 1 && (
-        <div className="flex items-center justify-between rounded-xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-800 dark:bg-slate-900">
-          <button
+        <div className="flex items-center justify-between rounded-xl border border-border bg-surface p-4 shadow-sm">
+          <Button
+            variant="outline"
+            size="sm"
             onClick={() => setPage((p) => Math.max(p - 1, 1))}
             disabled={page === 1}
-            className="rounded-md border border-slate-300 px-3 py-1.5 text-sm font-medium text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50 dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-800"
           >
             Trước
-          </button>
-          <span className="text-sm text-slate-600 dark:text-slate-400">
+          </Button>
+          <span className="text-sm text-text-secondary">
             Trang {page} / {totalPages} ({total} mục)
           </span>
-          <button
+          <Button
+            variant="outline"
+            size="sm"
             onClick={() => setPage((p) => Math.min(p + 1, totalPages))}
             disabled={page === totalPages}
-            className="rounded-md border border-slate-300 px-3 py-1.5 text-sm font-medium text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50 dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-800"
           >
             Sau
-          </button>
+          </Button>
         </div>
       )}
     </div>

@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { Badge } from "@/components/ui/badge";
 import type { ModerationQueueItem } from "../types";
 
 function formatRelativeTime(dateString: string): string {
@@ -32,41 +33,35 @@ const statusConfig: Record<
 > = {
   pending: {
     label: "Chờ duyệt",
-    dot: "bg-amber-500",
-    badge:
-      "bg-amber-50 text-amber-700 ring-amber-600/20 dark:bg-amber-950 dark:text-amber-400 dark:ring-amber-400/20",
+    dot: "bg-warning",
+    badge: "bg-warning-soft text-warning",
   },
   approved: {
     label: "Đã duyệt",
-    dot: "bg-emerald-500",
-    badge:
-      "bg-emerald-50 text-emerald-700 ring-emerald-600/20 dark:bg-emerald-950 dark:text-emerald-400 dark:ring-emerald-400/20",
+    dot: "bg-success",
+    badge: "bg-success-soft text-success",
   },
   rejected: {
     label: "Từ chối",
-    dot: "bg-red-500",
-    badge:
-      "bg-red-50 text-red-700 ring-red-600/20 dark:bg-red-950 dark:text-red-400 dark:ring-red-400/20",
+    dot: "bg-danger",
+    badge: "bg-danger-soft text-danger",
   },
   needs_revision: {
     label: "Cần chỉnh sửa",
-    dot: "bg-sky-500",
-    badge:
-      "bg-sky-50 text-sky-700 ring-sky-600/20 dark:bg-sky-950 dark:text-sky-400 dark:ring-sky-400/20",
+    dot: "bg-info",
+    badge: "bg-info-soft text-info",
   },
   published: {
     label: "Đã xuất bản",
-    dot: "bg-violet-500",
-    badge:
-      "bg-violet-50 text-violet-700 ring-violet-600/20 dark:bg-violet-950 dark:text-violet-400 dark:ring-violet-400/20",
+    dot: "bg-primary",
+    badge: "bg-primary-soft text-primary",
   },
 };
 
 const defaultStatusConfig = {
   label: "Khác",
-  dot: "bg-slate-400",
-  badge:
-    "bg-slate-100 text-slate-700 ring-slate-600/20 dark:bg-slate-800 dark:text-slate-300 dark:ring-slate-400/20",
+  dot: "bg-text-muted",
+  badge: "bg-surface-subtle text-text-secondary",
 };
 
 export function ModerationQueueItemCard({
@@ -75,16 +70,14 @@ export function ModerationQueueItemCard({
   const status = statusConfig[item.status] ?? defaultStatusConfig;
 
   const difficultyColors: Record<string, string> = {
-    beginner:
-      "bg-emerald-50 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-400",
-    intermediate:
-      "bg-amber-50 text-amber-700 dark:bg-amber-950 dark:text-amber-400",
-    advanced: "bg-red-50 text-red-700 dark:bg-red-950 dark:text-red-400",
+    beginner: "bg-success-soft text-success",
+    intermediate: "bg-warning-soft text-warning",
+    advanced: "bg-danger-soft text-danger",
   };
 
   const difficultyClass =
     difficultyColors[item.difficulty as string] ??
-    "bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300";
+    "bg-surface-container text-text-secondary";
 
   const difficultyLabel: Record<string, string> = {
     beginner: "Cơ bản",
@@ -93,28 +86,26 @@ export function ModerationQueueItemCard({
   };
 
   return (
-    <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm transition-shadow hover:shadow-md dark:border-slate-800 dark:bg-slate-900">
+    <div className="rounded-xl border border-border bg-surface p-6 shadow-sm transition-shadow hover:shadow-md">
       <div className="mb-2 flex items-start justify-between gap-4">
         <h3
-          className="truncate text-lg font-bold text-slate-900 dark:text-white"
+          className="truncate text-lg font-bold text-text-primary"
           title={item.title}
         >
           {item.title}
         </h3>
-        <span
-          className={`inline-flex shrink-0 items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-semibold ring-1 ring-inset ${status.badge}`}
-        >
-          <span className={`size-1.5 rounded-full ${status.dot}`} />
+        <Badge className={`shrink-0 gap-1.5 font-semibold ${status.badge}`}>
+          <span aria-hidden="true" className={`size-1.5 rounded-full ${status.dot}`} />
           {status.label}
-        </span>
+        </Badge>
       </div>
 
-      <p className="mb-4 line-clamp-2 text-sm text-slate-600 dark:text-slate-400">
+      <p className="mb-4 line-clamp-2 text-sm text-text-secondary">
         {item.description || "Chưa có mô tả."}
       </p>
 
       <div className="mb-4 flex flex-wrap gap-2">
-        <span className="rounded-md bg-slate-100 px-2.5 py-1 text-xs font-medium text-slate-700 dark:bg-slate-800 dark:text-slate-300">
+        <span className="rounded-md bg-surface-container px-2.5 py-1 text-xs font-medium text-text-secondary">
           {item.exerciseType}
         </span>
         <span
@@ -123,20 +114,21 @@ export function ModerationQueueItemCard({
           {difficultyLabel[item.difficulty as string] ?? item.difficulty}
         </span>
         {item.lessonTitle && (
-          <span className="max-w-[200px] truncate rounded-md bg-sky-50 px-2.5 py-1 text-xs font-medium text-sky-700 dark:bg-sky-950 dark:text-sky-400">
+          <span className="max-w-[200px] truncate rounded-md bg-info-soft px-2.5 py-1 text-xs font-medium text-info">
             {item.lessonTitle}
           </span>
         )}
       </div>
 
-      <div className="mt-4 flex items-center justify-between border-t border-slate-100 pt-3 text-xs text-slate-500 dark:border-slate-800 dark:text-slate-400">
+      <div className="mt-4 flex items-center justify-between border-t border-border pt-3 text-xs text-text-muted">
         <span>Tạo {formatRelativeTime(item.createdAt)}</span>
         <Link
           href={`/moderation/${item.id}`}
-          className="inline-flex items-center gap-1 font-medium text-indigo-600 transition hover:text-indigo-800 dark:text-indigo-400 dark:hover:text-indigo-300"
+          className="inline-flex items-center gap-1 text-sm font-semibold text-primary transition-colors hover:text-primary-hover hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
         >
           Xem & duyệt
           <svg
+            aria-hidden="true"
             className="h-3.5 w-3.5"
             fill="none"
             viewBox="0 0 24 24"
