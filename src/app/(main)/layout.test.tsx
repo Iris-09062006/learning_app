@@ -45,4 +45,16 @@ describe("MainLayout shell synchronization", () => {
 
     expect(screen.getByText("page content")).toBeInTheDocument();
   });
+
+  it("uses semantic shell colors without component-local dark palette overrides", async () => {
+    vi.mocked(authService.getCurrentUser).mockResolvedValue(null);
+
+    const element = await MainLayout({ children: <div>page content</div> });
+    const { container } = render(element);
+    const shell = container.firstElementChild;
+
+    expect(shell?.className).toContain("bg-background");
+    expect(shell?.className).toContain("text-text-primary");
+    expect(shell?.className).not.toMatch(/(?:slate-|indigo-|dark:)/u);
+  });
 });

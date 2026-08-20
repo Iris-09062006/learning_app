@@ -84,6 +84,7 @@ describe("AppNavigation", () => {
     expect(coursesLink.className).toContain("bg-primary-soft");
     expect(coursesLink.className).toContain("text-primary");
     expect(coursesLink.className).toContain("focus-visible:ring-focus-ring");
+    expect(coursesLink.className).not.toContain("transition-colors");
 
     // Active marker text shares the primary foreground for a coherent pill.
     const marker = coursesLink.querySelector('[aria-hidden="true"]');
@@ -177,6 +178,7 @@ describe("AppNavigation", () => {
     expect(coursesLink.className).toContain("bg-primary-soft");
     expect(coursesLink.className).toContain("text-primary");
     expect(coursesLink.className).toContain("focus-visible:ring-focus-ring");
+    expect(coursesLink.className).not.toContain("transition-colors");
   });
 
   it("keeps inactive mobile tabs neutral with a subtle hover treatment", () => {
