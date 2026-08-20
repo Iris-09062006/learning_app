@@ -11,6 +11,10 @@
 
 ## Active Task
 
+`TASK-086` is verified: the complete pedagogical Lesson model lock migrated from
+`gemini-3.6-flash` to the official GA `gemini-3.7-flash` identifier without changing endpoint,
+call budgets, pacing, persistence, citations, or public API behavior. Full local gates pass.
+
 `TASK-085` is verified: pedagogical provider requests are serialized to prevent Gemini quota bursts,
 and confirmed upstream HTTP 429 responses map to the recoverable rate-limit API contract. Full local
 gates pass without database mutation, push, or deployment.
@@ -82,6 +86,7 @@ Supabase Auth Redirect URLs wildcard and a fresh confirmation email.
 
 | Task ID | Title | Status | Phase | Evidence |
 |---|---|---|---|---|
+| `TASK-086` | Migrate Pedagogical Lessons to Gemini 3.7 Flash | VERIFIED | Content operations hotfix | `reports/TASK-086-implementation.md`, `reports/TASK-086-review.md`, `reports/TASK-086-test.md` |
 | `TASK-085` | Handle Gemini Lesson Generation Quota | VERIFIED | Content operations hotfix | `reports/TASK-085-implementation.md`, `reports/TASK-085-review.md`, `reports/TASK-085-test.md` |
 | `TASK-084` | Repair Live Pedagogical Lesson Generation | VERIFIED | Content operations hotfix | `reports/TASK-084-implementation.md`, `reports/TASK-084-review.md`, `reports/TASK-084-test.md` |
 | `TASK-083` | Pedagogical Lesson Generation Phase D | VERIFIED | Feature 003 Phase D | `reports/TASK-083-implementation.md`, `reports/TASK-083-review.md`, `reports/TASK-083-test.md` |

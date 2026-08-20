@@ -418,14 +418,14 @@ describe("Phase B pedagogical section normalization", () => {
     const provider: PedagogicalLessonProvider = {
       synthesizeEvidenceAndBlueprint: vi.fn(async () => {
         callOrder.push("synthesis_blueprint");
-        return { synthesis, blueprint, provider: "fake", model: "gemini-3.6-flash" };
+        return { synthesis, blueprint, provider: "fake", model: "gemini-3.7-flash" };
       }),
       generateLessonSections: vi.fn(async (
         request: Parameters<PedagogicalLessonProvider["generateLessonSections"]>[0]
       ) => {
         callOrder.push("sections");
         expect(request.evidenceRefMap.map((entry) => entry.documentChunkId)).toEqual([101, 202]);
-        return { result: candidate, provider: "fake", model: "gemini-3.6-flash" };
+        return { result: candidate, provider: "fake", model: "gemini-3.7-flash" };
       }),
       reviewLessonCandidate: vi.fn(),
       correctLessonCandidate: vi.fn(),
@@ -470,9 +470,9 @@ describe("Phase B pedagogical section normalization", () => {
     };
     const provider: PedagogicalLessonProvider = {
       synthesizeEvidenceAndBlueprint: vi.fn(async () => ({ synthesis: proceduralSynthesis,
-        blueprint: proceduralBlueprint, provider: "fake", model: "gemini-3.6-flash" })),
+        blueprint: proceduralBlueprint, provider: "fake", model: "gemini-3.7-flash" })),
       generateLessonSections: vi.fn(async () => ({ result: proceduralCandidate,
-        provider: "fake", model: "gemini-3.6-flash" })),
+        provider: "fake", model: "gemini-3.7-flash" })),
       reviewLessonCandidate: vi.fn(), correctLessonCandidate: vi.fn(),
     };
     const result = await generatePedagogicalLessonSections(proceduralJob, 71, chunks, provider);
@@ -490,11 +490,11 @@ describe("Phase B pedagogical section normalization", () => {
     };
     const reviewedProceduralProvider: PedagogicalLessonProvider = {
       synthesizeEvidenceAndBlueprint: vi.fn(async () => ({ synthesis: proceduralSynthesis,
-        blueprint: proceduralBlueprint, provider: "fake", model: "gemini-3.6-flash" })),
+        blueprint: proceduralBlueprint, provider: "fake", model: "gemini-3.7-flash" })),
       generateLessonSections: vi.fn(async () => ({ result: proceduralCandidate,
-        provider: "fake", model: "gemini-3.6-flash" })),
+        provider: "fake", model: "gemini-3.7-flash" })),
       reviewLessonCandidate: vi.fn(async () => ({ result: proceduralPassReview, provider: "fake",
-        model: "gemini-3.6-flash" })),
+        model: "gemini-3.7-flash" })),
       correctLessonCandidate: vi.fn(),
     };
     await expect(generateReviewedPedagogicalLesson(proceduralJob, 71, chunks, reviewedProceduralProvider))
@@ -528,21 +528,21 @@ describe("Phase B pedagogical section normalization", () => {
     const provider: PedagogicalLessonProvider = {
       synthesizeEvidenceAndBlueprint: vi.fn(async () => {
         callOrder.push("synthesis_blueprint");
-        return { synthesis, blueprint, provider: "fake", model: "gemini-3.6-flash" };
+        return { synthesis, blueprint, provider: "fake", model: "gemini-3.7-flash" };
       }),
       generateLessonSections: vi.fn(async () => {
         callOrder.push("sections");
-        return { result: generatedCandidate, provider: "fake", model: "gemini-3.6-flash" };
+        return { result: generatedCandidate, provider: "fake", model: "gemini-3.7-flash" };
       }),
       reviewLessonCandidate: vi.fn(async () => {
         callOrder.push("review");
         const next = reviews.shift();
         if (!next) throw new Error("unexpected review");
-        return { result: next, provider: "fake", model: "gemini-3.6-flash" };
+        return { result: next, provider: "fake", model: "gemini-3.7-flash" };
       }),
       correctLessonCandidate: vi.fn(async () => {
         callOrder.push("correction");
-        return { result: correctionResult, provider: "fake", model: "gemini-3.6-flash" };
+        return { result: correctionResult, provider: "fake", model: "gemini-3.7-flash" };
       }),
     };
     return { provider, callOrder };
@@ -644,7 +644,7 @@ describe("Phase B pedagogical section normalization", () => {
     expect(mocks.persistCourseLessonContentForJob).not.toHaveBeenCalled();
   });
 
-  function providerResponse(content: unknown, model = "gemini-3.6-flash") {
+  function providerResponse(content: unknown, model = "gemini-3.7-flash") {
     return new Response(JSON.stringify({ model, choices: [{ message: { content: JSON.stringify(content) } }] }),
       { status: 200 });
   }
@@ -658,7 +658,7 @@ describe("Phase B pedagogical section normalization", () => {
     await expect(generateReviewedPedagogicalLesson(courseJob(), 71, chunks, provider)).resolves.toBeDefined();
     expect(fetchMock).toHaveBeenCalledTimes(3);
     expect(fetchMock.mock.calls.map((call) => JSON.parse(String(call[1]?.body)).model))
-      .toEqual(["gemini-3.6-flash", "gemini-3.6-flash", "gemini-3.6-flash"]);
+      .toEqual(["gemini-3.7-flash", "gemini-3.7-flash", "gemini-3.7-flash"]);
   });
 
   it("uses exactly five raw HTTP requests on the complete correction path", async () => {
@@ -672,7 +672,7 @@ describe("Phase B pedagogical section normalization", () => {
     const result = await generateReviewedPedagogicalLesson(courseJob(), 71, chunks, provider);
     expect(fetchMock).toHaveBeenCalledTimes(5);
     expect(fetchMock.mock.calls.map((call) => JSON.parse(String(call[1]?.body)).model))
-      .toEqual(Array.from({ length: 5 }, () => "gemini-3.6-flash"));
+      .toEqual(Array.from({ length: 5 }, () => "gemini-3.7-flash"));
     expect(result.candidate.sections[1]).toEqual(candidate.sections[1]);
     expect(mocks.persistCourseLessonContentForJob).not.toHaveBeenCalled();
   });
@@ -1530,7 +1530,7 @@ describe("two-stage Course imports", () => {
           })),
         },
         provider: "fake",
-        model: "gemini-3.6-flash",
+        model: "gemini-3.7-flash",
       })),
       generateLessonSections: vi.fn<PedagogicalLessonProvider["generateLessonSections"]>(async (
         request: Parameters<PedagogicalLessonProvider["generateLessonSections"]>[0]
@@ -1548,7 +1548,7 @@ describe("two-stage Course imports", () => {
           })),
         },
         provider: "fake",
-        model: "gemini-3.6-flash",
+        model: "gemini-3.7-flash",
       })),
       reviewLessonCandidate: vi.fn<PedagogicalLessonProvider["reviewLessonCandidate"]>(async (
         request: Parameters<PedagogicalLessonProvider["reviewLessonCandidate"]>[0]
@@ -1556,7 +1556,7 @@ describe("two-stage Course imports", () => {
         result: { verdict: "pass" as const, findings: [],
           reviewedSectionKeys: request.candidate.sections.map((section) => section.sectionKey) },
         provider: "fake",
-        model: "gemini-3.6-flash",
+        model: "gemini-3.7-flash",
       })),
       correctLessonCandidate: vi.fn(),
     };
@@ -1667,7 +1667,7 @@ describe("two-stage Course imports", () => {
             : [`Nền tảng kết nối`, `Mạng hoạt động ra sao`, `Tình huống Wi-Fi`][order],
           teachingObjective: request.learningObjectives[0], synthesisItemKeys: ["approved"],
           evidenceRefs: [0], expectedElements: procedural ? ["ordered action"] : ["conceptual connection"] })) },
-        provider: "fake", model: "gemini-3.6-flash",
+        provider: "fake", model: "gemini-3.7-flash",
       };
     });
 
@@ -1833,7 +1833,7 @@ describe("two-stage Course imports", () => {
       result: { verdict: "reject" as const, findings: [{ findingKey: "scope", code: "OUTLINE_SCOPE_DRIFT" as const,
         disposition: "reject" as const, sectionKeys: [], message: "Reject drift." }],
         reviewedSectionKeys: request.candidate.sections.map((section) => section.sectionKey) },
-      provider: "fake", model: "gemini-3.6-flash",
+      provider: "fake", model: "gemini-3.7-flash",
     }) as Awaited<ReturnType<PedagogicalLessonProvider["reviewLessonCandidate"]>>);
 
     await expect(generateCourseLessonContents(61, provider)).rejects.toMatchObject({ code: "AI_PROVIDER_ERROR" });

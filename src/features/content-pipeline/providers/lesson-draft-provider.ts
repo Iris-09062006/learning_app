@@ -81,7 +81,7 @@ export class AiProviderRequestError extends Error {
   }
 }
 
-const PEDAGOGICAL_MODEL = "gemini-3.6-flash";
+const PEDAGOGICAL_MODEL = "gemini-3.7-flash";
 const PEDAGOGICAL_REQUEST_INTERVAL_MS = 12_500;
 
 const SYNTHESIS_BLUEPRINT_SCHEMA = {

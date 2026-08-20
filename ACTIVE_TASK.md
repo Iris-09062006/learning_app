@@ -1,12 +1,19 @@
 # Active Task Queue
 
-- **Active task:** `TASK-085` — Handle Gemini Lesson Generation Quota
+- **Active task:** `TASK-086` — Migrate Pedagogical Lessons to Gemini 3.7 Flash
 - **Status:** `VERIFIED`
 - **Owner / Reviewer:** Codex
 - **Deferred design task:** `TASK-047` (`DRAFT`)
 - **Previous blocked task:** `TASK-044` — external Supabase Redirect URL verification
 
 ## Current objective
+
+TASK-086 migrates the complete pedagogical Lesson model lock from `gemini-3.6-flash` to the GA
+`gemini-3.7-flash` identifier requested by the user. Endpoint, structured schemas, exact stage call
+budget, pacing, timeout, persistence, citations, and public API behavior remain unchanged. All local
+quality gates pass without a live AI request, database mutation, push, or deployment.
+
+## Previous verified objective
 
 TASK-085 handles the confirmed Gemini HTTP 429 behind local Course Lesson generation: pedagogical
 provider requests are serialized to prevent quota bursts, and upstream quota exhaustion maps to the
