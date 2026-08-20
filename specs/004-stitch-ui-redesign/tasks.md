@@ -454,7 +454,7 @@ Browser verification (mock Supabase `:54321` + dev `:3000`, `learner@example.com
 
 **Purpose**: Cross-cutting quality + the safe remainder of the A/B/C sweep across all mapped screens. Full `npm run ci` + full `npm run test:e2e` at the F boundary. No test weakening; no global regex replacement; D-bucket colors preserved.
 
-- [ ] **T036** [F1] Responsive sweep — all mapped screens
+- [x] **T036** [F1] Responsive sweep — all mapped screens
   - **Phase**: F · **Story**: US4 · **[P]**: no · **Prereq**: T023 + D/E progress
   - **Objective**: Desktop/tablet/mobile (1280/768/390) for every mapped screen; tables/forms overflow (users table, moderation forms), long Course/Lesson titles, code blocks — **no horizontal page scroll**; functional navigation + ≥44px touch targets reachable on mobile (FR-035).
   - **Files likely to change**: mapped screens' components (visual classes only).

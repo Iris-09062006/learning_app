@@ -115,7 +115,9 @@ describe("ModerationDetailView", () => {
     expect(
       screen.getByRole("heading", { name: "Kiểm duyệt bài tập" }),
     ).toBeInTheDocument();
-    expect(container.querySelector("main")).toBeInTheDocument();
+    expect(container.querySelector("main")).toHaveClass("min-w-0", "pb-16", "lg:pb-0");
+    expect(screen.getByRole("heading", { level: 1 })).toHaveClass("break-words");
+    expect(payload).toHaveClass("max-w-full", "overflow-x-auto");
   });
 
   it("publishes an approved item and shows the success state while re-fetching", async () => {

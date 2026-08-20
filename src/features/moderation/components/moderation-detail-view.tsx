@@ -151,7 +151,7 @@ export function ModerationDetailView({ id }: ModerationDetailViewProps) {
   const status = statusConfig[item.status] ?? defaultStatusConfig;
 
   return (
-    <main className="space-y-6">
+    <main className="min-w-0 space-y-6 pb-16 lg:pb-0">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <Link
           href="/moderation"
@@ -189,10 +189,10 @@ export function ModerationDetailView({ id }: ModerationDetailViewProps) {
         </div>
       )}
 
-      <div className="rounded-xl border border-border bg-surface p-6 shadow-sm">
+      <div className="min-w-0 rounded-xl border border-border bg-surface p-6 shadow-sm">
         <div className="flex flex-wrap items-start justify-between gap-3">
-          <div>
-            <h1 className="text-2xl font-bold text-text-primary">
+          <div className="min-w-0">
+            <h1 className="break-words text-2xl font-bold text-text-primary">
               {item.title}
             </h1>
             <p className="mt-1 text-sm text-text-muted">
@@ -205,7 +205,7 @@ export function ModerationDetailView({ id }: ModerationDetailViewProps) {
           </Badge>
         </div>
 
-        <p className="mt-4 text-sm leading-relaxed text-text-secondary">
+        <p className="mt-4 break-words text-sm leading-relaxed text-text-secondary">
           {item.description}
         </p>
 
@@ -256,7 +256,7 @@ export function ModerationDetailView({ id }: ModerationDetailViewProps) {
           <pre
             aria-label="Payload bài tập dạng JSON"
             tabIndex={0}
-            className="max-h-96 overflow-x-auto rounded-lg bg-code-background p-4 font-mono text-xs leading-relaxed text-code-text focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring"
+            className="max-h-96 max-w-full overflow-x-auto rounded-lg bg-code-background p-4 font-mono text-xs leading-relaxed text-code-text focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring"
           >
             {JSON.stringify(item.content, null, 2)}
           </pre>
