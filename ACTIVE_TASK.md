@@ -1,6 +1,6 @@
 # Active Task Queue
 
-- **Active task:** `TASK-088` — Feature 005 Per-Lesson Generation Phase B
+- **Active task:** `TASK-089` — Feature 005 Per-Lesson Generation Phase C
 - **Status:** `VERIFIED`
 - **Owner / Reviewer:** Codex
 - **Deferred design task:** `TASK-047` (`DRAFT`)
@@ -8,7 +8,7 @@
 
 ## Current objective
 
-TASK-088 adds the backend-only one-POST/one-Lesson generation endpoint, updates the exact pedagogical model invariant to `gemini-3.7-flash`, and preserves the verified three/five-call runner, persistence, Course-wide scheduler, regeneration, and downstream contracts. The frontend and its 60-second Continue timeout remain unchanged for Phase C.
+TASK-089 replaces the Admin generate-all Continue request with explicit sequential one-Lesson POSTs driven by refreshed persisted drafts, adds an isolated 300-second client timeout and accessible server-truth progress, and preserves all Phase B/backend, scheduler, database, and downstream contracts. Phase D is untouched.
 
 ## Previous verified objective
 

@@ -198,7 +198,7 @@ test("reviews an outline, generates Lesson contents, and atomically publishes a 
       stage = "outline";
       return respond({ jobId: 61, sourceDocumentId: 9, outlineRevision: 1, status: "outline_review" }, 201);
     }
-    if (pathname === "/api/admin/course-drafts/61/lessons/generate") {
+    if (/^\/api\/admin\/course-drafts\/61\/lessons\/\d+\/generate$/u.test(pathname)) {
       stage = "content";
       return respond({ jobId: 61, status: "content_review" }, 201);
     }
@@ -356,7 +356,7 @@ test("recovers a partial Tavily-unavailable manual URL with stored file evidence
     if (pathname === "/api/admin/course-drafts/31/sources" && request.method() === "POST") { attachedIds = [22, 23]; return respond({ jobId: 31, sourceDocumentId: 23, attached: true }, 201); }
     if (pathname === "/api/admin/course-drafts/31/sources/23" && request.method() === "DELETE") { attachedIds = [22]; stage = "stale"; return respond({ jobId: 31, sourceDocumentId: 23, outlineStale: true, sourceDocumentIds: [22] }); }
     if (pathname === "/api/admin/course-drafts/31/outline" && request.method() === "POST") { revision += 1; stage = "outline"; return respond({ jobId: 31, sourceDocumentId: 22, sourceDocumentIds: attachedIds, outlineRevision: revision, status: "outline_review" }, 201); }
-    if (pathname === "/api/admin/course-drafts/31/lessons/generate") { stage = "content"; return respond({ jobId: 31, status: "content_review" }, 201); }
+    if (/^\/api\/admin\/course-drafts\/31\/lessons\/\d+\/generate$/u.test(pathname)) { stage = "content"; return respond({ jobId: 31, status: "content_review" }, 201); }
     if (pathname === "/api/admin/course-drafts/31/reviews") { stage = "published"; return respond({ jobId: 31, sourceDocumentId: 22, sourceDocumentIds: [22], courseId: 41, status: "published", lessonIds: [51, 52] }); }
     return route.fallback();
   });
@@ -468,7 +468,7 @@ test("researches a topic, preserves Research More selection, and ingests only co
       return respond({ jobId: fixture.jobId, sourceDocumentId: initializedSources[0].sourceDocumentId, sourceDocumentIds: initializedSources.map((source) => source.sourceDocumentId) }, 201);
     }
     if (pathname === `/api/admin/course-drafts/${fixture.jobId}/outline` && request.method() === "POST") { stage = "outline"; return respond({ jobId: fixture.jobId, outlineRevision: 1, status: "outline_review" }, 201); }
-    if (pathname === `/api/admin/course-drafts/${fixture.jobId}/lessons/generate`) { stage = "content"; return respond({ jobId: fixture.jobId, status: "content_review" }, 201); }
+    if (new RegExp(`^/api/admin/course-drafts/${fixture.jobId}/lessons/\\d+/generate$`, "u").test(pathname)) { stage = "content"; return respond({ jobId: fixture.jobId, status: "content_review" }, 201); }
     if (pathname === `/api/admin/course-drafts/${fixture.jobId}/reviews`) { stage = "published"; return respond({ jobId: fixture.jobId, sourceDocumentId: initializedSources[0].sourceDocumentId, sourceDocumentIds: initializedSources.map((source) => source.sourceDocumentId), courseId: 51, status: "published", lessonIds: [61, 62] }); }
     return route.fallback();
   });
@@ -607,7 +607,7 @@ test("regenerates and publishes a stored multi-source Course while Tavily is una
       return respond({ jobId: 61, sourceDocumentId: 9, sourceDocumentIds: [9, 10],
         outlineRevision: revision, status: "outline_review" });
     }
-    if (pathname === "/api/admin/course-drafts/61/lessons/generate") {
+    if (/^\/api\/admin\/course-drafts\/61\/lessons\/\d+\/generate$/u.test(pathname)) {
       stage = "content";
       return respond({ jobId: 61, status: "content_review" }, 201);
     }
