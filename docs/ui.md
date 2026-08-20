@@ -1,5 +1,22 @@
 # UI Specification
 
+## Topic and source review on the Admin Course screen
+
+The Admin may keep the legacy file-only path or start with a topic. Research results are candidates
+only; explicit checkboxes select at most eight, Research More preserves selection, and confirmation
+alone starts selected-source ingestion. Manual URL and optional file attempts coexist with
+discovered sources.
+
+Each attempt shows Admin provenance/scores, status, source-specific failure, Retry, and Remove.
+Partial success remains usable; all-failed state blocks outline generation. A source change before
+Continue marks the outline stale and requires a replacement revision. Continue locks evidence,
+then the existing Lesson generation/content review/publication UI continues unchanged and links to
+the separate per-Lesson Exercise flow.
+
+Topic, selection, loading, partial-failure, retry, stale, and locked states preserve labels, native
+keyboard controls, visible focus, disabled/loading semantics, live status, and alert errors. No
+learner citation UI, score, or private provenance UI is added.
+
 ## TASK-056 Admin deletion controls
 
 - `/admin/users` labels deactivation of an active Learner as “Đuổi học viên”, explains

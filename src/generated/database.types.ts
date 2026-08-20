@@ -15,9 +15,15 @@ export type Database = {
   public: {
     Tables: {
       course_import_jobs: {
-        Row: { id: number; source_document_id: number; requested_by: string; status: Database["public"]["Enums"]["course_import_status"]; current_outline_revision: number; approved_outline_revision: number | null; error_code: string | null; published_course_id: number | null; created_at: string; updated_at: string }
-        Insert: { id?: never; source_document_id: number; requested_by: string; status?: Database["public"]["Enums"]["course_import_status"]; current_outline_revision?: number; approved_outline_revision?: number | null; error_code?: string | null; published_course_id?: number | null; created_at?: string; updated_at?: string }
-        Update: { id?: never; source_document_id?: number; requested_by?: string; status?: Database["public"]["Enums"]["course_import_status"]; current_outline_revision?: number; approved_outline_revision?: number | null; error_code?: string | null; published_course_id?: number | null; created_at?: string; updated_at?: string }
+        Row: { id: number; source_document_id: number; requested_by: string; status: Database["public"]["Enums"]["course_import_status"]; current_outline_revision: number; approved_outline_revision: number | null; error_code: string | null; published_course_id: number | null; initialization_key: string | null; initialization_fingerprint: string | null; created_at: string; updated_at: string }
+        Insert: { id?: never; source_document_id: number; requested_by: string; status?: Database["public"]["Enums"]["course_import_status"]; current_outline_revision?: number; approved_outline_revision?: number | null; error_code?: string | null; published_course_id?: number | null; initialization_key?: string | null; initialization_fingerprint?: string | null; created_at?: string; updated_at?: string }
+        Update: { id?: never; source_document_id?: number; requested_by?: string; status?: Database["public"]["Enums"]["course_import_status"]; current_outline_revision?: number; approved_outline_revision?: number | null; error_code?: string | null; published_course_id?: number | null; initialization_key?: string | null; initialization_fingerprint?: string | null; created_at?: string; updated_at?: string }
+        Relationships: []
+      }
+      course_import_job_sources: {
+        Row: { job_id: number; source_document_id: number; source_order: number; relevance_score: number | null; added_at: string }
+        Insert: { job_id: number; source_document_id: number; source_order: number; relevance_score?: number | null; added_at?: string }
+        Update: { job_id?: number; source_document_id?: number; source_order?: number; relevance_score?: number | null; added_at?: string }
         Relationships: []
       }
       course_drafts: {
@@ -898,12 +904,19 @@ export type Database = {
         }
         Relationships: []
       }
+      source_document_metadata: {
+        Row: { source_document_id: number; source_type: string; ingestion_method: string; source_url: string | null; canonical_url: string | null; title: string; domain: string | null; authority_score: number | null; discovered_from_source_document_id: number | null; fetched_at: string | null; created_at: string }
+        Insert: { source_document_id: number; source_type: string; ingestion_method: string; source_url?: string | null; canonical_url?: string | null; title: string; domain?: string | null; authority_score?: number | null; discovered_from_source_document_id?: number | null; fetched_at?: string | null; created_at?: string }
+        Update: { source_document_id?: number; source_type?: string; ingestion_method?: string; source_url?: string | null; canonical_url?: string | null; title?: string; domain?: string | null; authority_score?: number | null; discovered_from_source_document_id?: number | null; fetched_at?: string | null; created_at?: string }
+        Relationships: []
+      }
       source_documents: {
         Row: {
           created_at: string
           error_code: string | null
           extracted_char_count: number | null
           id: number
+          initialize_import_job: boolean
           mime_type: string
           original_filename: string
           sha256: string | null
@@ -919,6 +932,7 @@ export type Database = {
           error_code?: string | null
           extracted_char_count?: number | null
           id?: never
+          initialize_import_job?: boolean
           mime_type: string
           original_filename: string
           sha256?: string | null
@@ -934,6 +948,7 @@ export type Database = {
           error_code?: string | null
           extracted_char_count?: number | null
           id?: never
+          initialize_import_job?: boolean
           mime_type?: string
           original_filename?: string
           sha256?: string | null
@@ -1078,9 +1093,37 @@ export type Database = {
         Args: { p_source_document_id: number; p_outline: Json; p_provider: string; p_model: string | null }
         Returns: Json
       }
+      create_course_outline_for_job: {
+        Args: { p_job_id: number; p_outline: Json; p_provider: string; p_model: string | null }
+        Returns: Json
+      }
+      materialize_course_import_source: {
+        Args: { p_original_filename: string; p_storage_path: string; p_mime_type: string; p_size_bytes: number; p_source_type: string; p_ingestion_method: string; p_source_url?: string | null; p_canonical_url?: string | null; p_title?: string | null; p_domain?: string | null; p_authority_score?: number | null; p_discovered_from_source_document_id?: number | null; p_fetched_at?: string | null }
+        Returns: Json
+      }
+      initialize_course_import_from_sources: {
+        Args: { p_initialization_key: string; p_sources: Json }
+        Returns: Json
+      }
+      attach_course_import_source: {
+        Args: { p_job_id: number; p_source_document_id: number; p_relevance_score?: number | null }
+        Returns: Json
+      }
+      detach_course_import_source: {
+        Args: { p_job_id: number; p_source_document_id: number }
+        Returns: Json
+      }
+      remove_staged_course_import_source: {
+        Args: { p_source_document_id: number }
+        Returns: Json
+      }
       prepare_course_lesson_generation: { Args: { p_job_id: number }; Returns: Json }
       persist_lesson_content_draft: {
         Args: { p_job_id: number; p_outline_lesson_id: number; p_title: string; p_summary: string; p_estimated_minutes: number; p_sections: Json; p_provider: string; p_model: string }
+        Returns: Json
+      }
+      persist_lesson_content_draft_for_job: {
+        Args: { p_job_id: number; p_outline_lesson_id: number; p_title: string; p_summary: string; p_estimated_minutes: number; p_sections: Json; p_citations: Json; p_provider: string; p_model: string }
         Returns: Json
       }
       fail_course_import_job: { Args: { p_job_id: number; p_error_code: string }; Returns: undefined }

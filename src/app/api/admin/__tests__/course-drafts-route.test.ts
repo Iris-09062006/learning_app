@@ -17,13 +17,40 @@ describe("Admin Course draft routes", () => {
   beforeEach(() => vi.clearAllMocks());
 
   it("returns the unresolved Course batch queue without caching", async () => {
-    serviceMocks.getCourseDraftQueue.mockResolvedValue([{ sourceDocumentId: 9 }]);
+    serviceMocks.getCourseDraftQueue.mockResolvedValue([{
+      jobId: 61,
+      sourceDocumentId: 9,
+      sourceFilename: "anchor.pdf",
+      sources: [
+        { sourceDocumentId: 9, sourceOrder: 0, sourceType: "file", title: "anchor.pdf" },
+        { sourceDocumentId: 10, sourceOrder: 1, sourceType: "web_page", title: "Reference" },
+      ],
+      lessons: [{
+        sourceChunkIndexes: [0, 0],
+        sourceChunks: [
+          { documentChunkId: 101, sourceDocumentId: 9, sourceOrder: 0, chunkIndex: 0 },
+          { documentChunkId: 202, sourceDocumentId: 10, sourceOrder: 1, chunkIndex: 0 },
+        ],
+      }],
+    }]);
     const response = await GET();
     expect(response.headers.get("Cache-Control")).toBe("no-store");
-    await expect(response.json()).resolves.toEqual({
+    const payload = await response.json();
+    expect(payload).toMatchObject({
       success: true,
-      data: { items: [{ sourceDocumentId: 9 }] },
+      data: { items: [{
+        sourceDocumentId: 9,
+        sourceFilename: "anchor.pdf",
+        sources: [
+          { sourceDocumentId: 9, sourceOrder: 0 },
+          { sourceDocumentId: 10, sourceOrder: 1 },
+        ],
+      }] },
     });
+    expect(payload.data.items[0].lessons[0].sourceChunks).toEqual([
+      { documentChunkId: 101, sourceDocumentId: 9, sourceOrder: 0, chunkIndex: 0 },
+      { documentChunkId: 202, sourceDocumentId: 10, sourceOrder: 1, chunkIndex: 0 },
+    ]);
   });
 
   it("submits one persisted decision for the Course import job", async () => {

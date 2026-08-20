@@ -45,6 +45,22 @@ describe("FixTheBugDragDrop", () => {
     );
   });
 
+  it("shows a focus-visible indicator when the empty slot moves focus to the options", () => {
+    render(<FixTheBugDragDrop options={options} value={null} onChange={vi.fn()} />);
+
+    fireEvent.click(
+      screen.getByRole("button", {
+        name: "Chọn mảnh code ở bên dưới để điền vào vị trí này",
+      }),
+    );
+
+    const optionsGroup = screen.getByRole("button", {
+      name: "Mảnh code: return x + 1;",
+    }).parentElement as HTMLElement;
+    expect(optionsGroup).toHaveFocus();
+    expect(optionsGroup).toHaveClass("focus-visible:ring-focus-ring");
+  });
+
   it("shows the selected option in the drop zone and removes it from the list", () => {
     const onChange = vi.fn();
     render(<FixTheBugDragDrop options={options} value={1} onChange={onChange} />);
@@ -54,6 +70,22 @@ describe("FixTheBugDragDrop", () => {
     expect(
       screen.queryByRole("button", { name: "Mảnh code: return x + 1;" })
     ).not.toBeInTheDocument();
+  });
+
+  it("contains long code fragments with local horizontal scrolling", () => {
+    const longCode = `result = ${"identifier".repeat(80)}`;
+    const longOptions = [{ id: 9, content: longCode, order: 1 }];
+    const { rerender } = render(
+      <FixTheBugDragDrop options={longOptions} value={null} onChange={vi.fn()} />,
+    );
+
+    const availableCode = screen.getByText(longCode);
+    expect(availableCode).toHaveClass("block", "max-w-full", "overflow-x-auto");
+    expect(availableCode.parentElement).toHaveClass("min-w-0");
+
+    rerender(<FixTheBugDragDrop options={longOptions} value={9} onChange={vi.fn()} />);
+    const selectedCode = screen.getByText(longCode);
+    expect(selectedCode).toHaveClass("min-w-0", "flex-1", "overflow-x-auto");
   });
 
   it("clears the selection when the remove button is clicked", () => {
@@ -122,5 +154,25 @@ describe("FixTheBugDragDrop", () => {
     expect(
       screen.getByText("Đã đặt tất cả mảnh code. Nhấn “Gỡ bỏ” nếu muốn đổi lựa chọn.")
     ).toBeInTheDocument();
+  });
+it("uses Stitch tokens and no legacy palette classes", () => {
+    const { container } = render(
+      <FixTheBugDragDrop options={options} value={1} onChange={vi.fn()} />
+    );
+
+    // Drop zone idle state → design-token border.
+    expect(screen.getByTestId("drop-zone")).toHaveClass("border-strong");
+
+    // Selected option chip → code tokens.
+    expect(screen.getByText("return x + 1;")).toHaveClass("bg-code-background");
+
+    // Option card → surface/primary tokens.
+    const optionCard = screen.getByRole("button", { name: "Mảnh code: return x - 1;" });
+    expect(optionCard).toHaveClass("bg-surface", "border-border");
+
+    // No legacy palette utilities (slate/indigo/emerald/rose/white) remain.
+    expect(container.innerHTML).not.toMatch(
+      /(^|\s)(bg|text|border|shadow|ring)-(slate|indigo|emerald|rose|white)-\d+/
+    );
   });
 });

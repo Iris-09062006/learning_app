@@ -112,23 +112,23 @@ export const FixTheBugDragDrop: React.FC<FixTheBugDragDropProps> = ({
         className={[
           "rounded-xl border-2 border-dashed p-4 transition-colors duration-200",
           isDragOver
-            ? "border-indigo-500 bg-indigo-50 dark:border-indigo-400 dark:bg-indigo-950"
-            : "border-slate-300 dark:border-slate-700",
+            ? "border-primary bg-primary-soft"
+            : "border-strong",
         ].join(" ")}
       >
-        <p className="text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
+        <p className="text-xs font-semibold uppercase tracking-wide text-text-muted">
           Vị trí trống — kéo mảnh code vào đây
         </p>
 
         {selectedOption ? (
-          <div className="mt-3 flex items-center justify-between gap-3">
-            <code className="rounded-lg bg-slate-950 px-4 py-3 font-mono text-sm leading-6 text-emerald-300">
+          <div className="mt-3 flex min-w-0 items-center justify-between gap-3">
+            <code className="block min-w-0 flex-1 overflow-x-auto rounded-lg bg-code-background px-4 py-3 font-mono text-sm leading-6 text-code-text">
               {selectedOption.content}
             </code>
             <button
               type="button"
               onClick={clearOption}
-              className="shrink-0 cursor-pointer rounded-lg border border-slate-300 px-3 py-1.5 text-xs font-medium text-slate-600 transition-colors duration-200 hover:border-rose-300 hover:bg-rose-50 hover:text-rose-700 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-500 dark:border-slate-600 dark:text-slate-300 dark:hover:border-rose-700 dark:hover:bg-rose-950/40 dark:hover:text-rose-300"
+              className="shrink-0 cursor-pointer rounded-lg border border-border bg-surface px-3 py-1.5 text-xs font-medium text-text-secondary transition-colors duration-200 hover:border-danger hover:bg-danger-soft hover:text-danger focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
             >
               Gỡ bỏ
             </button>
@@ -137,7 +137,7 @@ export const FixTheBugDragDrop: React.FC<FixTheBugDragDropProps> = ({
           <button
             type="button"
             onClick={focusOptions}
-            className="mt-3 w-full cursor-pointer rounded-lg border border-slate-200 bg-slate-50 px-4 py-4 text-left text-sm text-slate-500 transition-colors duration-200 hover:border-indigo-300 hover:bg-indigo-50/40 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-500 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-400 dark:hover:border-indigo-700 dark:hover:bg-indigo-950/30"
+            className="mt-3 w-full cursor-pointer rounded-lg border border-border bg-surface-subtle px-4 py-4 text-left text-sm text-text-muted transition-colors duration-200 hover:border-primary hover:bg-primary-soft focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
           >
             Chọn mảnh code ở bên dưới để điền vào vị trí này
           </button>
@@ -146,12 +146,12 @@ export const FixTheBugDragDrop: React.FC<FixTheBugDragDropProps> = ({
 
       {/* Options list */}
       <div>
-        <p className="text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
+        <p className="text-xs font-semibold uppercase tracking-wide text-text-muted">
           Các mảnh code
         </p>
 
         {availableOptions.length === 0 ? (
-          <p className="mt-3 rounded-lg border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-500 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-400">
+          <p className="mt-3 rounded-lg border border-border bg-surface-subtle px-4 py-3 text-sm text-text-secondary">
             Đã đặt tất cả mảnh code. Nhấn “Gỡ bỏ” nếu muốn đổi lựa chọn.
           </p>
         ) : (
@@ -159,7 +159,7 @@ export const FixTheBugDragDrop: React.FC<FixTheBugDragDropProps> = ({
             ref={optionsRef}
             tabIndex={-1}
             className={[
-              "mt-3 grid gap-3 sm:grid-cols-2",
+              "mt-3 grid rounded-xl gap-3 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background sm:grid-cols-2",
               isDragging ? "opacity-60" : "",
             ].join(" ")}
           >
@@ -172,9 +172,9 @@ export const FixTheBugDragDrop: React.FC<FixTheBugDragDropProps> = ({
                 onDragStart={(event) => handleDragStart(event, option)}
                 onDragEnd={handleDragEnd}
                 aria-label={`Mảnh code: ${option.content}`}
-                className="cursor-pointer rounded-xl border border-slate-200 bg-white p-4 text-left shadow-sm transition-all duration-200 hover:border-indigo-300 hover:shadow-md focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-500 active:cursor-grabbing dark:border-slate-800 dark:bg-slate-900 dark:hover:border-indigo-700"
+                className="min-w-0 cursor-pointer rounded-xl border border-border bg-surface p-4 text-left shadow-sm transition-all duration-200 hover:border-primary hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background active:cursor-grabbing"
               >
-                <code className="font-mono text-sm leading-6 text-slate-200">
+                <code className="block max-w-full overflow-x-auto font-mono text-sm leading-6 text-code-text">
                   {option.content}
                 </code>
               </button>

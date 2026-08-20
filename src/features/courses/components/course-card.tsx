@@ -10,41 +10,41 @@ export const CourseCard: React.FC<CourseCardProps> = ({ course }) => {
   return (
     <div
       data-testid="course-card"
-      className="flex flex-col justify-between rounded-xl border border-slate-200 bg-white p-6 shadow-sm transition-all duration-300 hover:-translate-y-0.5 hover:border-indigo-200 hover:shadow-lg hover:shadow-indigo-100/60 motion-reduce:transform-none motion-reduce:transition-none dark:border-slate-800 dark:bg-slate-900 dark:hover:border-indigo-500/40 dark:hover:shadow-indigo-950/40"
+      className="flex min-w-0 flex-col justify-between rounded-xl border border-border bg-surface p-6 shadow-sm transition-all duration-300 hover:-translate-y-0.5 hover:shadow-lg motion-reduce:transform-none motion-reduce:transition-none"
     >
       <div>
         <div className="flex items-center justify-between gap-2">
-          <span className="inline-block rounded-md bg-indigo-50 px-2.5 py-1 text-xs font-semibold text-indigo-600 dark:bg-indigo-950 dark:text-indigo-400">
+          <span className="inline-block rounded-md bg-primary-soft px-2.5 py-1 text-xs font-semibold text-primary">
             {course.language.toUpperCase()}
           </span>
-          <span className="text-xs text-slate-500 capitalize dark:text-slate-400">
+          <span className="text-xs text-text-muted capitalize">
             {course.level}
           </span>
         </div>
 
-        <h3 className="mt-3 text-lg font-bold text-slate-900 dark:text-white">
+        <h3 className="mt-3 line-clamp-2 break-words text-lg font-bold text-text-primary" title={course.title}>
           {course.title}
         </h3>
 
-        <p className="mt-2 text-sm text-slate-600 line-clamp-2 dark:text-slate-300">
+        <p className="mt-2 line-clamp-2 break-words text-sm text-text-secondary">
           {course.description || "Chưa có mô tả cho khóa học này."}
         </p>
       </div>
 
-      <div className="mt-6 flex items-center justify-between border-t border-slate-100 pt-4 dark:border-slate-800">
+      <div className="mt-6 flex flex-wrap items-center justify-between gap-3 border-t border-border pt-4">
         {course.isEnrolled ? (
-          <span className="text-xs font-medium text-emerald-600 dark:text-emerald-400">
+          <span className="min-w-0 break-words text-xs font-medium text-success">
             Đã đăng ký ({course.completionPercentage ?? 0}%)
           </span>
         ) : (
-          <span className="text-xs font-medium text-slate-500 dark:text-slate-400">
+          <span className="min-w-0 break-words text-xs font-medium text-text-muted">
             Chưa đăng ký
           </span>
         )}
 
         <Link
           href={`/courses/${course.id}`}
-          className="group/link inline-flex cursor-pointer items-center gap-1 text-sm font-semibold text-indigo-600 transition-colors duration-200 hover:text-indigo-500 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-500 dark:text-indigo-400"
+          className="group/link inline-flex shrink-0 cursor-pointer items-center gap-1 text-sm font-semibold text-primary transition-colors duration-200 hover:text-primary-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
         >
           {course.isEnrolled ? "Tiếp tục học" : "Xem chi tiết"}
           <span aria-hidden="true" className="transition-transform duration-200 group-hover/link:translate-x-0.5 motion-reduce:transform-none motion-reduce:transition-none">&rarr;</span>

@@ -61,7 +61,7 @@ export function CourseLearningRecommendation({
   if (state.status === "loading") {
     return (
       <div
-        className="h-36 animate-pulse rounded-xl border border-slate-200 bg-slate-100 motion-reduce:animate-none dark:border-slate-800 dark:bg-slate-900"
+        className="h-36 animate-pulse rounded-xl border border-border bg-surface-subtle motion-reduce:animate-none"
         aria-label="Đang tải gợi ý học tập"
         role="status"
       />

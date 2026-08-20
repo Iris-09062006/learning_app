@@ -109,7 +109,13 @@ describe("course service", () => {
     };
     vi.mocked(fetchCourseDetail).mockResolvedValueOnce(detail);
 
-    await expect(getCourseById(1)).resolves.toEqual(detail);
+    const response = await getCourseById(1);
+    expect(response).toEqual(detail);
+    const serialized = JSON.stringify(response);
+    for (const forbidden of ["authorityScore", "relevanceScore", "sourceUrl", "canonicalUrl",
+      "sourceDocumentId", "sourceBody", "citation", "provenance"]) {
+      expect(serialized).not.toContain(forbidden);
+    }
     expect(fetchCourseDetail).toHaveBeenCalledWith(1);
   });
 

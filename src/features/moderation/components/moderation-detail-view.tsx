@@ -4,18 +4,44 @@ import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
 import type { ModerationQueueItem } from "../types";
 import { ModerationReviewForm } from "./moderation-review-form";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { StatePanel } from "@/components/ui/state-panel";
 
 interface ModerationDetailViewProps {
   id: number;
 }
 
-const statusBadge: Record<string, string> = {
-  pending: "border-slate-200 bg-slate-50 text-slate-700",
-  under_review: "border-amber-200 bg-amber-50 text-amber-800",
-  approved: "border-emerald-200 bg-emerald-50 text-emerald-800",
-  needs_revision: "border-amber-200 bg-amber-50 text-amber-800",
-  rejected: "border-red-200 bg-red-50 text-red-800",
-  published: "border-indigo-200 bg-indigo-50 text-indigo-800",
+const statusConfig: Record<string, { badge: string; dot: string }> = {
+  pending: {
+    badge: "bg-warning-soft text-warning",
+    dot: "bg-warning",
+  },
+  under_review: {
+    badge: "bg-info-soft text-info",
+    dot: "bg-info",
+  },
+  approved: {
+    badge: "bg-success-soft text-success",
+    dot: "bg-success",
+  },
+  needs_revision: {
+    badge: "bg-warning-soft text-warning",
+    dot: "bg-warning",
+  },
+  rejected: {
+    badge: "bg-danger-soft text-danger",
+    dot: "bg-danger",
+  },
+  published: {
+    badge: "bg-primary-soft text-primary",
+    dot: "bg-primary",
+  },
+};
+
+const defaultStatusConfig = {
+  badge: "bg-surface-subtle text-text-secondary",
+  dot: "bg-text-muted",
 };
 
 export function ModerationDetailView({ id }: ModerationDetailViewProps) {
@@ -34,9 +60,9 @@ export function ModerationDetailView({ id }: ModerationDetailViewProps) {
       const res = await fetch(`/api/moderation/generated-exercises/${id}`);
       if (!res.ok) {
         if (res.status === 404) {
-          throw new Error("Generated exercise not found");
+          throw new Error("Bài tập không tồn tại");
         }
-        throw new Error("Failed to fetch exercise details");
+        throw new Error("Không thể tải chi tiết bài tập");
       }
       const data: ModerationQueueItem = await res.json();
       setItem(data);
@@ -44,7 +70,7 @@ export function ModerationDetailView({ id }: ModerationDetailViewProps) {
       if (err instanceof Error) {
         setError(err.message);
       } else {
-        setError("An error occurred");
+        setError("Đã xảy ra lỗi");
       }
     } finally {
       setLoading(false);
@@ -67,7 +93,7 @@ export function ModerationDetailView({ id }: ModerationDetailViewProps) {
 
       if (!res.ok) {
         const data = await res.json();
-        throw new Error(data.error || "Failed to publish exercise");
+        throw new Error(data.error || "Không thể xuất bản bài tập");
       }
 
       const result = await res.json();
@@ -79,7 +105,7 @@ export function ModerationDetailView({ id }: ModerationDetailViewProps) {
       if (err instanceof Error) {
         setPublishError(err.message);
       } else {
-        setPublishError("Failed to publish exercise");
+        setPublishError("Không thể xuất bản bài tập");
       }
     } finally {
       setPublishing(false);
@@ -88,127 +114,129 @@ export function ModerationDetailView({ id }: ModerationDetailViewProps) {
 
   if (loading) {
     return (
-      <div className="space-y-6">
-        <div className="h-5 w-40 animate-pulse rounded bg-slate-200 dark:bg-slate-800" />
-        <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm dark:border-slate-800 dark:bg-slate-900">
+      <main aria-busy="true" className="space-y-6">
+        <span className="sr-only" role="status">Đang tải chi tiết kiểm duyệt…</span>
+        <div className="h-5 w-40 animate-pulse rounded bg-surface-container" />
+        <div className="rounded-xl border border-border bg-surface p-6 shadow-sm">
           <div className="space-y-3">
-            <div className="h-7 w-2/3 animate-pulse rounded bg-slate-200 dark:bg-slate-800" />
-            <div className="h-4 w-1/2 animate-pulse rounded bg-slate-200 dark:bg-slate-800" />
-            <div className="h-4 w-full animate-pulse rounded bg-slate-100 dark:bg-slate-800" />
-            <div className="h-4 w-5/6 animate-pulse rounded bg-slate-100 dark:bg-slate-800" />
-            <div className="h-48 w-full animate-pulse rounded-md bg-slate-100 dark:bg-slate-800" />
+            <div className="h-7 w-2/3 animate-pulse rounded bg-surface-container" />
+            <div className="h-4 w-1/2 animate-pulse rounded bg-surface-container" />
+            <div className="h-4 w-full animate-pulse rounded bg-surface-container" />
+            <div className="h-4 w-5/6 animate-pulse rounded bg-surface-container" />
+            <div className="h-48 w-full animate-pulse rounded-lg bg-surface-container" />
           </div>
         </div>
-      </div>
+      </main>
     );
   }
 
   if (error || !item) {
     return (
-      <div className="space-y-4">
+      <main className="space-y-4">
         <Link
           href="/moderation"
-          className="inline-flex items-center gap-1.5 text-sm font-medium text-indigo-600 transition hover:text-indigo-500 dark:text-indigo-400"
+          className="inline-flex items-center gap-1.5 text-sm font-medium text-primary transition hover:text-primary-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
         >
-          &larr; Back to Moderation Queue
+          &larr; Quay lại hàng đợi kiểm duyệt
         </Link>
-        <div className="rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-700 dark:border-red-800 dark:bg-red-950 dark:text-red-300">
-          <p className="font-semibold">Error</p>
-          <p className="mt-0.5">{error || "Item not found"}</p>
-        </div>
-      </div>
+        <StatePanel variant="error" title="Lỗi">
+          {error || "Bài tập không tồn tại"}
+        </StatePanel>
+      </main>
     );
   }
 
-  const badgeClass = statusBadge[item.status] ?? statusBadge.pending;
+  const status = statusConfig[item.status] ?? defaultStatusConfig;
 
   return (
-    <div className="space-y-6">
+    <main className="min-w-0 space-y-6 pb-16 lg:pb-0">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <Link
           href="/moderation"
-          className="inline-flex items-center gap-1.5 text-sm font-medium text-indigo-600 transition hover:text-indigo-500 dark:text-indigo-400"
+          className="inline-flex items-center gap-1.5 text-sm font-medium text-primary transition hover:text-primary-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
         >
-          &larr; Back to Queue
+          &larr; Quay lại hàng đợi kiểm duyệt
         </Link>
 
         {item.status === "approved" && (
-          <button
+          <Button
             onClick={handlePublish}
+            isLoading={publishing}
             disabled={publishing}
-            className="inline-flex items-center gap-2 rounded-md bg-emerald-600 px-4 py-2 text-sm font-medium text-white shadow-sm transition hover:bg-emerald-500 disabled:cursor-not-allowed disabled:opacity-50"
           >
-            {publishing && (
-              <span className="h-4 w-4 animate-spin rounded-full border-2 border-white/40 border-t-white" />
-            )}
             {publishing ? "Publishing..." : "Publish to Production"}
-          </button>
+          </Button>
         )}
       </div>
 
       {publishError && (
-        <div className="rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-700 dark:border-red-800 dark:bg-red-950 dark:text-red-300">
+        <div
+          role="alert"
+          className="rounded-xl border border-danger bg-danger-soft px-4 py-3 text-sm font-medium text-danger"
+        >
           {publishError}
         </div>
       )}
 
       {publishSuccess && (
-        <div className="rounded-lg border border-emerald-200 bg-emerald-50 p-4 text-sm text-emerald-700 dark:border-emerald-800 dark:bg-emerald-950 dark:text-emerald-300">
+        <div
+          role="alert"
+          className="rounded-xl border border-success bg-success-soft px-4 py-3 text-sm font-medium text-success"
+        >
           {publishSuccess}
         </div>
       )}
 
-      <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm dark:border-slate-800 dark:bg-slate-900">
+      <div className="min-w-0 rounded-xl border border-border bg-surface p-6 shadow-sm">
         <div className="flex flex-wrap items-start justify-between gap-3">
-          <div>
-            <h1 className="text-2xl font-bold text-slate-900 dark:text-white">
+          <div className="min-w-0">
+            <h1 className="break-words text-2xl font-bold text-text-primary">
               {item.title}
             </h1>
-            <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
-              ID: #{item.id} | Lesson: {item.lessonTitle ?? `#${item.lessonId}`}
+            <p className="mt-1 break-words text-sm text-text-muted">
+              ID: #{item.id} | Bài học: {item.lessonTitle ?? `#${item.lessonId}`}
             </p>
           </div>
-          <span
-            className={`rounded-full border px-3 py-1 text-sm font-semibold capitalize ${badgeClass}`}
-          >
+          <Badge className={`shrink-0 gap-1.5 font-semibold ${status.badge}`}>
+            <span aria-hidden="true" className={`size-1.5 rounded-full ${status.dot}`} />
             {item.status.replace("_", " ")}
-          </span>
+          </Badge>
         </div>
 
-        <p className="mt-4 text-sm leading-relaxed text-slate-700 dark:text-slate-300">
+        <p className="mt-4 break-words text-sm leading-relaxed text-text-secondary">
           {item.description}
         </p>
 
-        <div className="mt-4 grid grid-cols-1 gap-4 border-y border-slate-200 py-4 text-sm text-slate-600 dark:border-slate-800 dark:text-slate-400 sm:grid-cols-2 lg:grid-cols-4">
+        <div className="mt-4 grid min-w-0 grid-cols-1 gap-4 border-y border-border py-4 text-sm sm:grid-cols-2 lg:grid-cols-4">
           <div>
-            <span className="block text-xs font-semibold uppercase tracking-wide text-slate-400 dark:text-slate-500">
-              Type
+            <span className="block text-xs font-semibold uppercase tracking-wide text-text-muted">
+              Loại
             </span>
-            <span className="mt-1 block font-medium capitalize text-slate-900 dark:text-white">
+            <span className="mt-1 block break-words font-medium capitalize text-text-primary">
               {item.exerciseType.replace("_", " ")}
             </span>
           </div>
           <div>
-            <span className="block text-xs font-semibold uppercase tracking-wide text-slate-400 dark:text-slate-500">
-              Difficulty
+            <span className="block text-xs font-semibold uppercase tracking-wide text-text-muted">
+              Độ khó
             </span>
-            <span className="mt-1 block font-medium capitalize text-slate-900 dark:text-white">
+            <span className="mt-1 block break-words font-medium capitalize text-text-primary">
               {item.difficulty}
             </span>
           </div>
           <div>
-            <span className="block text-xs font-semibold uppercase tracking-wide text-slate-400 dark:text-slate-500">
-              AI Provider
+            <span className="block text-xs font-semibold uppercase tracking-wide text-text-muted">
+              Nhà cung cấp AI
             </span>
-            <span className="mt-1 block font-medium capitalize text-slate-900 dark:text-white">
+            <span className="mt-1 block break-words font-medium capitalize text-text-primary">
               {item.provider} ({item.model || "N/A"})
             </span>
           </div>
           <div>
-            <span className="block text-xs font-semibold uppercase tracking-wide text-slate-400 dark:text-slate-500">
-              Created At
+            <span className="block text-xs font-semibold uppercase tracking-wide text-text-muted">
+              Ngày tạo
             </span>
-            <span className="mt-1 block font-medium text-slate-900 dark:text-white">
+            <span className="mt-1 block font-medium text-text-primary">
               {new Date(item.createdAt).toLocaleString()}
             </span>
           </div>
@@ -216,30 +244,40 @@ export function ModerationDetailView({ id }: ModerationDetailViewProps) {
 
         <div className="mt-4">
           <div className="mb-2 flex items-center justify-between">
-            <h3 className="text-sm font-bold text-slate-900 dark:text-white">
-              Exercise Payload (JSON)
+            <h3 className="text-sm font-semibold text-text-primary">
+              Payload bài tập (JSON)
             </h3>
-            <span className="rounded-full bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-500 dark:bg-slate-800 dark:text-slate-400">
+            <span className="rounded-full bg-surface-container px-2.5 py-0.5 text-xs font-medium text-text-secondary">
               {JSON.stringify(item.content).length.toLocaleString()} bytes
             </span>
           </div>
-          <pre className="max-h-96 overflow-x-auto rounded-lg bg-slate-900 p-4 font-mono text-xs leading-relaxed text-slate-100 dark:bg-slate-950 dark:text-slate-200">
+          <pre
+            aria-label="Payload bài tập dạng JSON"
+            tabIndex={0}
+            className="max-h-96 max-w-full overflow-x-auto rounded-lg bg-code-background p-4 font-mono text-xs leading-relaxed text-code-text focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring"
+          >
             {JSON.stringify(item.content, null, 2)}
           </pre>
         </div>
       </div>
 
       {item.reviews && item.reviews.length > 0 && (
-        <section className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm dark:border-slate-800 dark:bg-slate-900">
-          <h2 className="text-lg font-bold text-slate-900 dark:text-white">Lịch sử kiểm duyệt</h2>
+        <section className="rounded-xl border border-border bg-surface p-6 shadow-sm">
+          <h2 className="text-lg font-semibold text-text-primary">Lịch sử kiểm duyệt</h2>
           <ol className="mt-4 space-y-3">
             {item.reviews.map((review) => (
-              <li key={review.id} className="rounded-md border border-slate-200 p-3 text-sm dark:border-slate-700">
-                <div className="flex justify-between gap-3">
-                  <strong>{review.status.replace("_", " ")}</strong>
-                  <time>{new Date(review.createdAt).toLocaleString()}</time>
+              <li key={review.id} className="rounded-lg border border-border bg-surface-subtle p-3 text-sm">
+                <div className="flex flex-wrap justify-between gap-3">
+                  <strong className="capitalize text-text-primary">
+                    {review.status.replace("_", " ")}
+                  </strong>
+                  <time className="text-text-muted">
+                    {new Date(review.createdAt).toLocaleString()}
+                  </time>
                 </div>
-                {review.feedback && <p className="mt-1 text-slate-600 dark:text-slate-300">{review.feedback}</p>}
+                {review.feedback && (
+                  <p className="mt-1 break-words text-text-secondary">{review.feedback}</p>
+                )}
               </li>
             ))}
           </ol>
@@ -257,6 +295,6 @@ export function ModerationDetailView({ id }: ModerationDetailViewProps) {
           onSuccess={fetchDetail}
         />
       )}
-    </div>
+    </main>
   );
 }

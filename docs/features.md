@@ -1,5 +1,18 @@
 # Features Specification
 
+## F-AICOURSE-03 — Topic-based reviewed multi-source Course creation
+
+An active Admin may research a topic, review up to 20 stateless candidates, explicitly select up
+to eight discovered/manual/file sources, and ingest only that set. Every accepted web page becomes
+immutable private evidence. One Course outline uses source-qualified evidence; source changes
+before Continue require a replacement immutable revision, and Continue locks evidence.
+
+The remaining flow is editable outline -> Continue -> per-Lesson generation -> content review ->
+atomic/idempotent publication. Legacy document-only imports remain supported. Published
+Course/Lesson, learner access, enrollment/progress, and separate per-published-Lesson Exercise
+generation/moderation/publication remain unchanged. Learners receive no new citation UI or
+Admin-only relevance/authority/provenance data.
+
 ## F-ADMIN-06 — Đuổi học viên và xóa khóa học an toàn
 
 **Actor:** Active Admin

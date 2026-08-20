@@ -1,5 +1,52 @@
 # Deployment
 
+## Tavily web-ingestion release gate (feature 002)
+
+Feature 002 changes only server-side web acquisition and adds no migration. It must not be
+deployed until the release operator has checked the following current-state prerequisites:
+
+| Precondition | Classification | Evidence/action |
+|---|---|---|
+| Migration `030_topic_course_multi_source` | READY | Read-only shared-project inspection on 2026-08-14 found migration version `20260813155929` and the required metadata/bridge tables. Recheck the target project before release. |
+| Private `lesson-sources` bucket and policies | READY | Read-only inspection found the private bucket and four matching object policies. Recheck the target environment. |
+| `TAVILY_API_KEY` in Vercel Production | REQUIRED BEFORE DEPLOY | Configure one server-only secret used by both Tavily Search and Basic Extract. No `NEXT_PUBLIC_TAVILY_API_KEY` is permitted. |
+| Redeploy after Tavily secret configuration | REQUIRED BEFORE DEPLOY | Vercel environment-variable changes affect new deployments; redeploy only under separate release authorization. |
+| Tavily-specific database/schema change | NOT REQUIRED | Feature 002 adds zero migrations, tables, columns, enums, or provider-result persistence. |
+| Feature flag, Crawl, Research API, or Advanced Extract | NOT REQUIRED | The production policy is one Basic Markdown Extract call per explicitly confirmed URL. |
+
+`TAVILY_API_KEY` is optional for ordinary build and startup, but both topic Research and new
+manual/discovered URL acquisition require it at runtime. Missing/invalid/unavailable Tavily must
+return a recoverable provider-neutral error. PDF/file ingestion and generation, regeneration,
+Continue, review, and publication from already stored evidence remain available. There is no
+automatic direct-fetch/Readability fallback.
+
+### Feature 002 non-destructive rollback
+
+Stop new web acquisition by removing/withholding the server-only Tavily credential or deploying a
+narrow route-disable patch that returns the existing recoverable unavailable envelope. Continue
+serving existing `source_documents`, immutable snapshots, chunks, Course-import jobs/bridges,
+outline and Lesson revisions, citations, published Course content, and PDF/file workflows. Do not
+delete or convert evidence, reverse migration 030, or reactivate direct fetch automatically.
+Rolling application code back below feature 002 would reintroduce the known production-incompatible
+direct-fetch acquisition defect, so prefer route disablement or a forward fix.
+
+## Topic Course rollout and rollback gate
+
+Phase 5 verifies readiness but does not authorize deployment. Before eventual enablement:
+
+1. Rehearse migrations 001–030 against production-like data; record backfill/protected-content
+   invariants, RLS, grants, RPC ACLs/search paths, and generated-type parity.
+2. Deploy the additive database compatibility layer before a bridge-aware application.
+3. Enable in order: multi-source generation, manual URL/file ingestion, then topic research.
+   Provider terms/quota and snapshot retention/site-access policy need separate approval.
+4. Monitor metadata-only research/fetch/source/ref/stale/publication signals and rerun legacy,
+   learner/progress, Exercise, and accessibility gates.
+
+Rollback keeps migration 030, snapshots, metadata/bridge rows, and historical revisions. Disable
+research first, then URL ingestion, while retaining legacy PDF. Before rolling below bridge-aware
+reads, stop multi-source writes and deploy a compatible intermediate release. Never delete
+evidence/history or reverse the backfill.
+
 ## 1. Mục tiêu
 
 Tài liệu này quy định quy trình đóng gói, kiểm tra và triển khai ứng dụng.
@@ -94,13 +141,16 @@ Danh sách biến môi trường bắt buộc:
 | `AI_API_KEY` | Secret | API key cho provider OpenAI-compatible | Local, Preview, Production khi bật AI |
 | `AI_PROVIDER_URL` | Server config | HTTPS endpoint của provider; không dùng localhost trên Vercel | Local, Preview, Production khi bật document pipeline |
 | `AI_PROVIDER_MODEL` | Server config | Model/route identifier được provider hỗ trợ | Local, Preview, Production khi bật document pipeline |
+| `TAVILY_API_KEY` | Optional-at-build server secret | Dùng chung cho Tavily Search và Basic Markdown Extract; bắt buộc khi bật Research hoặc nhận URL web mới. Nếu thiếu, hai action này lỗi recoverable; file/PDF và stored evidence vẫn hoạt động | Local, Preview, Production khi bật web research/ingestion |
 
 `NODE_ENV` và `CI` do runtime/CI thiết lập, không lưu thủ công trong Vercel. `PLAYWRIGHT_BROWSER_EXECUTABLE_PATH` chỉ là override local/CI tùy chọn và không phải runtime variable của ứng dụng.
 
 Quy tắc bảo mật:
 
 - Biến có tiền tố `NEXT_PUBLIC_` sẽ xuất hiện trong client bundle.
-- Không đưa `SUPABASE_SERVICE_ROLE_KEY` hoặc `AI_API_KEY` vào biến `NEXT_PUBLIC_`.
+- Không đưa `SUPABASE_SERVICE_ROLE_KEY`, `AI_API_KEY` hoặc `TAVILY_API_KEY` vào biến `NEXT_PUBLIC_`.
+- `TAVILY_API_KEY` không phải điều kiện startup/build, nhưng phải có trước khi bật topic Research
+  hoặc ingestion URL web mới. Không tồn tại biến `NEXT_PUBLIC_TAVILY_API_KEY`.
 - File `.env.local` phải nằm trong `.gitignore`.
 - Repository phải có `.env.example` chứa danh sách tên biến mẫu không chứa giá trị thật.
 - Preview/E2E không được dùng URL, anon key hoặc service-role key của Production.
@@ -177,7 +227,9 @@ sequenceDiagram
 
 ## 6. Quy trình triển khai Database (Migrations)
 
-Mọi thay đổi schema phải đi qua migration đã review. Thứ tự source-of-truth hiện tại là `001_create_enums.sql` đến `016_harden_cloud_permissions_and_indexes.sql`; áp dụng đúng thứ tự số tăng dần, không bỏ qua hoặc đổi tên file đã phát hành.
+Mọi thay đổi schema phải đi qua migration đã review. Thứ tự source-of-truth hiện tại là
+`001_create_enums.sql` đến `030_topic_course_multi_source.sql`; áp dụng đúng thứ tự số tăng dần,
+không bỏ qua hoặc đổi tên file đã phát hành. Feature 002 không thêm migration mới.
 
 1. Tạo migration mới bằng `npx supabase migration new <name>`; không sửa file đã áp dụng ở môi trường dùng chung.
 2. Review SQL, constraint, index, RLS, RPC privilege và generated types.
@@ -204,7 +256,7 @@ Cấu hình dự án trên Vercel Dashboard:
 - Build Command: `npm run build`
 - Output Directory: `.next`
 - Install Command: `npm ci`
-- Node.js Version: `20.x` hoặc phiên bản LTS mới nhất được hỗ trợ.
+- Node.js Version: `22.x`, khớp `package.json`.
 
 Quy định Branch protection trên GitHub:
 

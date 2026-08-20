@@ -34,6 +34,7 @@ export interface LessonDraftSection {
   heading: string;
   bodyMarkdown: string;
   citationChunkIndexes: number[];
+  citationSourceRefs?: CourseSourceRef[];
 }
 
 export interface StructuredLessonDraft {
@@ -47,11 +48,25 @@ export interface LessonDraftGenerationRequest {
   documentTitle: string;
   lessonTitle: string;
   learningObjectives?: string[];
-  chunks: Array<{ chunkIndex: number; content: string }>;
+  chunks: Array<{ chunkIndex: number; content: string }> | ProviderSourceChunk[];
+}
+
+export interface ProviderLessonDraftSection {
+  heading: string;
+  bodyMarkdown: string;
+  citationSourceRefs: number[];
+  citationChunkIndexes?: never;
+}
+
+export interface ProviderStructuredLessonDraft {
+  title: string;
+  summary: string;
+  estimatedMinutes: number;
+  sections: ProviderLessonDraftSection[];
 }
 
 export interface LessonDraftGenerationResponse {
-  draft: StructuredLessonDraft;
+  draft: StructuredLessonDraft | ProviderStructuredLessonDraft;
   provider: string;
   model: string;
 }
@@ -79,6 +94,7 @@ export interface CourseOutlineLesson {
   summary: string;
   learningObjectives: string[];
   sourceChunkIndexes: number[];
+  sourceRefs?: CourseSourceRef[];
 }
 
 export interface StructuredCourseOutline {
@@ -90,11 +106,27 @@ export interface StructuredCourseOutline {
 
 export interface CourseOutlineGenerationRequest {
   documentTitle: string;
-  chunks: Array<{ chunkIndex: number; content: string }>;
+  chunks: Array<{ chunkIndex: number; content: string }> | ProviderSourceChunk[];
+}
+
+export interface ProviderCourseOutlineLesson {
+  clientKey: string;
+  title: string;
+  summary: string;
+  learningObjectives: string[];
+  sourceRefs: number[];
+  sourceChunkIndexes?: never;
+}
+
+export interface ProviderStructuredCourseOutline {
+  title: string;
+  description: string;
+  learningObjectives: string[];
+  lessons: ProviderCourseOutlineLesson[];
 }
 
 export interface CourseOutlineGenerationResponse {
-  outline: StructuredCourseOutline;
+  outline: StructuredCourseOutline | ProviderStructuredCourseOutline;
   provider: string;
   model: string;
 }
@@ -110,19 +142,292 @@ export interface CourseImportLessonDraft {
   status: "ready" | "failed";
   provider: string;
   model: string | null;
-  citations: Array<{ sectionIndex: number; chunkIndex: number; quote: string }>;
+  citations: Array<{
+    sectionIndex: number;
+    chunkIndex: number;
+    quote: string;
+    documentChunkId?: number;
+    sourceDocumentId?: number;
+    sourceOrder?: number;
+    sourceTitle?: string;
+    sourceDomain?: string | null;
+    sourceUrl?: string | null;
+    sourceRef?: CourseSourceRef;
+  }>;
 }
 
 export interface CourseImportOutlineLesson extends CourseOutlineLesson {
   id: number;
   lessonOrder: number;
+  sourceChunks?: Array<{
+    documentChunkId: number;
+    sourceDocumentId: number;
+    sourceOrder: number;
+    chunkIndex: number;
+  }>;
   contentDraft: CourseImportLessonDraft | null;
+}
+
+export type CourseImportSourceType = "file" | "web_page";
+export type CourseImportIngestionMethod = "uploaded" | "manual_url" | "discovered";
+
+export interface CourseImportSourceSummary {
+  sourceDocumentId: number;
+  sourceOrder: number;
+  sourceType: CourseImportSourceType;
+  ingestionMethod: CourseImportIngestionMethod;
+  title: string;
+  filename: string;
+  sourceUrl: string | null;
+  canonicalUrl: string | null;
+  domain: string | null;
+  authorityScore: number | null;
+  relevanceScore: number | null;
+  status: SourceDocumentStatus;
+  errorCode: string | null;
+  chunkCount: number;
+}
+
+export type CourseImportSource = CourseImportSourceSummary;
+
+export interface WebSearchResult {
+  url: string;
+  title: string;
+  snippet: string;
+  language: string | null;
+  providerRank: number;
+}
+
+export interface WebSearchPage {
+  results: WebSearchResult[];
+  cursor: string | null;
+  hasMore: boolean;
+}
+
+export interface ResearchQuery {
+  query: string;
+  searchLanguage: string;
+  country: string;
+}
+
+export interface ResearchCandidate {
+  candidateKey: string;
+  url: string;
+  canonicalUrl: string;
+  title: string;
+  domain: string;
+  snippet: string;
+  language: string | null;
+  discovery: "discovered";
+  authorityScore: number;
+  relevanceScore: number;
+}
+
+export interface CourseResearchResult {
+  topic: string;
+  queries: string[];
+  results: ResearchCandidate[];
+  cursor: string | null;
+  hasMore: boolean;
+}
+
+export interface CourseSourceRef {
+  sourceDocumentId: number;
+  chunkIndex: number;
+}
+
+export interface CourseSourceChunk extends CourseSourceRef {
+  documentChunkId: number;
+  sourceOrder: number;
+  sourceTitle: string;
+  sourceUrl: string | null;
+  sourceDomain: string | null;
+  content: string;
+}
+
+export interface ProviderSourceChunk {
+  sourceRef: number;
+  sourceLabel: string;
+  content: string;
+}
+
+export const SECTION_PURPOSES = [
+  "introduction",
+  "objectives",
+  "concept",
+  "procedure",
+  "comparison",
+  "example",
+  "worked_example",
+  "deep_dive",
+  "practice",
+  "misconception",
+  "best_practice",
+  "recap",
+  "summary",
+] as const;
+
+export type SectionPurpose = (typeof SECTION_PURPOSES)[number];
+
+export interface ApprovedLessonEvidence {
+  readonly jobId: number;
+  readonly outlineLessonId: number;
+  readonly lessonTitle: string;
+  readonly learningObjectives: readonly string[];
+  readonly chunks: readonly CourseSourceChunk[];
+}
+
+export interface EvidenceRefMapEntry {
+  readonly sourceRef: number;
+  readonly documentChunkId: number;
+  readonly sourceDocumentId: number;
+  readonly chunkIndex: number;
+  readonly sourceLabel: string;
+  readonly content: string;
+}
+
+export type EvidenceRefMap = readonly EvidenceRefMapEntry[];
+
+export type SynthesizedEvidenceKind =
+  | "concept"
+  | "definition"
+  | "prerequisite"
+  | "procedure"
+  | "comparison"
+  | "example"
+  | "misconception"
+  | "best_practice"
+  | "relationship";
+
+export interface SynthesizedEvidenceItem {
+  itemKey: string;
+  kind: SynthesizedEvidenceKind;
+  statement: string;
+  evidenceRefs: number[];
+}
+
+export interface CoverageGap {
+  gapKey: string;
+  description: string;
+  affectedObjectiveIndexes: number[];
+  relatedEvidenceRefs: number[];
+}
+
+export interface EvidenceSynthesis {
+  items: SynthesizedEvidenceItem[];
+  coverageGaps: CoverageGap[];
+}
+
+export interface BlueprintSection {
+  sectionKey: string;
+  order: number;
+  purpose: SectionPurpose;
+  heading: string;
+  teachingObjective: string;
+  synthesisItemKeys: string[];
+  evidenceRefs: number[];
+  expectedElements: string[];
+}
+
+export interface LessonBlueprint {
+  progressionRationale: string;
+  sections: BlueprintSection[];
+}
+
+export interface SynthesisBlueprintGenerationRequest {
+  lessonTitle: string;
+  learningObjectives: readonly string[];
+  evidenceRefMap: EvidenceRefMap;
+}
+
+export interface SynthesisBlueprintGenerationResponse {
+  synthesis: EvidenceSynthesis;
+  blueprint: LessonBlueprint;
+  provider: string;
+  model: string;
+}
+
+export interface PedagogicalProviderResult<T> {
+  result: T;
+  provider: string;
+  model: string;
+}
+
+export interface GeneratedSection {
+  sectionKey: string;
+  purpose: SectionPurpose;
+  heading: string;
+  bodyMarkdown: string;
+  citationEvidenceRefs: number[];
+}
+
+export interface GeneratedLessonCandidate {
+  title: string;
+  summary: string;
+  estimatedMinutes: number;
+  sections: GeneratedSection[];
+}
+
+export const QUALITY_FINDING_CODES = [
+  "ARTICLE_LIKE_PROGRESSION",
+  "DUPLICATED_SECTION",
+  "OVERLAPPING_CONCEPT",
+  "UNSUPPORTED_CLAIM",
+  "MISSING_PREREQUISITE",
+  "SECTION_TOO_BROAD",
+  "SECTION_TOO_SHALLOW",
+  "IRRELEVANT_SECTION",
+  "WEAK_OR_MISSING_EXAMPLE",
+  "CITATION_OWNERSHIP",
+  "SECTION_WITHOUT_EVIDENCE",
+  "EXCESSIVE_REPETITION",
+  "OUTLINE_SCOPE_DRIFT",
+] as const;
+
+export type QualityFindingCode = (typeof QUALITY_FINDING_CODES)[number];
+
+export interface QualityFinding {
+  findingKey: string;
+  code: QualityFindingCode;
+  disposition: "correctable" | "reject";
+  sectionKeys: string[];
+  message: string;
+  evidenceRefs?: number[];
+}
+
+export interface LessonQualityReview {
+  verdict: "pass" | "correctable" | "reject";
+  findings: QualityFinding[];
+  reviewedSectionKeys: string[];
+}
+
+export interface TargetedCorrection {
+  addressedFindingKeys: string[];
+  sections: GeneratedSection[];
+  title?: string;
+  summary?: string;
+  estimatedMinutes?: number;
+}
+
+export interface GenerateLessonSectionsRequest extends SynthesisBlueprintGenerationRequest {
+  synthesis: EvidenceSynthesis;
+  blueprint: LessonBlueprint;
+}
+
+export interface ReviewLessonCandidateRequest extends GenerateLessonSectionsRequest {
+  candidate: GeneratedLessonCandidate;
+}
+
+export interface CorrectLessonCandidateRequest extends ReviewLessonCandidateRequest {
+  review: LessonQualityReview;
 }
 
 export interface CourseImportDraft {
   jobId: number;
   sourceDocumentId: number;
   sourceFilename: string;
+  sources: CourseImportSourceSummary[];
+  outlineStale: boolean;
   status: CourseImportStatus;
   errorCode: string | null;
   outlineRevision: number;
@@ -141,6 +446,30 @@ export interface PersistCourseOutlineResult {
   sourceDocumentId: number;
   outlineRevision: number;
   status: "outline_review";
+  sourceDocumentIds?: number[];
+}
+
+export interface CourseImportMutationResult {
+  jobId?: number | null;
+  sourceDocumentId: number;
+  sourceDocumentIds?: number[];
+  sourceOrder?: number;
+  anchorSourceDocumentId?: number;
+  status?: CourseImportStatus | SourceDocumentStatus;
+  attached?: boolean;
+  removed?: boolean;
+  outlineStale?: boolean;
+  storageBucket?: string;
+  storagePath?: string;
+}
+
+export interface PublishCourseImportResult {
+  jobId: number;
+  sourceDocumentId: number;
+  sourceDocumentIds: number[];
+  courseId: number;
+  status: "published";
+  lessonIds: number[];
 }
 
 export interface CourseDraftGenerationRequest {

@@ -9,7 +9,7 @@ import type {
   SupportedSourceMimeType,
 } from "@/features/content-pipeline/types";
 
-const MAX_EXTRACTED_CHARACTERS = 200_000;
+export const MAX_EXTRACTED_CHARACTERS = 200_000;
 const MAX_CHUNK_CHARACTERS = 4_000;
 const MAX_LOGGED_ERROR_CHARACTERS = 500;
 
@@ -27,7 +27,7 @@ export class DocumentExtractionError extends Error {
   }
 }
 
-function normalizeText(value: string): string {
+export function normalizeDocumentText(value: string): string {
   return value
     .replace(/\r\n?/g, "\n")
     .replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F\u007F]/g, "")
@@ -108,7 +108,7 @@ export async function extractDocumentText(
     );
   }
 
-  const normalized = normalizeText(extracted);
+  const normalized = normalizeDocumentText(extracted);
   if (!normalized) {
     throw new DocumentExtractionError(
       "EMPTY_DOCUMENT",
@@ -178,5 +178,15 @@ export function chunkDocumentText(text: string): DocumentChunkInput[] {
     cursor = Math.max(cursor, currentStart + current.length);
   }
   pushCurrent();
+  return chunks;
+}
+
+export function assertUsableDocumentChunks(chunks: DocumentChunkInput[]): DocumentChunkInput[] {
+  if (!chunks.some((chunk) => chunk.content.trim().length > 0)) {
+    throw new DocumentExtractionError(
+      "EMPTY_DOCUMENT",
+      "The document produced no usable evidence chunks.",
+    );
+  }
   return chunks;
 }

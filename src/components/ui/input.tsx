@@ -39,7 +39,7 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(function Input(
       {label ? (
         <label
           htmlFor={inputId}
-          className="mb-2 block text-sm font-medium text-slate-900"
+          className="mb-2 block text-sm font-medium text-text-primary"
         >
           {label}
         </label>
@@ -48,10 +48,10 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(function Input(
         ref={ref}
         id={inputId}
         className={cn(
-          "flex h-10 w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900",
-          "placeholder:text-slate-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:ring-offset-2",
-          "disabled:cursor-not-allowed disabled:bg-slate-100 disabled:opacity-60",
-          hasError && "border-red-500",
+          "flex h-10 w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm text-text-primary",
+          "placeholder:text-text-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background",
+          "disabled:cursor-not-allowed disabled:bg-surface-subtle disabled:opacity-60",
+          hasError && "border-danger",
           className,
         )}
         aria-describedby={describedBy}
@@ -59,12 +59,12 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(function Input(
         {...props}
       />
       {helperText ? (
-        <p id={helperId} className="mt-2 text-sm text-slate-500">
+        <p id={helperId} className="mt-2 text-sm text-text-muted">
           {helperText}
         </p>
       ) : null}
       {hasError ? (
-        <p id={errorId} className="mt-2 text-sm text-red-500">
+        <p id={errorId} className="mt-2 text-sm text-danger">
           {error}
         </p>
       ) : null}

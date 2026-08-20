@@ -3,85 +3,162 @@
 @tailwind utilities;
 
 :root {
-  --background: #f7f8fc;
-  --surface: #ffffff;
-  --surface-subtle: #f0f2f8;
+  /* ==== Stitch "Learning Pro" light semantic tokens (Phase A2) ====
+     Confirmed against the Stitch design system (Stitch MCP) and the
+     approved spec values. Existing legacy key names are preserved so
+     every current component keeps resolving; values are remapped to
+     the approved warm/orange palette. A/B/C/D classification per plan. */
+
+  /* C — Neutral layout */
+  --background: #fcf9f8; /* warm off-white page background */
+  --surface: #ffffff; /* cards, elevated panels */
+  --surface-subtle: #f6f3f2; /* = surface-container-low (search inputs, stacked cards) */
   --surface-elevated: #ffffff;
 
-  --text-primary: #172033;
-  --text-secondary: #596579;
-  --text-muted: #8a94a6;
-  --text-inverse: #ffffff;
+  /* C — Text hierarchy */
+  --text-primary: #1b1c1c; /* Stitch on-surface */
+  --text-secondary: #594137; /* Stitch on-surface-variant */
+  --text-muted: #6f655b; /* Stitch text-secondary — T021: darkened for WCAG AA on white (5.7:1) */
+  --text-inverse: #ffffff; /* text on filled primary */
 
-  --border: #e2e7f0;
-  --border-strong: #cbd3e1;
+  /* C — Borders & outlines (warm neutrals) */
+  --border: #e8e8e8; /* Stitch border-light */
+  --border-strong: #d8d2cf; /* warm strong border */
+  --border-light: #e8e8e8; /* Stitch-named alias of --border */
+  --outline: #8d7165; /* focus/hover accents */
+  --outline-variant: #e1bfb2;
 
-  --primary: #6d5dfb;
-  --primary-hover: #5c4ce5;
-  --primary-active: #4e40c7;
-  --primary-soft: #efedff;
+  /* A — Brand primary (Stitch orange family) */
+  --primary: #a23f00;
+  --primary-hover: #8a3400;
+  --primary-active: #7a2d00;
+  --primary-soft: #ffdbcd; /* = primary-fixed */
+  --primary-container: #f76b1c;
+  --on-primary: #ffffff;
+  --on-primary-container: #541d00;
+  --primary-fixed: #ffdbcd;
+  --primary-fixed-dim: #ffb595;
 
+  /* C — Warm surface container family */
+  --surface-container-lowest: #ffffff; /* sidebar */
+  --surface-container-low: #f6f3f2;
+  --surface-container: #f0eded;
+  --surface-container-highest: #e4e2e1;
+  --surface-dim: #dcd9d9;
+
+  /* B — Semantic status (hue families preserved — never orange) */
+  --success: #15803d; /* T026: darkened green for WCAG AA on success-soft (4.5:1) — mirrors T021 warning/info precedent */
+  --success-soft: #e9f8ef;
+
+  --warning: #8a5a00; /* T021: darkened amber for WCAG AA on warning-soft (5.5:1) */
+  --warning-soft: #fff5dd;
+
+  --danger: #b42333; /* T037: WCAG AA on danger-soft (5.7:1) */
+  --danger-soft: #fdecef;
+
+  --info: #2f66c2; /* T021: darkened blue for WCAG AA on info-soft (4.9:1) */
+  --info-soft: #eaf2ff;
+
+  /* B — Status container tokens (moderation chips; Stitch values) */
+  --danger-container: #ffdad6; /* Stitch error-container */
+  --on-danger-container: #93000a;
+  --success-container: #52c41a; /* Stitch success-tag */
+  --info-container: #3997ff; /* Stitch tertiary-container (info) */
+  --on-info-container: #002f5a;
+
+  /* D — AI accent (teal family preserved) */
   --ai: #18a9c9;
   --ai-hover: #118da9;
   --ai-soft: #e6f8fc;
 
-  --success: #22a559;
-  --success-soft: #e9f8ef;
-
-  --warning: #d98b0b;
-  --warning-soft: #fff5dd;
-
-  --danger: #dc4554;
-  --danger-soft: #fdecef;
-
-  --info: #3778d4;
-  --info-soft: #eaf2ff;
-
+  /* D — Code block layers (kept for light mode) */
   --code-background: #151a2b;
   --code-surface: #1d2337;
   --code-text: #e7ebf6;
   --code-muted: #8993ad;
+
+  /* A — Focus ring (component ring token) */
+  --focus-ring: #a23f00;
 }
 
 .dark {
-  --background: #0d1020;
-  --surface: #15192b;
-  --surface-subtle: #1b2034;
-  --surface-elevated: #20263b;
+  /* ==== Derived Stitch warm-dark semantic tokens (Phase A3 / T004) ====
+     Stitch is light-only (no authoritative dark reference). Values are
+     derived centrally here per C-DARK: the SAME semantic hierarchy from
+     the :root block is preserved, luminance is inverted to warm dark
+     neutrals (#171210 → #2e2722), and every pair is accessible. No
+     component-local dark-orange values. */
 
-  --text-primary: #f4f6fb;
-  --text-secondary: #b8c0d4;
-  --text-muted: #8791a9;
-  --text-inverse: #101426;
+  /* C — Neutral layout (warm-dark, background < low < surface < elevated) */
+  --background: #171210; /* darkest page surface */
+  --surface: #28221d; /* cards, elevated panels */
+  --surface-subtle: #201b16; /* = surface-container-low (search inputs, stacked cards) */
+  --surface-elevated: #2e2722;
 
-  --border: #2a3148;
-  --border-strong: #3b455f;
+  /* C — Text hierarchy (warm light-on-dark) */
+  --text-primary: #f5efe9; /* strong primary text */
+  --text-secondary: #d3c6bc; /* readable secondary text */
+  --text-muted: #a99a90; /* subdued, still readable */
+  --text-inverse: #3b1a02; /* dark text on filled (light) primary */
 
-  --primary: #8d80ff;
-  --primary-hover: #9d92ff;
-  --primary-active: #7162eb;
-  --primary-soft: #272249;
+  /* C — Borders & outlines (visible on warm dark) */
+  --border: #544940;
+  --border-strong: #6b5f55;
+  --border-light: #453c35; /* Stitch-named alias family of --border */
+  --outline: #e0a57d; /* focus/hover accents */
+  --outline-variant: #8a6a5c;
 
+  /* A — Brand primary (derived from approved orange family) */
+  --primary: #ffb595;
+  --primary-hover: #ffceb4;
+  --primary-active: #ff9666;
+  --primary-soft: #4a2a15; /* = primary-fixed (low-emphasis orange surface) */
+  --primary-container: #8a3400; /* stronger orange treatment */
+  --on-primary: #3b1a02;
+  --on-primary-container: #ffdbcd;
+  --primary-fixed: #4a2a15;
+  --primary-fixed-dim: #61361b;
+
+  /* C — Warm surface container family (dark steps stay distinguishable) */
+  --surface-container-lowest: #1b1612; /* sidebar */
+  --surface-container-low: #201b16;
+  --surface-container: #241f1a;
+  --surface-container-highest: #2b2520;
+  --surface-dim: #15110e;
+
+  /* B — Semantic status (hue families preserved — never orange) */
+  --success: #6fd392;
+  --success-soft: #1a3323;
+
+  --warning: #e8b04b;
+  --warning-soft: #3a2c14;
+
+  --danger: #f0828a;
+  --danger-soft: #432129;
+
+  --info: #8db9f2;
+  --info-soft: #1c3049;
+
+  /* B — Status container tokens (dark containers with readable fg) */
+  --danger-container: #6b2a33;
+  --on-danger-container: #ffdbd6;
+  --success-container: #2f6d44;
+  --info-container: #2b4f80;
+  --on-info-container: #d7e7ff;
+
+  /* D — AI accent (teal family preserved) */
   --ai: #45c7e2;
   --ai-hover: #61d2e9;
   --ai-soft: #17343e;
 
-  --success: #4ecb7b;
-  --success-soft: #183b2a;
+  /* D — Code block layers (rebased warm-dark, readable) */
+  --code-background: #14100d;
+  --code-surface: #1c1712;
+  --code-text: #f0e9df;
+  --code-muted: #9b8d80;
 
-  --warning: #f2b84b;
-  --warning-soft: #3d3016;
-
-  --danger: #f2737e;
-  --danger-soft: #432128;
-
-  --info: #6aa5f5;
-  --info-soft: #1c3150;
-
-  --code-background: #090c15;
-  --code-surface: #111626;
-  --code-text: #eef2ff;
-  --code-muted: #8791aa;
+  /* A — Focus ring (light orange, visible on dark) */
+  --focus-ring: #ffb595;
 }
 
 * {
@@ -100,7 +177,7 @@ body {
   min-height: 100vh;
   background: var(--background);
   color: var(--text-primary);
-  font-family: Inter, ui-sans-serif, system-ui, sans-serif;
+  font-family: var(--font-sans), ui-sans-serif, system-ui, sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   text-rendering: optimizeLegibility;

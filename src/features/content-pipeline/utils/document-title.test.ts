@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { documentTitleFromFilename } from "./document-title";
+import { documentTitleFromFilename, documentTitleFromWebSource } from "./document-title";
 
 describe("documentTitleFromFilename", () => {
   it("uses the filename without its final extension", () => {
@@ -11,5 +11,14 @@ describe("documentTitleFromFilename", () => {
   it("normalizes paths and empty dotfiles safely", () => {
     expect(documentTitleFromFilename("C:\\uploads\\Nội suy.md")).toBe("Nội suy");
     expect(documentTitleFromFilename(".pdf")).toBe("Tài liệu");
+  });
+});
+
+describe("documentTitleFromWebSource", () => {
+  it("uses normalized Admin/candidate input before the canonical-domain fallback", () => {
+    expect(documentTitleFromWebSource("  Example\u00a0 Guide  ", "https://canonical.example/path"))
+      .toBe("Example Guide");
+    expect(documentTitleFromWebSource(undefined, "https://Canonical.Example/path"))
+      .toBe("canonical.example");
   });
 });

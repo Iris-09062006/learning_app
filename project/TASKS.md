@@ -11,13 +11,56 @@
 
 ## Active Task
 
-`TASK-066` — Normalize Single-Chunk Lesson Citations (`IN_PROGRESS`). The application and CI build
-fixes are pushed; a deterministic Lesson-start E2E fixture fix passes locally and awaits CI rerun.
+`TASK-083` is verified for only T026–T036 of pedagogical Lesson generation: active Continue and
+Lesson-wide regeneration integration, bounded three-pipeline scheduling, deadline/partial-failure retry,
+and compatibility verification without migrations or external contract changes.
+
+`TASK-082` is verified for only T017–T025 of pedagogical Lesson generation: independent semantic
+Quality Review, one targeted correction, independent re-review, and exact three/five-call budgets.
+Focused tests, lint, typecheck, diff review, and protected-scope checks pass. Phase D, persistence,
+scheduling, migrations, push, and deployment remain out of scope.
+
+`TASK-081` is verified for only T009–T016 of pedagogical Lesson generation: purpose-aware
+all-section generation, exact blueprint adherence, structural citation ownership, and transient
+normalization to the unchanged final draft contract. Quality review/correction, integration,
+persistence, migration, push, and deployment are out of scope. The focused Phase A/B gate, lint,
+typecheck, diff review, and protected-scope checks pass.
+
+`TASK-080` is verified for only T001–T008 of pedagogical Lesson generation: transient approved
+evidence, synthesis and blueprint contracts plus the single locked-model first stage. No final prose,
+quality review, integration, persistence, migration, push, or deployment is in scope.
+
+`TASK-079` is verified: failed Lesson-content generation now refreshes persisted job state, supports
+safe retry, bounds the browser wait, and can reset into a new local workflow without mutating stored
+jobs or evidence. No database, deployment, push, or remote-data change occurred.
+
+`TASK-078` is verified: the T039 failure was isolated to a Vitest `jsdom`/native-fetch
+`AbortSignal` realm mismatch, the server-only smoke now runs under Node, and one final real Basic
+Markdown Extract passed normalization/snapshot/chunk checks. T001–T047 are complete and T047's
+final non-live gate passes. Deployment readiness is CONDITIONAL GO: Vercel Production still
+requires the server-only key, redeploy, and production smoke under separate authorization; no
+push, deployment, migration, or remote mutation occurred.
+
+`TASK-077` is verified: Phase C proves stored evidence and file/PDF workflows remain independent
+of Tavily after acquisition, locks security/privacy boundaries, and verifies the retained legacy
+direct-fetch code is inactive without starting Phase D.
+
+`TASK-076` is verified: Phase B switches confirmed discovered/manual URL acquisition to the
+verified Tavily Extract provider boundary and reuses the existing snapshot/source/chunk/Course-import
+lifecycle without database changes.
+
+`TASK-074` is verified: the Phase 3 connection-bound safe-fetch runtime callback is repaired
+without weakening SSRF/TLS controls or changing database state.
+`TASK-073` remains verified: Brave was replaced by optional Tavily Search as the default Phase 4 provider.
+`TASK-066` remains in progress on its prior external verification. `TASK-072` and `TASK-071` are
+verified locally; they were not pushed or deployed.
 
 Recently verified supporting hotfixes:
 
 | Task ID | Title | Status | Phase | Dependency |
 |---|---|---|---|---|
+| `TASK-079` | Recover Failed Lesson Content Generation | VERIFIED | Content operations hotfix | Existing retryable Course-import state machine |
+| `TASK-075` | Tavily Web Ingestion Phase A Provider Boundary | VERIFIED | Tavily web ingestion Phase A | T001–T009 and Phase A gate pass |
 | `TASK-045` | Reduce Page Navigation Latency | VERIFIED | Performance hotfix | None |
 | `TASK-046` | Stabilize AI Content Pipeline and New Lesson Targets | VERIFIED | Content operations hotfix | `TASK-043` |
 
@@ -31,6 +74,20 @@ Supabase Auth Redirect URLs wildcard and a fresh confirmation email.
 
 | Task ID | Title | Status | Phase | Evidence |
 |---|---|---|---|---|
+| `TASK-083` | Pedagogical Lesson Generation Phase D | VERIFIED | Feature 003 Phase D | `reports/TASK-083-implementation.md`, `reports/TASK-083-review.md`, `reports/TASK-083-test.md` |
+| `TASK-082` | Pedagogical Lesson Generation Phase C | VERIFIED | Feature 003 Phase C | `reports/TASK-082-implementation.md`, `reports/TASK-082-review.md`, `reports/TASK-082-test.md` |
+| `TASK-080` | Pedagogical Lesson Generation Phase A | VERIFIED | Feature 003 Phase A | `reports/TASK-080-implementation.md`, `reports/TASK-080-review.md`, `reports/TASK-080-test.md` |
+| `TASK-078` | Tavily Web Ingestion Phase D Readiness | VERIFIED | Tavily web ingestion Phase D | `reports/TASK-078-implementation.md`, `reports/TASK-078-review.md`, `reports/TASK-078-test.md` |
+| `TASK-077` | Tavily Web Ingestion Phase C Hardening | VERIFIED | Tavily web ingestion Phase C | `reports/TASK-077-implementation.md`, `reports/TASK-077-review.md`, `reports/TASK-077-test.md` |
+| `TASK-076` | Tavily Web Ingestion Phase B Active Path | VERIFIED | Tavily web ingestion Phase B | `reports/TASK-076-implementation.md`, `reports/TASK-076-review.md`, `reports/TASK-076-test.md` |
+| `TASK-074` | Repair URL Safe-Fetch Runtime Compatibility | VERIFIED | Course research Phase 3 hotfix | `reports/TASK-074-implementation.md`, `reports/TASK-074-review.md`, `reports/TASK-074-test.md` |
+| `TASK-073` | Replace Default Brave Search with Tavily | VERIFIED | Course research Phase 4 provider | `reports/TASK-073-implementation.md`, `reports/TASK-073-review.md`, `reports/TASK-073-test.md` |
+| `TASK-072` | Clear Completed Course Source Workflow | VERIFIED | Content operations hotfix | `reports/TASK-072-implementation.md`, `reports/TASK-072-review.md`, `reports/TASK-072-test.md` |
+| `TASK-071` | Topic-Based Multi-Source Course Creation: Phase 5 | VERIFIED | Course research Phase 5 | `reports/TASK-071-implementation.md`, `reports/TASK-071-review.md`, `reports/TASK-071-test.md` |
+| `TASK-070` | Topic-Based Multi-Source Course Creation: Phase 4 | VERIFIED | Course research Phase 4 | `reports/TASK-070-implementation.md`, `reports/TASK-070-review.md`, `reports/TASK-070-test.md` |
+| `TASK-069` | Topic-Based Multi-Source Course Creation: Phase 3 | VERIFIED | Course research Phase 3 | `reports/TASK-069-implementation.md`, `reports/TASK-069-review.md`, `reports/TASK-069-test.md` |
+| `TASK-068` | Topic-Based Multi-Source Course Creation: Phase 2 | VERIFIED | Course research Phase 2 | `reports/TASK-068-implementation.md`, `reports/TASK-068-review.md`, `reports/TASK-068-test.md` |
+| `TASK-067` | Topic-Based Multi-Source Course Creation: Phase 1 | VERIFIED | Course research Phase 1 | `reports/TASK-067-implementation.md`, `reports/TASK-067-review.md`, `reports/TASK-067-test.md` |
 | `TASK-064` | Repair Vercel PDF Extraction Packaging | VERIFIED | Content operations hotfix | `reports/TASK-064-implementation.md`, `reports/TASK-064-review.md`, `reports/TASK-064-test.md` |
 | `TASK-063` | Allow Learners to Advance to the Next Lesson | VERIFIED | Phase 4 UX hotfix | `reports/TASK-063-implementation.md`, `reports/TASK-063-review.md`, `reports/TASK-063-test.md` |
 | `TASK-062` | Reveal and Redesign the Lesson Learning Experience | VERIFIED | Phase 4 UI hotfix | `reports/TASK-062-implementation.md`, `reports/TASK-062-review.md`, `reports/TASK-062-test.md` |
@@ -88,6 +145,7 @@ Supabase Auth Redirect URLs wildcard and a fresh confirmation email.
 
 | Task ID | Title | Status | Phase | Dependency |
 |---|---|---|---|---|
+| `TASK-071` | Topic-Based Multi-Source Course Creation: Phase 5 | IN_PROGRESS | Course research Phase 5 | Verified Phases 1–4 |
 | `TASK-066` | Normalize Single-Chunk Lesson Citations | IN_PROGRESS | Content operations hotfix | CI and production verification |
 
 ## Active Epic

@@ -1,5 +1,23 @@
 # Database
 
+## Topic Course multi-source compatibility — migration 030
+
+`030_topic_course_multi_source.sql` is additive and preserves all historical draft, citation,
+publication, Course, Chapter, Lesson, learner, progress, and Exercise rows. It adds the compatible
+source initialization flag, nullable immutable initialization identity, Admin-only provenance
+metadata, and an exclusive ordered one-to-eight-source ownership bridge.
+
+Backfill creates exactly one file metadata row per existing source and one order-zero bridge row
+per legacy job. Every job anchor must equal its order-zero bridge. Staged/failed/zero-chunk sources
+remain unattached. Initialization, attach/detach, job-wide outline/citation persistence, and
+publication are active-Admin `SECURITY DEFINER` RPCs with empty `search_path`; `PUBLIC`/`anon`
+execution is revoked. Publication still performs official curriculum writes and all-source
+archival atomically and returns the prior publication on retry.
+
+Before rollout, apply migrations 001 through 030 to a clean production-like database, compare
+protected row content/counts before and after 030, run invariant/ACL/RLS checks, and regenerate
+types. Migration history must never be rewritten or down-migrated destructively.
+
 ## TASK-056 Course archival
 
 - `courses.archived_at timestamptz null` distinguishes manageable courses from courses

@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 
-import { chunkDocumentText, extractDocumentText } from "./document-extractor";
+import { assertUsableDocumentChunks, chunkDocumentText, extractDocumentText } from "./document-extractor";
 
 function createTextLayerPdf(): Buffer {
   const stream = [
@@ -50,6 +50,18 @@ describe("document extraction", () => {
     await expect(extractDocumentText(Buffer.from(" \n "), "text/markdown")).rejects.toMatchObject({
       code: "EMPTY_DOCUMENT",
     });
+  });
+
+  it("preserves the existing 200,000-character maximum", async () => {
+    await expect(extractDocumentText(Buffer.from("a".repeat(200_000)), "text/markdown"))
+      .resolves.toHaveLength(200_000);
+    await expect(extractDocumentText(Buffer.from("a".repeat(200_001)), "text/markdown"))
+      .rejects.toMatchObject({ code: "DOCUMENT_TOO_LARGE" });
+  });
+
+  it("rejects promotion when no usable application chunk exists", () => {
+    expect(() => assertUsableDocumentChunks([])).toThrowError(expect.objectContaining({ code: "EMPTY_DOCUMENT" }));
+    expect(assertUsableDocumentChunks(chunkDocumentText("usable evidence"))).toHaveLength(1);
   });
 
   it("extracts text from a PDF with a real text layer", async () => {

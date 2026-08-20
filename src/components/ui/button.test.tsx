@@ -10,16 +10,17 @@ describe("Button", () => {
     const button = screen.getByRole("button", { name: "Continue" });
 
     expect(button.getAttribute("type")).toBe("button");
-    expect(button.className).toContain("bg-indigo-600");
+    expect(button.className).toContain("bg-primary");
+    expect(button.className).toContain("text-on-primary");
     expect(button.className).toContain("h-10");
   });
 
   it.each<[ButtonVariant, string]>([
-    ["primary", "bg-indigo-600"],
-    ["secondary", "bg-slate-100"],
-    ["outline", "border-slate-200"],
+    ["primary", "bg-primary"],
+    ["secondary", "bg-surface-subtle"],
+    ["outline", "border-border"],
     ["ghost", "bg-transparent"],
-    ["danger", "bg-red-600"],
+    ["danger", "bg-danger-container"],
   ])("applies the %s variant", (variant, expectedClass) => {
     render(<Button variant={variant}>{variant}</Button>);
 
@@ -65,6 +66,11 @@ describe("Button", () => {
     fireEvent.click(button);
 
     expect(button.disabled).toBe(true);
+    expect(button.className).toContain("disabled:bg-surface-subtle");
+    expect(button.className).toContain("disabled:text-text-muted");
+    expect(button.className).toContain("disabled:opacity-100");
+    expect(button.className).not.toContain("transition-colors");
+    expect(button.className).not.toContain("disabled:opacity-50");
     expect(handleClick).not.toHaveBeenCalled();
   });
 

@@ -1,0 +1,219 @@
+openapi: 3.1.0
+info:
+  title: LearningApp Admin URL Source Contract
+  version: 2.0.0
+  description: >-
+    Compatibility contract for the existing Admin URL-ingestion endpoint after
+    the internal acquisition provider changes. Tavily-specific fields are not
+    part of the browser contract.
+paths:
+  /api/admin/content-sources/url:
+    post:
+      summary: Stage and ingest one Admin-selected web source
+      description: >-
+        Accepts the existing manual or Search-discovered URL request. The server
+        obtains Basic full-page Markdown through its configured extraction
+        provider, validates and snapshots it, and returns the existing staged
+        source-attempt envelope. Acquisition failures are recoverable and
+        source-specific. The endpoint does not expose provider identity, usage,
+        request IDs, or raw responses.
+      operationId: ingestAdminUrlSource
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UrlSourceRequest'
+      responses:
+        '201':
+          description: Source attempt accepted, including idempotent reuse.
+          headers:
+            Cache-Control:
+              schema:
+                type: string
+                const: no-store
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SourceAttemptEnvelope'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '413':
+          $ref: '#/components/responses/ContentTooLarge'
+        '415':
+          $ref: '#/components/responses/UnsupportedMediaType'
+        '422':
+          $ref: '#/components/responses/UnusableSource'
+        '429':
+          $ref: '#/components/responses/ApplicationRateLimit'
+        '503':
+          $ref: '#/components/responses/ExtractionUnavailable'
+components:
+  schemas:
+    UrlSourceRequest:
+      type: object
+      additionalProperties: false
+      required:
+        - url
+        - discovery
+        - idempotencyKey
+      properties:
+        url:
+          type: string
+          format: uri
+          description: Admin-selected/original HTTP(S) URL.
+        discovery:
+          type: string
+          enum:
+            - manual_url
+            - discovered
+          description: Existing domain provenance; not a provider selector.
+        title:
+          type: string
+          maxLength: 300
+        idempotencyKey:
+          type: string
+          format: uuid
+        authorityScore:
+          type: number
+          minimum: 0
+          maximum: 1
+    SourceAttemptEnvelope:
+      type: object
+      additionalProperties: false
+      required:
+        - success
+        - data
+      properties:
+        success:
+          const: true
+        data:
+          $ref: '#/components/schemas/SourceAttempt'
+    SourceAttempt:
+      type: object
+      additionalProperties: false
+      required:
+        - sourceDocumentId
+        - status
+        - chunkCount
+        - attached
+        - reused
+      properties:
+        sourceDocumentId:
+          type: integer
+          minimum: 1
+        status:
+          type: string
+          enum:
+            - extracted
+            - ready_for_review
+        chunkCount:
+          type: integer
+          minimum: 1
+        attached:
+          type: boolean
+        jobId:
+          description: Present when the existing attempt is already attached to a Course import.
+          type:
+            - integer
+            - 'null'
+          minimum: 1
+        reused:
+          type: boolean
+          description: True for idempotent reuse; both new and reused successes return HTTP 201.
+    ErrorEnvelope:
+      type: object
+      additionalProperties: false
+      required:
+        - success
+        - error
+      properties:
+        success:
+          const: false
+        error:
+          type: object
+          additionalProperties: true
+          required:
+            - code
+            - message
+          properties:
+            code:
+              type: string
+            message:
+              type: string
+            details:
+              type: object
+              additionalProperties: true
+  responses:
+    BadRequest:
+      description: Invalid request shape or URL.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorEnvelope'
+    Unauthorized:
+      description: Admin authentication required.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorEnvelope'
+    Forbidden:
+      description: Authenticated caller lacks Admin permission.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorEnvelope'
+    Conflict:
+      description: Existing source state conflicts with this operation.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorEnvelope'
+    ContentTooLarge:
+      description: Normalized content exceeds the fixed 200,000-character maximum.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorEnvelope'
+    UnsupportedMediaType:
+      description: Request media type is unsupported.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorEnvelope'
+    UnusableSource:
+      description: >-
+        The source-specific extraction is missing, malformed, empty, below the
+        fixed threshold, invalid in canonical provenance, or produces no usable
+        document chunk. The failure is recoverable through the existing Retry
+        workflow.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorEnvelope'
+    ApplicationRateLimit:
+      description: Application-level Admin ingestion rate limit reached.
+      headers:
+        Retry-After:
+          schema:
+            type: integer
+            minimum: 1
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorEnvelope'
+    ExtractionUnavailable:
+      description: >-
+        The configured web extraction service is unavailable because of server
+        configuration, provider authentication/quota, timeout, or upstream
+        failure. The response remains provider-neutral and recoverable.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorEnvelope'

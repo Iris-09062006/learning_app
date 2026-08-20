@@ -28,6 +28,44 @@ const seededUsers = [
   },
 ];
 
+const multiSourceCourseImportFixture = {
+  sources: [
+    { sourceDocumentId: 9, sourceOrder: 0, sourceType: "file", ingestionMethod: "uploaded",
+      title: "Nguồn A", filename: "a.md", sourceUrl: null, canonicalUrl: null, domain: null,
+      authorityScore: null, relevanceScore: null, status: "ready_for_review", errorCode: null, chunkCount: 1 },
+    { sourceDocumentId: 10, sourceOrder: 1, sourceType: "web_page", ingestionMethod: "manual_url",
+      title: "Nguồn B", filename: "b.md", sourceUrl: "https://b.test", canonicalUrl: "https://b.test",
+      domain: "b.test", authorityScore: 0.7, relevanceScore: 0.8, status: "ready_for_review",
+      errorCode: null, chunkCount: 1 },
+  ],
+  chunks: [
+    { documentChunkId: 101, sourceDocumentId: 9, sourceOrder: 0, chunkIndex: 0 },
+    { documentChunkId: 202, sourceDocumentId: 10, sourceOrder: 1, chunkIndex: 0 },
+  ],
+};
+
+const phase3SourceReviewFixture = {
+  stagedFileId: 22,
+  laterUrlId: 23,
+  jobId: 31,
+  initializationKey: "33333333-3333-4333-8333-333333333333",
+};
+
+const phase4ResearchFixture = {
+  rounds: [
+    [
+      { candidateKey: "research-a", url: "https://a.example/guide", canonicalUrl: "https://a.example/guide", title: "Nguồn nghiên cứu A", domain: "a.example", snippet: "Tài liệu A", language: "vi", discovery: "discovered", authorityScore: 0.7, relevanceScore: 0.9 },
+      { candidateKey: "research-b", url: "https://b.example/guide", canonicalUrl: "https://b.example/guide", title: "Nguồn nghiên cứu B", domain: "b.example", snippet: "Tài liệu B", language: "en", discovery: "discovered", authorityScore: 0.6, relevanceScore: 0.8 },
+    ],
+    [
+      { candidateKey: "research-b", url: "https://b.example/guide", canonicalUrl: "https://b.example/guide", title: "Nguồn nghiên cứu B", domain: "b.example", snippet: "Tài liệu B", language: "en", discovery: "discovered", authorityScore: 0.6, relevanceScore: 0.8 },
+      { candidateKey: "research-c", url: "https://c.example/reference", canonicalUrl: "https://c.example/reference", title: "Nguồn nghiên cứu C", domain: "c.example", snippet: "Tài liệu C", language: "vi", discovery: "discovered", authorityScore: 0.8, relevanceScore: 0.85 },
+    ],
+  ],
+  sourceIds: { researchA: 21, researchC: 22, manual: 23, file: 24 },
+  jobId: 41,
+};
+
 let state;
 
 function resetState() {
@@ -37,8 +75,15 @@ function resetState() {
     progress: [],
     submissions: [],
     explanations: [],
+    generatedExercises: [],
+    exerciseReviews: [],
+    publishedExercises: [],
+    publishedExerciseOptions: [],
+    publishedExerciseSolutions: [],
     nextSubmissionId: 1,
     nextExplanationId: 1,
+    nextGeneratedExerciseId: 3001,
+    nextPublishedExerciseId: 4001,
   };
 }
 
@@ -150,7 +195,7 @@ function tableRows(table) {
         lesson_order: 1,
         estimated_minutes: 8,
         is_published: true,
-        chapters: { course_id: 1 },
+        chapters: { course_id: 1, is_published: true },
       },
       {
         id: 102,
@@ -160,7 +205,7 @@ function tableRows(table) {
         lesson_order: 2,
         estimated_minutes: 10,
         is_published: true,
-        chapters: { course_id: 1 },
+        chapters: { course_id: 1, is_published: true },
       },
     ],
     exercises: [
@@ -208,6 +253,11 @@ function tableRows(table) {
   if (table === "user_progress") return state.progress;
   if (table === "submissions") return state.submissions;
   if (table === "ai_explanations") return state.explanations;
+  if (table === "generated_exercises") return state.generatedExercises;
+  if (table === "exercise_reviews") return state.exerciseReviews;
+  if (table === "exercises") return [...staticTables.exercises, ...state.publishedExercises];
+  if (table === "exercise_options") return [...staticTables.exercise_options, ...state.publishedExerciseOptions];
+  if (table === "exercise_solutions") return [...staticTables.exercise_solutions, ...state.publishedExerciseSolutions];
   return staticTables[table] ?? [];
 }
 
@@ -218,6 +268,18 @@ function parseValue(raw) {
   return raw.replace(/^"|"$/gu, "");
 }
 
+function resolveFieldValue(row, field) {
+  // PostgREST supports embedded-resource filters such as `chapters.course_id`;
+  // resolve those against the nested object(s) already embedded in the row.
+  if (!field.includes(".")) return row[field];
+  let value = row;
+  for (const segment of field.split(".")) {
+    if (value == null || typeof value !== "object") return undefined;
+    value = value[segment];
+  }
+  return value;
+}
+
 function applyFilters(rows, url) {
   let filtered = [...rows];
   const ignored = new Set(["select", "order", "offset", "limit", "or"]);
@@ -226,10 +288,10 @@ function applyFilters(rows, url) {
     if (ignored.has(field)) continue;
     if (expression.startsWith("eq.")) {
       const expected = parseValue(expression.slice(3));
-      filtered = filtered.filter((row) => row[field] === expected);
+      filtered = filtered.filter((row) => resolveFieldValue(row, field) === expected);
     } else if (expression.startsWith("in.(") && expression.endsWith(")")) {
       const values = expression.slice(4, -1).split(",").map(parseValue);
-      filtered = filtered.filter((row) => values.includes(row[field]));
+      filtered = filtered.filter((row) => values.includes(resolveFieldValue(row, field)));
     }
   }
 
@@ -393,6 +455,92 @@ async function handleRpc(request, response, name) {
     });
   }
 
+  if (name === "get_lesson_exercise_generation_context") {
+    const lesson = tableRows("lessons").find((item) => item.id === body.p_lesson_id && item.is_published);
+    if (!lesson) return sendJson(response, 400, { code: "P0002", message: "LESSON_NOT_FOUND" });
+    return sendJson(response, 200, {
+      lessonId: lesson.id,
+      lessonTitle: lesson.title,
+      lessonContent: lesson.content,
+      learningObjectives: ["Hiá»ƒu ná»™i dung Lesson Ä‘Ã£ publish"],
+      courseTitle: "Python cÄƒn báº£n",
+      courseDescription: "Ná»n táº£ng Python",
+    });
+  }
+
+  if (name === "create_generated_exercise_draft") {
+    const now = new Date().toISOString();
+    const row = {
+      id: state.nextGeneratedExerciseId++, lesson_id: body.p_lesson_id,
+      exercise_type: body.p_exercise_type, difficulty: body.p_difficulty,
+      title: body.p_content.title, description: body.p_content.description,
+      content: body.p_content, status: "pending", provider: body.p_provider,
+      model: body.p_model, requested_by: user.id, published_exercise_id: null,
+      published_at: null, created_at: now, updated_at: now,
+      lessons: { title: tableRows("lessons").find((item) => item.id === body.p_lesson_id)?.title ?? "Lesson" },
+    };
+    state.generatedExercises.push(row);
+    return sendJson(response, 200, {
+      id: row.id, lessonId: row.lesson_id, exerciseType: row.exercise_type,
+      difficulty: row.difficulty, title: row.title, description: row.description,
+      content: row.content, status: row.status, provider: row.provider, model: row.model,
+      requestedBy: row.requested_by, publishedExerciseId: null, publishedAt: null,
+      createdAt: now, updatedAt: now,
+    });
+  }
+
+  if (name === "review_generated_exercise_draft") {
+    const draft = state.generatedExercises.find((item) => item.id === body.p_generated_exercise_id);
+    if (!draft) return sendJson(response, 400, { code: "P0002", message: "DRAFT_NOT_FOUND" });
+    const now = new Date().toISOString();
+    draft.status = body.p_decision;
+    draft.updated_at = now;
+    const review = {
+      id: state.exerciseReviews.length + 1, generated_exercise_id: draft.id,
+      reviewer_id: user.id, status: body.p_decision, comment: body.p_comment ?? null,
+      reviewed_at: now,
+    };
+    state.exerciseReviews.push(review);
+    return sendJson(response, 200, {
+      id: review.id, generatedExerciseId: draft.id, reviewerId: user.id,
+      status: review.status, feedback: review.comment, createdAt: now,
+    });
+  }
+
+  if (name === "publish_generated_exercise") {
+    const draft = state.generatedExercises.find((item) => item.id === body.p_generated_exercise_id);
+    if (!draft || draft.status !== "approved") {
+      return sendJson(response, 400, { code: "P0001", message: "DRAFT_NOT_APPROVED" });
+    }
+    if (draft.published_exercise_id) return sendJson(response, 200, {
+      generatedExerciseId: draft.id, publishedExerciseId: draft.published_exercise_id,
+      status: "published", publishedAt: draft.published_at,
+    });
+    const now = new Date().toISOString();
+    const exerciseId = state.nextPublishedExerciseId++;
+    state.publishedExercises.push({
+      id: exerciseId, lesson_id: draft.lesson_id, title: draft.title,
+      description: draft.description, exercise_type: draft.exercise_type,
+      difficulty: draft.difficulty, exercise_order: 2, code_snippet: draft.content.codeSnippet,
+      is_required: true, is_published: true,
+    });
+    draft.content.options.forEach((option, index) => state.publishedExerciseOptions.push({
+      id: 5000 + index, exercise_id: exerciseId, content: option, option_order: index + 1,
+    }));
+    state.publishedExerciseSolutions.push({
+      exercise_id: exerciseId, solution: { correctAnswer: draft.content.correctAnswer },
+      static_explanation: draft.content.explanation,
+    });
+    draft.status = "published";
+    draft.published_exercise_id = exerciseId;
+    draft.published_at = now;
+    draft.updated_at = now;
+    return sendJson(response, 200, {
+      generatedExerciseId: draft.id, publishedExerciseId: exerciseId,
+      status: "published", publishedAt: now,
+    });
+  }
+
   return sendJson(response, 404, { code: "PGRST202", message: `Unknown RPC ${name}` });
 }
 
@@ -442,9 +590,31 @@ const server = createServer(async (request, response) => {
     const url = new URL(request.url ?? "/", `http://${host}:${port}`);
 
     if (url.pathname === "/__e2e/health") return sendJson(response, 200, { ok: true });
+    if (url.pathname === "/__e2e/fixtures/multi-source-course-import") {
+      return sendJson(response, 200, structuredClone(multiSourceCourseImportFixture));
+    }
+    if (url.pathname === "/__e2e/fixtures/phase3-source-review") {
+      return sendJson(response, 200, structuredClone(phase3SourceReviewFixture));
+    }
+    if (url.pathname === "/__e2e/fixtures/phase4-research") {
+      return sendJson(response, 200, structuredClone(phase4ResearchFixture));
+    }
     if (url.pathname === "/__e2e/reset" && request.method === "POST") {
       resetState();
       return sendJson(response, 200, { ok: true });
+    }
+    if (url.pathname === "/v1/chat/completions" && request.method === "POST") {
+      return sendJson(response, 200, {
+        model: "e2e-model",
+        choices: [{ message: { content: JSON.stringify({
+          title: "Published Lesson Exercise",
+          description: "Chá»n káº¿t quáº£ Ä‘Ãºng.",
+          codeSnippet: "value = 2 + 3\nprint(value)",
+          options: ["4", "5"],
+          correctAnswer: "5",
+          explanation: "Hai cá»™ng ba báº±ng nÄƒm.",
+        }) } }],
+      });
     }
     if (url.pathname.startsWith("/auth/v1/")) return await handleAuth(request, response, url);
     if (url.pathname.startsWith("/rest/v1/")) return await handleRest(request, response, url);

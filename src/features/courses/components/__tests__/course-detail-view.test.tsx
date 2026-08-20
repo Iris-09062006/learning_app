@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { render, screen, fireEvent, waitFor } from "@testing-library/react";
+import { render, screen, fireEvent, waitFor, within } from "@testing-library/react";
 import { CourseDetailView } from "../course-detail-view";
 
 const mockPush = vi.fn();
@@ -107,6 +107,10 @@ describe("CourseDetailView", () => {
         screen.getByText("Vui lòng đăng nhập để đăng ký khóa học.")
       ).toBeInTheDocument();
     });
+    expect(screen.getByRole("alert")).toHaveClass(
+      "border-danger",
+      "bg-danger-soft",
+    );
     expect(fetchSpy).toHaveBeenCalledWith("/api/courses/1/enroll", {
       method: "POST",
     });
@@ -121,10 +125,92 @@ describe("CourseDetailView", () => {
     expect(screen.getByText(/3 bài học/)).toBeInTheDocument();
   });
 
+  it("wraps long detail and chapter copy without changing its content", () => {
+    const title = "KhóaHọcKhôngCóĐiểmNgắt".repeat(8);
+    const chapterTitle = "ChươngTiếngViệtKhôngCóĐiểmNgắt".repeat(8);
+    render(
+      <CourseDetailView
+        course={{
+          ...baseDetail,
+          title,
+          description: title,
+          chapters: [{ ...baseDetail.chapters[0], title: chapterTitle, description: chapterTitle }],
+        }}
+      />,
+    );
+
+    expect(screen.getByRole("heading", { level: 1, name: title })).toHaveClass("break-words");
+    expect(screen.getByRole("heading", { level: 3, name: chapterTitle })).toHaveClass("break-words");
+    expect(screen.getByTestId("course-detail-view")).toHaveClass("min-w-0");
+    expect(screen.getByTestId("course-chapter-row").firstElementChild).toHaveClass("min-w-0", "flex-1");
+  });
+
   it("renders empty state for chapters", () => {
     render(<CourseDetailView course={{ ...baseDetail, chapters: [] }} />);
+    const emptyState = screen
+      .getByText("Nội dung bài học đang được cập nhật.")
+      .closest("[data-state]");
+    expect(emptyState).toHaveAttribute("data-state", "empty");
+    expect(emptyState).toHaveClass("border-border", "bg-surface");
+  });
+
+  it("adopts shared surface/border tokens and the orange brand accent", () => {
+    render(<CourseDetailView course={baseDetail} />);
+
+    // Header summary card → shared card tokens.
+    expect(screen.getByTestId("course-detail-header")).toHaveClass(
+      "bg-surface",
+      "border-border",
+      "rounded-xl",
+    );
+
+    // A-bucket indigo swap: language tag + chapter ordinal are primary-soft/orange chips.
+    expect(screen.getByText("PYTHON")).toHaveClass(
+      "bg-primary-soft",
+      "text-primary",
+    );
+
+    const firstChapterRow = screen.getAllByTestId("course-chapter-row")[0];
+    expect(firstChapterRow).toHaveClass(
+      "bg-surface",
+      "border-border",
+      "rounded-xl",
+    );
+    expect(within(firstChapterRow).getByText("1")).toHaveClass(
+      "bg-primary-soft",
+      "text-primary",
+    );
+
+    // Headings and stats use text tokens; CTA is the shared primary Button.
     expect(
-      screen.getByText("Nội dung bài học đang được cập nhật.")
-    ).toBeInTheDocument();
+      screen.getByRole("heading", { level: 1, name: "Python Basic" })
+    ).toHaveClass("text-text-primary");
+    expect(
+      screen.getByRole("button", { name: "Đăng ký khóa học" })
+    ).toHaveClass("bg-primary", "text-on-primary");
+  });
+
+  it("does not reintroduce legacy palette utilities or slash-opacity tokens", () => {
+    const { container } = render(<CourseDetailView course={baseDetail} />);
+
+    const legacyPalette =
+      /(^|\s)(bg|text|border|shadow|ring)-(slate|indigo|emerald|white)-\d+/;
+    const slashOpacityToken =
+      /(^|\s)(bg|text|border|hover:border|hover:bg)-(primary|danger|surface-subtle|warning|info|success)(-\S*)?\/\d+/;
+
+    const offenders: string[] = [];
+    container
+      .querySelectorAll<HTMLElement>("h1, h2, h3, p, span, div, button, svg")
+      .forEach((element) => {
+        const className = element.className;
+        if (
+          typeof className === "string" &&
+          (legacyPalette.test(className) || slashOpacityToken.test(className))
+        ) {
+          offenders.push(className);
+        }
+      });
+
+    expect(offenders).toEqual([]);
   });
 });

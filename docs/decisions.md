@@ -1,5 +1,21 @@
 # Decisions
 
+## ADR-Topic-001 — Additive multi-source evidence in the existing Course-import pipeline
+
+**Status:** Accepted
+
+Topic research remains stateless until selection. Selected URLs/files become immutable private
+evidence attached through an ordered exclusive bridge while the singular order-zero anchor remains
+for compatibility. Source-qualified refs map through request-local provider refs to canonical
+chunk IDs. Continue remains the evidence lock; publication remains atomic/idempotent; learner and
+Exercise architecture remains separate.
+
+Rollout order is migration/backfill -> bridge-aware app -> multi-source generation -> manual
+URL/file ingestion -> topic research. Rollback retains additive schema, snapshots, bridge rows,
+and immutable revisions; research and URL entry paths can be disabled independently. Crawlers,
+research-session tables, embeddings/vector storage, redesign, and destructive down-migration are
+not part of this decision.
+
 ## 1. Mục đích
 
 Tài liệu này lưu các quyết định quan trọng của dự án.
@@ -816,3 +832,51 @@ Mọi thay đổi database schema phải dùng SQL migration file.
 - Không sửa database thủ công.
 - Migration phải được commit.
 - Generate lại TypeScript types sau khi đổi schema.
+
+---
+
+# ADR-024 — Luồng khôi phục mật khẩu dùng Supabase Auth + một endpoint
+
+**Trạng thái:** Accepted
+
+## Bối cảnh
+
+TASK-035 là giai đoạn 2 của Auth UI, bao gồm chức năng khôi phục mật khẩu (F-AUTH-04). Tại thời điểm chốt contract, `docs/api_contract.md` chưa định nghĩa endpoint nào cho luồng này và `docs/security.md` chưa có số liệu rate limit riêng cho forgot-password. Theo AGENTS.md, agent không được tự thêm endpoint/contract khi chưa có quyết định sản phẩm, nên task bị chặn để chốt phương án.
+
+## Quyết định
+
+Sử dụng phương án B:
+
+- Thêm đúng một endpoint `POST /api/auth/forgot-password`.
+- Đặt lại mật khẩu mới thực hiện bằng Supabase client-side `updateUser` tại trang `/reset-password`, không cần endpoint riêng.
+
+## Lý do
+
+- `docs/features.md` F-AUTH-04 yêu cầu "Ưu tiên dùng Supabase password reset flow" và "Có rate limit".
+- Endpoint `forgot-password` cần tồn tại phía server để áp dụng rate limit 5/IP/giờ và không lộ thông tin user, nhất quán với các endpoint `/api/auth/*` hiện có.
+- Bước đặt mật khẩu mới được Supabase xử lý an toàn với recovery session từ link trong email; không cần tự xây endpoint, giảm bề mặt tấn công và khối lượng code.
+- Giữ tối giản API trong khi vẫn nhất quán kiến trúc `Client–Server + Modular Monolith`.
+
+## Hệ quả
+
+Tích cực:
+
+- Có một endpoint server-side cho bước gửi email khôi phục, kiểm soát rate limit.
+- Bước đặt mật khẩu mới dùng cơ chế recovery session chuẩn của Supabase Auth.
+- Phù hợp yêu cầu F-AUTH-04.
+
+Đánh đổi:
+
+- Trang `/reset-password` phải xử lý recovery session phía client; phải kiểm tra lỗi `AuthSessionMissingError` và hiển thị thông báo hợp lý.
+- Không có endpoint riêng cho bước đặt mật khẩu mới nên không áp dụng được rate limit server-side cho riêng bước này (được Supabase quản lý).
+
+## Không chọn
+
+- Phương án A — thêm cả `POST /api/auth/update-password`: thêm API không cần thiết, lặp chức năng Supabase client-side.
+- Phương án C — bỏ hẳn endpoint server-side cho forgot-password: khó áp rate limit và thiếu nhất quán với `/api/auth/*`.
+
+## Xem xét lại khi
+
+- Có yêu cầu đặt mật khẩu mới phải qua server (ví dụ kiểm tra policy mật khẩu riêng, chặn password cũ trùng).
+- Cần ghi log hành vi đặt lại mật khẩu phía server.
+- Có yêu cầu tích hợp provider xác thực khác ngoài Supabase Auth.

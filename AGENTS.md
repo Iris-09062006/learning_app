@@ -127,3 +127,15 @@ Kết quả task phải có:
 - Rủi ro, giới hạn hoặc blocker còn lại.
 
 Không tuyên bố command đã pass nếu chưa chạy. Không nhắc người dùng chuyển công việc sang Gemini hay agent khác.
+
+## 8. Note
+
+nếu muốn dùng lệnh ghép thì dùng ";" thay vì "&&"
+When inspecting files on Windows PowerShell:
+
+- Do not combine Git commands and file-search commands into one long semicolon-separated command.
+- Do not redirect probe output to temporary files unless necessary.
+- Run git grep and Select-String as separate commands.
+- Treat git grep exit code 1 as "no matches", not as a command failure.
+- Print an explicit completion marker with Write-Output.
+- Do not retry a completed search command automatically.

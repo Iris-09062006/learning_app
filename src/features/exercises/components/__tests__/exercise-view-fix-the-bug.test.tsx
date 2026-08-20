@@ -44,6 +44,25 @@ describe("ExerciseView (fix_the_bug)", () => {
     expect(screen.getByRole("button", { name: "Mảnh code: return a * b;" })).toBeInTheDocument();
   });
 
+  it("keeps long titles, descriptions, and code inside the exercise surface", () => {
+    const longText = "NộiDungTiếngViệtKhôngCóĐiểmNgắt".repeat(8);
+    const { container } = render(
+      <ExerciseView
+        exercise={{
+          ...fixTheBugExercise,
+          title: longText,
+          description: longText,
+          codeSnippet: `value = ${"identifier".repeat(80)}`,
+        }}
+      />,
+    );
+
+    expect(screen.getByRole("heading", { level: 1, name: longText })).toHaveClass("break-words");
+    expect(screen.getByText(longText, { selector: "p" })).toHaveClass("break-words");
+    expect(container.querySelector("pre")).toHaveClass("max-w-full", "overflow-x-auto");
+    expect(screen.getByTestId("exercise-view")).toHaveClass("min-w-0");
+  });
+
   it("submits the selected option id only in the payload", async () => {
     const fetchSpy = vi.spyOn(globalThis, "fetch").mockResolvedValueOnce(
       new Response(
@@ -141,5 +160,26 @@ describe("ExerciseView (fix_the_bug)", () => {
     });
 
     expect(await screen.findByText("Đúng rồi!")).toBeInTheDocument();
+  });
+it("uses Stitch design tokens and no legacy palette classes", () => {
+    const { container } = render(<ExerciseView exercise={fixTheBugExercise} />);
+
+    // Badge → orange container pill.
+    expect(screen.getByText("Bài tập 1")).toHaveClass(
+      "bg-primary-container",
+      "text-on-primary-container",
+      "rounded-full"
+    );
+
+    // Submit action → shared primary Button.
+    expect(screen.getByRole("button", { name: "Nộp bài" })).toHaveClass(
+      "bg-primary",
+      "text-on-primary"
+    );
+
+    // No legacy palette utilities (slate/indigo/emerald/rose/white) remain.
+    expect(container.innerHTML).not.toMatch(
+      /(^|\s)(bg|text|border|shadow|ring)-(slate|indigo|emerald|rose|white)-\d+/
+    );
   });
 });

@@ -1,5 +1,34 @@
 # Security Specification
 
+## Tavily Extract security update (feature 002)
+
+- Only server runtime code reads `TAVILY_API_KEY`; there is no `NEXT_PUBLIC_` variant or provider
+  credential/DTO in Admin, learner, generation, persistence, logs, or static bundles.
+- The application rejects malformed, credential-bearing, non-HTTP(S), localhost/private/reserved
+  literal targets before provider access. The validated Tavily result URL is checked again before
+  becoming canonical provenance.
+- Tavily Markdown and its result URL remain untrusted transient input. Raw provider JSON,
+  `request_id`, `usage`, Authorization headers, Markdown bodies, and snapshot bodies are neither
+  persisted nor logged. Only the application-owned immutable snapshot/chunks reach Gemini.
+- Missing/auth/quota/timeout/upstream Tavily failures affect only new web acquisition and remain
+  recoverable. Stored evidence and file/PDF flows continue; direct fetch/Readability is never an
+  automatic fallback.
+
+## Topic research and web evidence controls
+
+- Search and web ingestion execute server-side after active-Admin authorization and distributed
+  rate limiting. Tavily, service-role, and AI credentials are never `NEXT_PUBLIC_*` values.
+- Before Tavily access, URL ingestion accepts HTTP(S) ports 80/443 only and rejects credentials,
+  malformed targets, IP literals, localhost, and local/private/reserved literal hostnames. The
+  retained direct fetcher's DNS/TLS/redirect machinery is inactive and is not part of this path.
+- Scripts/resources are not executed. Stored snapshots and prompt source blocks are untrusted
+  evidence; generation uses only stored job-owned chunks.
+- RLS keeps metadata/bridges Admin-only. Privileged RPCs verify active Admin ownership, have empty
+  `search_path`, reject cross-owner/cross-job refs, revoke `PUBLIC`/`anon`, and grant authenticated.
+- Logs are metadata-only. Page/snapshot/chunk bodies, prompts, provider payloads, credentials,
+  tokens, private addresses, and storage contents are forbidden. Learner DTO/UI receives no
+  ranking or private provenance fields.
+
 ## TASK-056 privileged deletion controls
 
 - Learner removal reuses the protected `admin_change_user_status` RPC; no client can

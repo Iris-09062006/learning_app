@@ -1,5 +1,6 @@
 import { notFound, redirect } from "next/navigation";
 
+import { PageContainer } from "@/components/layout/page-container";
 import { LessonContentView } from "@/features/lessons/components/lesson-content-view";
 import {
   getLessonById,
@@ -32,10 +33,10 @@ export default async function LessonPage({ params }: LessonPageProps) {
   }
 
   return (
-    <main className="min-h-screen bg-background px-4 py-8 sm:px-6 sm:py-10 lg:px-10 lg:py-12">
-      <div className="mx-auto max-w-6xl">
+    <main className="min-h-screen bg-background py-8 sm:py-10 lg:py-12">
+      <PageContainer>
         <LessonContentView lesson={lesson} />
-      </div>
+      </PageContainer>
     </main>
   );
 }

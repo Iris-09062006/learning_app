@@ -1,0 +1,1099 @@
+openapi: 3.1.0
+info:
+  title: LearningApp Topic and Multi-Source Course Import
+  version: 1.0.0
+  description: >-
+    Implemented contract for additive Admin source research, ingestion, attachment, and
+    job-scoped outline generation. Existing file-only, Lesson generation, review, and
+    publication contracts remain compatible. All responses are no-store.
+servers:
+  - url: /
+security:
+  - sessionCookie: []
+paths:
+  /api/admin/course-research:
+    post:
+      summary: Research a topic without persisting candidates
+      operationId: researchCourseSources
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CourseResearchRequest"
+      responses:
+        "200":
+          description: One bounded research round
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CourseResearchEnvelope"
+        "400":
+          $ref: "#/components/responses/ValidationError"
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "429":
+          $ref: "#/components/responses/RateLimited"
+        "503":
+          description: Search provider unavailable; client state must be preserved
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+
+  /api/admin/content-sources:
+    post:
+      summary: Upload a supported private source document
+      description: >-
+        The existing multipart file-only request remains valid and keeps its immediate legacy
+        initialization behavior. Supplying a new-flow idempotency key materializes an unattached
+        source attempt with initialize_import_job=false; it does not create or attach an import.
+      operationId: uploadContentSource
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [file]
+              properties:
+                file:
+                  type: string
+                  format: binary
+                idempotencyKey:
+                  type: string
+                  format: uuid
+      responses:
+        "201":
+          description: >-
+            Legacy request returns its existing initialized import shape; a new-flow request
+            returns an unattached staged attempt
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: "#/components/schemas/SourceMutationEnvelope"
+                  - $ref: "#/components/schemas/SourceAttemptEnvelope"
+        "200":
+          description: >-
+            New-flow idempotent retry returns the existing attempt, or its already-attached
+            relation if initialization/attach completed before refresh
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: "#/components/schemas/SourceAttemptEnvelope"
+                  - $ref: "#/components/schemas/SourceMutationEnvelope"
+        "400":
+          $ref: "#/components/responses/ValidationError"
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "409":
+          $ref: "#/components/responses/InvalidState"
+
+  /api/admin/content-sources/url:
+    post:
+      summary: Safely fetch, snapshot, materialize, extract, and chunk a selected URL
+      description: >-
+        This new-path operation always materializes with initialize_import_job=false. Success
+        returns a usable but unattached source attempt; job-centric initialization or later
+        job-scoped attachment is separate.
+      operationId: ingestUrlSource
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [url, discovery, idempotencyKey]
+              properties:
+                url:
+                  type: string
+                  format: uri
+                discovery:
+                  type: string
+                  enum: [manual_url, discovered]
+                title:
+                  type: string
+                  maxLength: 300
+                idempotencyKey:
+                  type: string
+                  format: uuid
+                authorityScore:
+                  type: number
+                  minimum: 0
+                  maximum: 1
+      responses:
+        "201":
+          description: Immutable source snapshot is extracted and remains unattached
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SourceAttemptEnvelope"
+        "200":
+          description: >-
+            Idempotent retry returns the same unattached attempt, or its already-attached relation,
+            without creating a source, job, or bridge duplicate
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: "#/components/schemas/SourceAttemptEnvelope"
+                  - $ref: "#/components/schemas/SourceMutationEnvelope"
+        "400":
+          $ref: "#/components/responses/ValidationError"
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "409":
+          $ref: "#/components/responses/InvalidState"
+        "413":
+          description: Retrieved decompressed page exceeds 2 MiB
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+        "415":
+          description: URL does not return readable HTML or plain text
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+        "422":
+          description: >-
+            URL is unsafe/unreachable, or the staged attempt failed extraction and remains
+            unattached and retryable/removable
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: "#/components/schemas/ErrorEnvelope"
+                  - $ref: "#/components/schemas/FailedSourceAttemptEnvelope"
+        "429":
+          $ref: "#/components/responses/RateLimited"
+
+  /api/admin/content-sources/{sourceDocumentId}/extract:
+    post:
+      summary: Extract and chunk a source without attaching it in the new flow
+      description: >-
+        Legacy initialized sources retain their current behavior. For a staged multi-source
+        attempt, successful extraction only makes it eligible for ordered-set initialization or a
+        later job-scoped attach; failure creates no bridge row.
+      operationId: extractContentSource
+      parameters:
+        - $ref: "#/components/parameters/SourceDocumentId"
+      responses:
+        "200":
+          description: Source extracted
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ExtractionEnvelope"
+        "400":
+          $ref: "#/components/responses/ValidationError"
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "409":
+          $ref: "#/components/responses/InvalidState"
+
+  /api/admin/course-imports:
+    post:
+      summary: Atomically initialize one Course import from an ordered usable-source set
+      description: >-
+        The only new-path Course-import initializer. Validates the complete 1..8 source set and
+        creates the job, order-zero legacy anchor, and all initial bridge rows in one transaction.
+        Concurrent duplicate requests sharing one initializationKey and identical ordered set
+        resolve to the same job through a stored immutable payload fingerprint. Reusing the key
+        with a different ordered set conflicts. No per-source no-job initialization endpoint
+        exists.
+      operationId: initializeCourseImportFromUsableSources
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [initializationKey, sources]
+              properties:
+                initializationKey:
+                  type: string
+                  format: uuid
+                  description: Stable workflow-level key retained across retry and refresh
+                sources:
+                  type: array
+                  minItems: 1
+                  maxItems: 8
+                  uniqueItems: true
+                  description: Complete usable set in deterministic Admin selection order
+                  items:
+                    $ref: "#/components/schemas/InitialCourseImportSource"
+      responses:
+        "200":
+          description: >-
+            Duplicate or concurrent identical initialization resolves to the existing import
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CourseImportInitializationEnvelope"
+        "201":
+          description: One import and its complete initial bridge set created atomically
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CourseImportInitializationEnvelope"
+        "400":
+          $ref: "#/components/responses/ValidationError"
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "409":
+          description: >-
+            Same initialization key was used with a different ordered set, or a source is failed,
+            unextracted, empty, foreign, duplicated, or already attached to another import
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+
+  /api/admin/content-sources/{sourceDocumentId}:
+    delete:
+      summary: Remove an unattached staged source attempt
+      description: >-
+        Allowed only when the source has no course_import_job_sources row or historical citation
+        dependency. This operation does not use the attached last-source guard.
+      operationId: removeStagedSourceAttempt
+      parameters:
+        - $ref: "#/components/parameters/SourceDocumentId"
+      responses:
+        "200":
+          description: Unattached attempt removed
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [success, data]
+                properties:
+                  success:
+                    const: true
+                  data:
+                    type: object
+                    required: [sourceDocumentId, removed]
+                    properties:
+                      sourceDocumentId:
+                        type: integer
+                      removed:
+                        const: true
+        "400":
+          $ref: "#/components/responses/ValidationError"
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "409":
+          description: Source is attached evidence and must use the job-scoped detach operation
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+
+  /api/admin/course-drafts:
+    get:
+      summary: List actionable Course imports with additive ordered sources
+      operationId: listCourseImports
+      responses:
+        "200":
+          description: Existing queue DTO extended with sources
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [success, data]
+                properties:
+                  success:
+                    const: true
+                  data:
+                    type: object
+                    required: [items]
+                    properties:
+                      items:
+                        type: array
+                        items:
+                          $ref: "#/components/schemas/CourseImportDraft"
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+
+  /api/admin/course-drafts/{jobId}/sources:
+    get:
+      summary: Recover ordered source-review state for a pre-outline or stale job
+      operationId: getCourseImportSources
+      parameters:
+        - $ref: "#/components/parameters/JobId"
+      responses:
+        "200":
+          description: Current job source set
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [success, data]
+                properties:
+                  success:
+                    const: true
+                  data:
+                    type: object
+                    required: [jobId, status, outlineStale, sources]
+                    properties:
+                      jobId:
+                        type: integer
+                      status:
+                        $ref: "#/components/schemas/CourseImportStatus"
+                      outlineStale:
+                        type: boolean
+                      sources:
+                        type: array
+                        minItems: 1
+                        maxItems: 8
+                        items:
+                          $ref: "#/components/schemas/CourseImportSource"
+        "400":
+          $ref: "#/components/responses/ValidationError"
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+    post:
+      summary: Attach an already usable staged source before Continue
+      description: >-
+        Available only after job-centric initialization. It requires this existing jobId, performs
+        eligibility and idempotency checks, and never initializes a job or attaches a failed,
+        unextracted, or empty source.
+      operationId: attachCourseImportSource
+      parameters:
+        - $ref: "#/components/parameters/JobId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [sourceDocumentId]
+              properties:
+                sourceDocumentId:
+                  type: integer
+                  minimum: 1
+                relevanceScore:
+                  type: number
+                  minimum: 0
+                  maximum: 1
+      responses:
+        "200":
+          description: Source already attached; idempotent result
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SourceMutationEnvelope"
+        "201":
+          description: Source attached
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SourceMutationEnvelope"
+        "400":
+          $ref: "#/components/responses/ValidationError"
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "409":
+          $ref: "#/components/responses/InvalidState"
+
+  /api/admin/course-drafts/{jobId}/sources/{sourceDocumentId}:
+    delete:
+      summary: Detach a source before Continue and mark an existing outline stale
+      operationId: detachCourseImportSource
+      parameters:
+        - $ref: "#/components/parameters/JobId"
+        - $ref: "#/components/parameters/SourceDocumentId"
+      responses:
+        "200":
+          description: Source detached; historical revisions remain unchanged
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [success, data]
+                properties:
+                  success:
+                    const: true
+                  data:
+                    type: object
+                    required: [jobId, sourceDocumentId, outlineStale, sources]
+                    properties:
+                      jobId:
+                        type: integer
+                      sourceDocumentId:
+                        type: integer
+                      outlineStale:
+                        type: boolean
+                      sources:
+                        type: array
+                        minItems: 1
+                        maxItems: 7
+                        items:
+                          $ref: "#/components/schemas/CourseImportSource"
+        "400":
+          $ref: "#/components/responses/ValidationError"
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "409":
+          $ref: "#/components/responses/InvalidState"
+
+  /api/admin/course-drafts/{jobId}/outline:
+    post:
+      summary: Generate the initial or replacement outline from attached immutable sources
+      operationId: generateJobCourseOutline
+      parameters:
+        - $ref: "#/components/parameters/JobId"
+      responses:
+        "201":
+          description: New immutable outline revision created from current sources
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OutlineMutationEnvelope"
+        "400":
+          $ref: "#/components/responses/ValidationError"
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "409":
+          $ref: "#/components/responses/InvalidState"
+    patch:
+      summary: Save a complete Admin-edited outline revision
+      operationId: updateCourseOutline
+      parameters:
+        - $ref: "#/components/parameters/JobId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/StructuredCourseOutline"
+      responses:
+        "200":
+          description: New immutable Admin-edited outline revision
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OutlineMutationEnvelope"
+        "400":
+          $ref: "#/components/responses/ValidationError"
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "409":
+          $ref: "#/components/responses/InvalidState"
+
+components:
+  securitySchemes:
+    sessionCookie:
+      type: apiKey
+      in: cookie
+      name: sb-session
+
+  parameters:
+    JobId:
+      name: jobId
+      in: path
+      required: true
+      schema:
+        type: integer
+        minimum: 1
+    SourceDocumentId:
+      name: sourceDocumentId
+      in: path
+      required: true
+      schema:
+        type: integer
+        minimum: 1
+
+  responses:
+    ValidationError:
+      description: Invalid request
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorEnvelope"
+    Unauthenticated:
+      description: Authentication required
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorEnvelope"
+    Forbidden:
+      description: Active Admin role required
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorEnvelope"
+    InvalidState:
+      description: Job or source cannot change in its current state
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorEnvelope"
+    RateLimited:
+      description: Distributed request limit exceeded
+      headers:
+        Retry-After:
+          schema:
+            type: integer
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorEnvelope"
+
+  schemas:
+    ErrorEnvelope:
+      type: object
+      required: [success, error]
+      properties:
+        success:
+          const: false
+        error:
+          type: object
+          additionalProperties: false
+          required: [code, message]
+          properties:
+            code:
+              type: string
+              enum:
+                - UNAUTHENTICATED
+                - FORBIDDEN
+                - NOT_FOUND
+                - VALIDATION_ERROR
+                - INVALID_STATE
+                - INVALID_SOURCE
+                - INVALID_SOURCE_REFERENCE
+                - SOURCE_LIMIT_EXCEEDED
+                - SOURCE_CONFLICT
+                - SOURCE_MUTATION_LOCKED
+                - STALE_OUTLINE
+                - STORAGE_ERROR
+                - FETCH_FAILED
+                - EXTRACTION_ERROR
+                - EXTRACTION_FAILED
+                - PAYLOAD_TOO_LARGE
+                - UNSUPPORTED_MEDIA_TYPE
+                - AI_PROVIDER_ERROR
+                - GENERATION_FAILED
+                - PUBLICATION_FAILED
+                - RATE_LIMITED
+                - SEARCH_PROVIDER_AUTH
+                - SEARCH_PROVIDER_QUOTA
+                - SEARCH_PROVIDER_TIMEOUT
+                - SEARCH_PROVIDER_UNAVAILABLE
+                - DATABASE_ERROR
+                - INTERNAL_ERROR
+            message:
+              type: string
+            retryAfterSeconds:
+              type: number
+              minimum: 0
+            sourceDocumentId:
+              type: integer
+              minimum: 1
+
+    CourseResearchRequest:
+      type: object
+      additionalProperties: false
+      required: [topic]
+      properties:
+        topic:
+          type: string
+          minLength: 3
+          maxLength: 300
+        cursor:
+          type: string
+          maxLength: 500
+
+    CourseResearchEnvelope:
+      type: object
+      required: [success, data]
+      properties:
+        success:
+          const: true
+        data:
+          type: object
+          required: [topic, queries, results, hasMore]
+          properties:
+            topic:
+              type: string
+            queries:
+              type: array
+              minItems: 1
+              maxItems: 3
+              items:
+                type: string
+            results:
+              type: array
+              maxItems: 20
+              items:
+                $ref: "#/components/schemas/ResearchCandidate"
+            cursor:
+              type: [string, "null"]
+            hasMore:
+              type: boolean
+
+    ResearchCandidate:
+      type: object
+      additionalProperties: false
+      required:
+        - candidateKey
+        - url
+        - canonicalUrl
+        - title
+        - domain
+        - snippet
+        - discovery
+        - authorityScore
+        - relevanceScore
+      properties:
+        candidateKey:
+          type: string
+        url:
+          type: string
+          format: uri
+        canonicalUrl:
+          type: string
+          format: uri
+        title:
+          type: string
+        domain:
+          type: string
+        snippet:
+          type: string
+        language:
+          type: [string, "null"]
+        discovery:
+          const: discovered
+        authorityScore:
+          type: number
+          minimum: 0
+          maximum: 1
+        relevanceScore:
+          type: number
+          minimum: 0
+          maximum: 1
+
+    CourseImportStatus:
+      type: string
+      enum:
+        - uploaded
+        - processing
+        - outline_review
+        - generating_content
+        - content_review
+        - ready_to_publish
+        - published
+        - failed
+        - rejected
+
+    SourceAttempt:
+      type: object
+      additionalProperties: false
+      description: >-
+        Materialized new-flow source that is not Course evidence unless and until ordered-set
+        initialization or a later job-scoped attach succeeds
+      required:
+        - sourceDocumentId
+        - idempotencyKey
+        - sourceType
+        - ingestionMethod
+        - title
+        - filename
+        - status
+        - errorCode
+        - chunkCount
+        - usable
+        - attached
+        - jobId
+      properties:
+        sourceDocumentId:
+          type: integer
+          minimum: 1
+        idempotencyKey:
+          type: string
+          format: uuid
+        sourceType:
+          type: string
+          enum: [file, web_page]
+        ingestionMethod:
+          type: string
+          enum: [uploaded, manual_url, discovered]
+        title:
+          type: string
+        filename:
+          type: string
+        sourceUrl:
+          type: [string, "null"]
+        canonicalUrl:
+          type: [string, "null"]
+        domain:
+          type: [string, "null"]
+        authorityScore:
+          type: [number, "null"]
+          minimum: 0
+          maximum: 1
+        status:
+          type: string
+          enum: [uploaded, extracting, extracted, failed]
+        errorCode:
+          type: [string, "null"]
+        chunkCount:
+          type: integer
+          minimum: 0
+        usable:
+          type: boolean
+          description: True only after successful extraction with at least one usable chunk
+        attached:
+          const: false
+        jobId:
+          type: "null"
+
+    SourceAttemptEnvelope:
+      type: object
+      required: [success, data]
+      properties:
+        success:
+          const: true
+        data:
+          $ref: "#/components/schemas/SourceAttempt"
+
+    FailedSourceAttemptEnvelope:
+      type: object
+      description: Failed materialized attempt remains unattached and may be retried or removed
+      required: [success, error, data]
+      properties:
+        success:
+          const: false
+        error:
+          type: object
+          required: [code, message]
+          properties:
+            code:
+              type: string
+            message:
+              type: string
+        data:
+          $ref: "#/components/schemas/SourceAttempt"
+
+    InitialCourseImportSource:
+      type: object
+      additionalProperties: false
+      required: [sourceDocumentId]
+      properties:
+        sourceDocumentId:
+          type: integer
+          minimum: 1
+        relevanceScore:
+          type: [number, "null"]
+          minimum: 0
+          maximum: 1
+
+    CourseImportInitializationEnvelope:
+      type: object
+      required: [success, data]
+      properties:
+        success:
+          const: true
+        data:
+          type: object
+          required:
+            - initializationKey
+            - jobId
+            - sourceDocumentId
+            - sources
+            - outlineStale
+          properties:
+            initializationKey:
+              type: string
+              format: uuid
+            jobId:
+              type: integer
+              minimum: 1
+            sourceDocumentId:
+              type: integer
+              minimum: 1
+              description: Order-zero legacy anchor selected from the first ordered input
+            sources:
+              type: array
+              minItems: 1
+              maxItems: 8
+              items:
+                $ref: "#/components/schemas/CourseImportSource"
+            outlineStale:
+              const: false
+
+    CourseImportSource:
+      type: object
+      additionalProperties: false
+      required:
+        - sourceDocumentId
+        - sourceOrder
+        - sourceType
+        - ingestionMethod
+        - title
+        - filename
+        - authorityScore
+        - relevanceScore
+        - status
+        - errorCode
+        - chunkCount
+      properties:
+        sourceDocumentId:
+          type: integer
+        sourceOrder:
+          type: integer
+          minimum: 0
+          maximum: 7
+        sourceType:
+          type: string
+          enum: [file, web_page]
+        ingestionMethod:
+          type: string
+          enum: [uploaded, manual_url, discovered]
+        title:
+          type: string
+        filename:
+          type: string
+        sourceUrl:
+          type: [string, "null"]
+        canonicalUrl:
+          type: [string, "null"]
+        domain:
+          type: [string, "null"]
+        authorityScore:
+          type: [number, "null"]
+          minimum: 0
+          maximum: 1
+        relevanceScore:
+          type: [number, "null"]
+          minimum: 0
+          maximum: 1
+        status:
+          type: string
+        errorCode:
+          type: [string, "null"]
+        chunkCount:
+          type: integer
+          minimum: 0
+
+    CourseSourceRef:
+      type: object
+      additionalProperties: false
+      required: [sourceDocumentId, chunkIndex]
+      properties:
+        sourceDocumentId:
+          type: integer
+          minimum: 1
+        chunkIndex:
+          type: integer
+          minimum: 0
+
+    CourseOutlineLesson:
+      type: object
+      additionalProperties: false
+      required: [clientKey, title, summary, learningObjectives]
+      properties:
+        clientKey:
+          type: string
+          maxLength: 80
+        title:
+          type: string
+          maxLength: 150
+        summary:
+          type: string
+        learningObjectives:
+          type: array
+          minItems: 1
+          maxItems: 12
+          uniqueItems: true
+          items:
+            type: string
+        sourceRefs:
+          type: array
+          minItems: 1
+          uniqueItems: true
+          items:
+            $ref: "#/components/schemas/CourseSourceRef"
+        sourceChunkIndexes:
+          type: array
+          deprecated: true
+          description: Accepted only for a legacy single-source job
+          minItems: 1
+          uniqueItems: true
+          items:
+            type: integer
+            minimum: 0
+      oneOf:
+        - required: [sourceRefs]
+        - required: [sourceChunkIndexes]
+
+    StructuredCourseOutline:
+      type: object
+      additionalProperties: false
+      required: [title, description, learningObjectives, lessons]
+      properties:
+        title:
+          type: string
+          maxLength: 150
+        description:
+          type: string
+        learningObjectives:
+          type: array
+          minItems: 1
+          maxItems: 20
+          uniqueItems: true
+          items:
+            type: string
+        lessons:
+          type: array
+          minItems: 2
+          maxItems: 20
+          items:
+            $ref: "#/components/schemas/CourseOutlineLesson"
+
+    CourseImportDraft:
+      type: object
+      description: Existing Course import DTO with additive multi-source fields
+      required:
+        - jobId
+        - sourceDocumentId
+        - sourceFilename
+        - sources
+        - status
+        - outlineStale
+      properties:
+        jobId:
+          type: integer
+        sourceDocumentId:
+          type: integer
+          description: Retained order-zero compatibility alias
+        sourceFilename:
+          type: string
+          description: Retained order-zero compatibility alias
+        sources:
+          type: array
+          minItems: 1
+          maxItems: 8
+          items:
+            $ref: "#/components/schemas/CourseImportSource"
+        status:
+          $ref: "#/components/schemas/CourseImportStatus"
+        outlineStale:
+          type: boolean
+        outlineRevision:
+          type: integer
+        approvedOutlineRevision:
+          type: [integer, "null"]
+        title:
+          type: string
+        description:
+          type: string
+        learningObjectives:
+          type: array
+          items:
+            type: string
+        lessons:
+          type: array
+          items:
+            $ref: "#/components/schemas/CourseOutlineLesson"
+        publishedCourseId:
+          type: [integer, "null"]
+
+    SourceMutationEnvelope:
+      type: object
+      description: Returned only for mutation of evidence on an already-initialized import
+      required: [success, data]
+      properties:
+        success:
+          const: true
+        data:
+          type: object
+          required: [jobId, source, sources, outlineStale]
+          properties:
+            jobId:
+              type: integer
+            source:
+              $ref: "#/components/schemas/CourseImportSource"
+            sources:
+              type: array
+              minItems: 1
+              maxItems: 8
+              items:
+                $ref: "#/components/schemas/CourseImportSource"
+            outlineStale:
+              type: boolean
+
+    ExtractionEnvelope:
+      type: object
+      required: [success, data]
+      properties:
+        success:
+          const: true
+        data:
+          type: object
+          required: [documentId, status, chunkCount, characterCount]
+          properties:
+            documentId:
+              type: integer
+            status:
+              const: extracted
+            chunkCount:
+              type: integer
+            characterCount:
+              type: integer
+
+    OutlineMutationEnvelope:
+      type: object
+      required: [success, data]
+      properties:
+        success:
+          const: true
+        data:
+          type: object
+          required: [jobId, sourceDocumentId, sourceDocumentIds, outlineRevision, status]
+          properties:
+            jobId:
+              type: integer
+            sourceDocumentId:
+              type: integer
+              description: Order-zero compatibility alias
+            sourceDocumentIds:
+              type: array
+              minItems: 1
+              maxItems: 8
+              items:
+                type: integer
+            outlineRevision:
+              type: integer
+            status:
+              const: outline_review

@@ -54,4 +54,50 @@ describe("LearningRecommendationCard", () => {
       "/lessons/20",
     );
   });
+
+  it("maps every recommendation type to semantic status tokens", () => {
+    const cases: Array<[LearningRecommendation["type"], string, string]> = [
+      ["NEXT_LESSON", "bg-info-soft", "text-info"],
+      ["RETRY_EXERCISE", "bg-danger-soft", "text-danger"],
+      ["REVIEW_LESSON", "bg-warning-soft", "text-warning"],
+      ["COURSE_COMPLETED", "bg-success-soft", "text-success"],
+    ];
+
+    for (const [type, bgClass, textClass] of cases) {
+      const { unmount } = render(
+        <LearningRecommendationCard recommendation={{ ...recommendation, type }} />,
+      );
+      const badge = screen.getByText("Gợi ý học tập");
+      expect(badge.className).toContain(bgClass);
+      expect(badge.className).toContain(textClass);
+      unmount();
+    }
+  });
+
+  it("uses the primary keyword CTA instead of the legacy blue action link", () => {
+    render(<LearningRecommendationCard recommendation={recommendation} />);
+
+    const link = screen.getByRole("link", { name: "Học ngay" });
+    expect(link).toHaveClass("bg-primary", "text-on-primary");
+    expect(link.className).not.toMatch(/blue-\d+/);
+  });
+
+  it("adopts shared semantic tokens without legacy palette or slash-opacity utilities", () => {
+    const { container } = render(<LearningRecommendationCard recommendation={recommendation} />);
+
+    const legacyPalette = /^(bg|text|border|shadow|ring|outline)-(slate|indigo|emerald|blue|amber|orange|red|white|gray)-\d+/;
+    const slashOpacity = /^(bg|text|border)-(primary|danger|surface-subtle|warning|info|success|ai)(-[a-z-]+)?\/\d+/;
+
+    const offenders: string[] = [];
+    container.querySelectorAll<HTMLElement>("[class]").forEach((element) => {
+      const className = element.className;
+      if (typeof className !== "string") return;
+      for (const raw of className.split(/\s+/)) {
+        const token = raw.replace(/^(dark:)?(hover:)?(focus-visible:)?/, "");
+        if (legacyPalette.test(token) || slashOpacity.test(token)) offenders.push(raw);
+      }
+    });
+
+    expect(offenders).toEqual([]);
+  });
 });

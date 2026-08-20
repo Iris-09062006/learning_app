@@ -123,7 +123,7 @@ function renderInline(content: string, keyPrefix: string): ReactNode[] {
       nodes.push(<br key={key} />);
     } else if (token.startsWith("`")) {
       nodes.push(
-        <code key={key} className="rounded-md bg-primary-soft px-1.5 py-0.5 font-mono text-[0.9em] text-primary-active dark:text-primary-hover">
+        <code key={key} className="rounded bg-surface-subtle px-1.5 py-0.5 font-mono text-[0.9em] text-text-secondary">
           {token.slice(1, -1)}
         </code>,
       );
@@ -136,7 +136,7 @@ function renderInline(content: string, keyPrefix: string): ReactNode[] {
       const href = link ? safeHref(link[2]) : null;
       nodes.push(
         href ? (
-          <a key={key} href={href} className="font-medium text-primary underline decoration-primary/30 underline-offset-4 transition hover:decoration-primary" rel={href.startsWith("http") ? "noreferrer" : undefined} target={href.startsWith("http") ? "_blank" : undefined}>
+          <a key={key} href={href} className="font-medium text-primary underline decoration-primary/30 underline-offset-4 transition hover:decoration-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2" rel={href.startsWith("http") ? "noreferrer" : undefined} target={href.startsWith("http") ? "_blank" : undefined}>
             {link?.[1]}
           </a>
         ) : (
@@ -157,35 +157,35 @@ export function LessonMarkdown({ content }: LessonMarkdownProps) {
   const blocks = parseBlocks(content);
 
   return (
-    <div data-testid="lesson-markdown" className="space-y-5 text-[1.02rem] leading-8 text-text-secondary">
+    <div data-testid="lesson-markdown" className="break-words space-y-4 text-base leading-6 text-text-secondary">
       {blocks.map((block, index) => {
         const key = `block-${index}`;
         if (block.type === "heading") {
-          const headingClass = "scroll-mt-24 font-bold tracking-tight text-text-primary";
-          if (block.level === 1) return <h2 key={key} className={`${headingClass} pt-3 text-3xl`}>{renderInline(block.content, key)}</h2>;
-          if (block.level === 2) return <h2 key={key} className={`${headingClass} pt-3 text-2xl`}>{renderInline(block.content, key)}</h2>;
-          return <h3 key={key} className={`${headingClass} pt-2 text-xl`}>{renderInline(block.content, key)}</h3>;
+          const headingClass = "scroll-mt-24 pt-2 text-text-primary";
+          if (block.level === 1) return <h2 key={key} className={`${headingClass} text-xl font-semibold leading-7`}>{renderInline(block.content, key)}</h2>;
+          if (block.level === 2) return <h2 key={key} className={`${headingClass} text-xl font-semibold leading-7`}>{renderInline(block.content, key)}</h2>;
+          return <h3 key={key} className={`${headingClass} text-base font-semibold leading-6`}>{renderInline(block.content, key)}</h3>;
         }
         if (block.type === "code") {
           return (
-            <div key={key} className="overflow-hidden rounded-2xl border border-white/10 bg-code-background shadow-lg shadow-slate-950/10">
-              {block.language && <div className="border-b border-white/10 bg-code-surface px-4 py-2 font-mono text-xs uppercase tracking-wider text-code-muted">{block.language}</div>}
-              <pre className="overflow-x-auto p-5 text-sm leading-7 text-code-text"><code>{block.content}</code></pre>
+            <div key={key} className="overflow-hidden rounded-xl bg-code-background">
+              {block.language && <div className="border-b border-border bg-code-surface px-4 py-2 font-mono text-xs uppercase tracking-wider text-code-muted">{block.language}</div>}
+              <pre className="overflow-x-auto p-5 font-mono text-sm leading-7 text-code-text"><code>{block.content}</code></pre>
             </div>
           );
         }
         if (block.type === "blockquote") {
-          return <blockquote key={key} className="rounded-r-xl border-l-4 border-primary bg-primary-soft/70 px-5 py-4 italic text-text-primary">{renderInline(block.content, key)}</blockquote>;
+          return <blockquote key={key} className="rounded-r-xl border-l-4 border-primary bg-primary-soft px-5 py-4 text-text-primary">{renderInline(block.content, key)}</blockquote>;
         }
         if (block.type === "unordered-list" || block.type === "ordered-list") {
           const ListTag = block.type === "ordered-list" ? "ol" : "ul";
           return (
-            <ListTag key={key} className={`space-y-2 pl-6 ${block.type === "ordered-list" ? "list-decimal" : "list-disc marker:text-primary"}`}>
+            <ListTag key={key} className={`space-y-1 pl-6 marker:text-primary ${block.type === "ordered-list" ? "list-decimal" : "list-disc"}`}>
               {block.content.split("\n").map((item, itemIndex) => <li key={`${key}-${itemIndex}`} className="pl-1">{renderInline(item, `${key}-${itemIndex}`)}</li>)}
             </ListTag>
           );
         }
-        if (block.type === "rule") return <hr key={key} className="my-8 border-border" />;
+        if (block.type === "rule") return <hr key={key} className="border-border" />;
         return <p key={key}>{renderInline(block.content, key)}</p>;
       })}
     </div>

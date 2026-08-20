@@ -41,6 +41,8 @@ describe("Card", () => {
     const className = screen.getByTestId("card").className;
     expect(className).toContain("rounded-xl");
     expect(className).not.toContain("rounded-2xl");
-    expect(className).toContain("border-slate-200");
+    expect(className).toContain("border-border");
+    expect(className).toContain("bg-surface");
+    expect(className).toContain("text-text-primary");
   });
 });

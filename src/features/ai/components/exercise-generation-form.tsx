@@ -2,6 +2,12 @@
 
 import Link from "next/link";
 import { useState } from "react";
+
+import { PageHeader } from "@/components/layout/page-header";
+import { Button } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Select } from "@/components/ui/select";
 import type {
   DbDifficultyLevel,
   DbExerciseType,
@@ -47,29 +53,77 @@ export function ExerciseGenerationForm({ context }: { context: ExerciseGeneratio
     }
   }
 
-  const fieldClass = "mt-1 w-full rounded-lg border border-slate-300 bg-white p-2.5 text-sm";
   return (
-    <div className="space-y-6">
+    <div className="min-w-0 space-y-6">
       <div>
-        <Link href="/moderation/lessons" className="text-sm font-medium text-indigo-700">← Chọn Lesson khác</Link>
-        <h1 className="mt-3 text-2xl font-bold text-slate-950">Tạo Exercise cho {context.lessonTitle}</h1>
-        <p className="mt-1 text-sm text-slate-600">Course: {context.courseTitle}. AI chỉ dùng nội dung và mục tiêu của Lesson đã publish này.</p>
+        <Link
+          href="/moderation/lessons"
+          className="mb-4 inline-flex items-center text-sm font-semibold text-primary hover:underline"
+        >
+          ← Chọn Lesson khác
+        </Link>
+        <PageHeader
+          title={`Tạo Exercise cho ${context.lessonTitle}`}
+          description={`Course: ${context.courseTitle}. AI chỉ dùng nội dung và mục tiêu của Lesson đã publish này.`}
+        />
       </div>
       {context.learningObjectives.length > 0 && (
-        <aside className="rounded-lg border border-blue-200 bg-blue-50 p-4 text-sm text-blue-950">
-          <strong>Mục tiêu chính thức:</strong>
-          <ul className="mt-2 list-disc space-y-1 pl-5">{context.learningObjectives.map((objective) => <li key={objective}>{objective}</li>)}</ul>
+        <aside className="rounded-xl border border-info bg-info-soft p-4 text-sm">
+          <strong className="text-info">Mục tiêu chính thức:</strong>
+          <ul className="mt-2 list-disc space-y-1 break-words pl-5 text-text-primary">{context.learningObjectives.map((objective) => <li key={objective}>{objective}</li>)}</ul>
         </aside>
       )}
-      {error && <p role="alert" className="rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700">{error}</p>}
-      {result && <p className="rounded-lg border border-emerald-200 bg-emerald-50 p-4 text-sm text-emerald-800">Draft “{result.title}” đang chờ moderation. <Link className="font-semibold underline" href={`/moderation/${result.id}`}>Mở draft</Link></p>}
-      <form onSubmit={submit} className="grid gap-5 rounded-xl border border-slate-200 bg-white p-6 shadow-sm md:grid-cols-2">
-        <label className="text-sm font-medium">Loại bài tập<select value={exerciseType} onChange={(event) => setExerciseType(event.target.value as DbExerciseType)} className={fieldClass}><option value="predict_output">Predict the Output</option><option value="fix_the_bug">Fix the Bug</option></select></label>
-        <label className="text-sm font-medium">Độ khó<select value={difficulty} onChange={(event) => setDifficulty(event.target.value as DbDifficultyLevel)} className={fieldClass}><option value="easy">Dễ</option><option value="medium">Trung bình</option><option value="hard">Khó</option></select></label>
-        <label className="text-sm font-medium md:col-span-2">Mục tiêu học tập<input list="lesson-objectives" maxLength={500} required value={learningObjective} onChange={(event) => setLearningObjective(event.target.value)} className={fieldClass} /><datalist id="lesson-objectives">{context.learningObjectives.map((objective) => <option value={objective} key={objective} />)}</datalist></label>
-        <label className="text-sm font-medium md:col-span-2">Gợi ý chủ đề (không bắt buộc)<input maxLength={500} value={topicHint} onChange={(event) => setTopicHint(event.target.value)} className={fieldClass} /></label>
-        <button type="submit" disabled={loading || !learningObjective.trim()} className="w-fit rounded-lg bg-violet-700 px-5 py-2.5 text-sm font-semibold text-white disabled:opacity-50">{loading ? "Đang sinh..." : "Sinh Exercise draft"}</button>
-      </form>
+      {error && <p role="alert" className="rounded-xl border border-danger bg-danger-soft px-4 py-3 text-sm font-medium text-danger">{error}</p>}
+      {result && <p className="break-words rounded-xl border border-success bg-success-soft px-4 py-3 text-sm font-medium text-success">Draft “{result.title}” đang chờ moderation. <Link className="font-semibold underline" href={`/moderation/${result.id}`}>Mở draft</Link></p>}
+      <Card>
+        <form onSubmit={submit} className="grid gap-5 p-6 md:grid-cols-2">
+          <Select
+            label="Loại bài tập"
+            value={exerciseType}
+            onChange={(event) => setExerciseType(event.target.value as DbExerciseType)}
+          >
+            <option value="predict_output">Predict the Output</option>
+            <option value="fix_the_bug">Fix the Bug</option>
+          </Select>
+          <Select
+            label="Độ khó"
+            value={difficulty}
+            onChange={(event) => setDifficulty(event.target.value as DbDifficultyLevel)}
+          >
+            <option value="easy">Dễ</option>
+            <option value="medium">Trung bình</option>
+            <option value="hard">Khó</option>
+          </Select>
+          <div className="md:col-span-2">
+            <Input
+              label="Mục tiêu học tập"
+              list="lesson-objectives"
+              maxLength={500}
+              required
+              value={learningObjective}
+              onChange={(event) => setLearningObjective(event.target.value)}
+            />
+            <datalist id="lesson-objectives">{context.learningObjectives.map((objective) => <option value={objective} key={objective} />)}</datalist>
+          </div>
+          <div className="md:col-span-2">
+            <Input
+              label="Gợi ý chủ đề (không bắt buộc)"
+              maxLength={500}
+              value={topicHint}
+              onChange={(event) => setTopicHint(event.target.value)}
+            />
+          </div>
+          <Button
+            type="submit"
+            size="lg"
+            isLoading={loading}
+            disabled={!learningObjective.trim()}
+            className="w-fit"
+          >
+            {loading ? "Đang sinh..." : "Sinh Exercise draft"}
+          </Button>
+        </form>
+      </Card>
     </div>
   );
 }

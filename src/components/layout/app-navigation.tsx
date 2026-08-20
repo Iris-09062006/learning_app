@@ -64,12 +64,12 @@ export function AppNavigation({ user }: AppNavigationProps) {
 
   return (
     <>
-      <aside className="fixed inset-y-0 left-0 z-40 hidden w-64 flex-col border-r border-slate-200 bg-white px-4 py-6 lg:flex">
-        <Link href="/" className="flex items-center gap-3 rounded-xl px-2 py-2 text-slate-950">
-          <span className="flex size-10 items-center justify-center rounded-xl bg-indigo-600 font-mono text-sm font-bold text-white">Py</span>
+      <aside className="fixed inset-y-0 left-0 z-40 hidden w-72 flex-col border-r border-border bg-surface-container-lowest px-4 py-6 lg:flex">
+        <Link href="/" className="flex items-center gap-3 rounded-xl px-2 py-2 text-text-primary">
+          <span className="flex size-10 items-center justify-center rounded-xl bg-primary-container font-mono text-sm font-bold text-on-primary-container">Py</span>
           <span>
             <span className="block font-bold tracking-tight">Python Learning</span>
-            <span className="block text-xs text-slate-500">Học theo lộ trình</span>
+            <span className="block text-xs text-text-secondary">Học theo lộ trình</span>
           </span>
         </Link>
 
@@ -81,47 +81,66 @@ export function AppNavigation({ user }: AppNavigationProps) {
                 key={item.href}
                 href={item.href}
                 aria-current={active ? "page" : undefined}
-                className={`flex min-h-11 items-center gap-3 rounded-xl px-3 text-sm font-semibold transition-colors ${
-                  active ? "bg-indigo-50 text-indigo-700" : "text-slate-600 hover:bg-slate-100 hover:text-slate-950"
+                className={`flex min-h-11 items-center gap-3 rounded-xl px-3 text-sm font-semibold focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring focus-visible:ring-offset-2 focus-visible:ring-offset-surface-container-lowest ${
+                  active ? "bg-primary-soft text-primary" : "text-text-secondary hover:bg-surface-subtle hover:text-text-primary"
                 }`}
               >
-                <span aria-hidden="true" className="font-mono text-xs text-slate-600">{item.marker}</span>
+                <span
+                  aria-hidden="true"
+                  className={`font-mono text-xs ${active ? "text-primary" : "text-text-secondary"}`}
+                >
+                  {item.marker}
+                </span>
                 {item.label}
               </Link>
             );
           })}
         </nav>
 
-        <div className="border-t border-slate-200 pt-4">
+        <div className="border-t border-border pt-4">
           {user ? (
             <>
-              <p className="truncate px-2 text-sm font-semibold text-slate-900">{user.username}</p>
-              <p className="mt-1 px-2 text-xs capitalize text-slate-500">{user.role}</p>
+              <p className="truncate px-2 text-sm font-semibold text-text-primary">{user.username}</p>
+              <p className="mt-1 px-2 text-xs capitalize text-text-secondary">{user.role}</p>
               <button
                 type="button"
                 onClick={handleSignOut}
                 disabled={isSigningOut}
-                className="mt-3 min-h-10 w-full rounded-lg border border-slate-300 px-3 text-sm font-semibold text-slate-700 hover:bg-slate-50 disabled:cursor-wait disabled:opacity-60"
+                className="mt-3 min-h-10 w-full rounded-lg border border-border px-3 text-sm font-semibold text-text-secondary hover:bg-surface-subtle disabled:cursor-wait disabled:opacity-60"
               >
                 {isSigningOut ? "Đang đăng xuất…" : "Đăng xuất"}
               </button>
-              {signOutError && <p role="alert" className="mt-2 text-xs text-red-600">{signOutError}</p>}
+              {signOutError && <p role="alert" className="mt-2 text-xs text-danger">{signOutError}</p>}
             </>
           ) : (
             <div className="grid grid-cols-2 gap-2">
-              <Link href="/login" className="flex min-h-10 items-center justify-center rounded-lg border border-slate-300 text-sm font-semibold text-slate-700">Đăng nhập</Link>
-              <Link href="/register" className="flex min-h-10 items-center justify-center rounded-lg bg-indigo-600 text-sm font-semibold text-white">Đăng ký</Link>
+              <Link href="/login" className="flex min-h-10 items-center justify-center rounded-lg border border-border text-sm font-semibold text-text-primary hover:bg-surface-subtle">Đăng nhập</Link>
+              <Link href="/register" className="flex min-h-10 items-center justify-center rounded-lg bg-primary text-sm font-semibold text-on-primary hover:bg-primary-hover">Đăng ký</Link>
             </div>
           )}
         </div>
       </aside>
 
-      <div className="fixed inset-x-0 top-0 z-30 flex h-14 items-center justify-between border-b border-slate-200 bg-white/95 px-4 backdrop-blur lg:hidden">
-        <Link href="/" className="font-bold tracking-tight text-slate-950">Python Learning</Link>
-        {user ? <span className="max-w-32 truncate text-sm text-slate-600">{user.username}</span> : <Link href="/login" className="text-sm font-semibold text-indigo-700">Đăng nhập</Link>}
+      <div className="fixed inset-x-0 top-0 z-30 flex h-14 items-center justify-between border-b border-border bg-surface px-4 lg:hidden">
+        <Link
+          href="/"
+          className="font-bold tracking-tight text-text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-focus-ring"
+        >
+          Python Learning
+        </Link>
+        {user ? (
+          <span className="max-w-32 truncate text-sm text-text-secondary">{user.username}</span>
+        ) : (
+          <Link
+            href="/login"
+            className="text-sm font-semibold text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-focus-ring"
+          >
+            Đăng nhập
+          </Link>
+        )}
       </div>
 
-      <nav aria-label="Điều hướng di động" className="fixed inset-x-0 bottom-0 z-40 flex min-h-16 items-stretch overflow-x-auto border-t border-slate-200 bg-white px-2 pb-[env(safe-area-inset-bottom)] lg:hidden">
+      <nav aria-label="Điều hướng di động" className="fixed inset-x-0 bottom-0 z-40 flex min-h-16 items-stretch gap-1 overflow-x-auto border-t border-border bg-surface px-2 pb-[env(safe-area-inset-bottom)] lg:hidden">
         {visibleItems.map((item) => {
           const active = isActivePath(pathname, item.href);
           return (
@@ -129,7 +148,9 @@ export function AppNavigation({ user }: AppNavigationProps) {
               key={item.href}
               href={item.href}
               aria-current={active ? "page" : undefined}
-              className={`flex min-w-20 flex-1 flex-col items-center justify-center gap-1 px-2 py-2 text-xs font-semibold ${active ? "text-indigo-700" : "text-slate-500"}`}
+              className={`flex min-w-20 flex-1 flex-col items-center justify-center gap-1 rounded-xl px-2 py-2 text-xs font-semibold focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-focus-ring ${
+                active ? "bg-primary-soft text-primary" : "text-text-muted hover:bg-surface-subtle active:bg-surface-container"
+              }`}
             >
               <span aria-hidden="true" className="font-mono text-[10px]">{item.marker}</span>
               {item.shortLabel}
