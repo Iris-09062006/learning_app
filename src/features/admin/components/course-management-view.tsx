@@ -40,7 +40,7 @@ export function CourseManagementView({ initialCourses }: { initialCourses: Admin
   }
 
   return (
-    <div className="space-y-5">
+    <div className="min-w-0 space-y-5">
       <p className="text-sm text-slate-600 dark:text-slate-300">
         Xóa khóa học sẽ gỡ khóa học khỏi catalog và ngừng xuất bản toàn bộ nội dung. Tiến độ và bài nộp của học viên không bị xóa.
       </p>
@@ -49,8 +49,8 @@ export function CourseManagementView({ initialCourses }: { initialCourses: Admin
           {message.text}
         </p>
       ) : null}
-      <div className="overflow-x-auto rounded-2xl border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-900">
-        <table className="min-w-full divide-y divide-slate-200 text-left text-sm dark:divide-slate-800">
+      <div className="max-w-full overflow-x-auto rounded-2xl border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-900">
+        <table className="w-full min-w-[48rem] table-fixed divide-y divide-slate-200 text-left text-sm dark:divide-slate-800">
           <caption className="sr-only">Danh sách khóa học có thể quản lý</caption>
           <thead className="bg-slate-50 dark:bg-slate-950">
             <tr><th scope="col" className="px-4 py-3">Khóa học</th><th scope="col" className="px-4 py-3">Trạng thái</th><th scope="col" className="px-4 py-3">Ngày tạo</th><th scope="col" className="px-4 py-3">Thao tác</th></tr>
@@ -58,7 +58,7 @@ export function CourseManagementView({ initialCourses }: { initialCourses: Admin
           <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
             {courses.map((course) => (
               <tr key={course.id}>
-                <td className="px-4 py-4"><p className="font-semibold text-slate-900 dark:text-white">{course.title}</p><p className="text-xs text-slate-500">/{course.slug}</p></td>
+                <td className="px-4 py-4"><p className="break-words font-semibold text-slate-900 dark:text-white">{course.title}</p><p className="break-all text-xs text-slate-500">/{course.slug}</p></td>
                 <td className="px-4 py-4">{course.isPublished ? "Đã xuất bản" : "Bản nháp"}</td>
                 <td className="px-4 py-4 text-slate-600 dark:text-slate-300">{new Intl.DateTimeFormat("vi-VN").format(new Date(course.createdAt))}</td>
                 <td className="px-4 py-4"><Button size="sm" variant="danger" isLoading={deletingId === course.id} onClick={() => void deleteCourse(course)}>Xóa khóa học</Button></td>

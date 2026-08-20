@@ -109,7 +109,7 @@ export const LessonContentView: React.FC<LessonContentViewProps> = ({ lesson }) 
   }
 
   return (
-    <div data-testid="lesson-content-view" className="space-y-8 pb-16 lg:pb-0">
+    <div data-testid="lesson-content-view" className="min-w-0 space-y-8 pb-16 lg:pb-0">
       <nav aria-label="Điều hướng bài học">
         <Link href="/courses" className="inline-flex items-center gap-2 text-sm font-medium text-text-secondary transition hover:text-primary">
           <span aria-hidden="true">←</span>
@@ -211,8 +211,8 @@ export const LessonContentView: React.FC<LessonContentViewProps> = ({ lesson }) 
                     <article key={exercise.id} className="group flex flex-col gap-4 rounded-xl border border-border bg-surface p-5 transition hover:border-primary hover:bg-primary-soft sm:flex-row sm:items-center sm:justify-between">
                       <div className="flex min-w-0 items-start gap-4">
                         <span className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-primary-soft text-sm font-extrabold text-primary">{exercise.order}</span>
-                        <div>
-                          <h3 className="text-base font-semibold leading-6 text-text-primary">{exercise.title}</h3>
+                        <div className="min-w-0">
+                          <h3 className="break-words text-base font-semibold leading-6 text-text-primary">{exercise.title}</h3>
                           <p className="mt-1 text-sm text-text-secondary">{formatExerciseType(exercise.type)} · {formatDifficulty(exercise.difficulty)}</p>
                         </div>
                       </div>

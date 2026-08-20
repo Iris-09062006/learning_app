@@ -87,9 +87,9 @@ export function ModerationQueueItemCard({
 
   return (
     <div className="rounded-xl border border-border bg-surface p-6 shadow-sm transition-shadow hover:shadow-md">
-      <div className="mb-2 flex items-start justify-between gap-4">
+      <div className="mb-2 flex min-w-0 items-start justify-between gap-4">
         <h3
-          className="truncate text-lg font-bold text-text-primary"
+          className="min-w-0 flex-1 truncate text-lg font-bold text-text-primary"
           title={item.title}
         >
           {item.title}
@@ -100,7 +100,7 @@ export function ModerationQueueItemCard({
         </Badge>
       </div>
 
-      <p className="mb-4 line-clamp-2 text-sm text-text-secondary">
+      <p className="mb-4 line-clamp-2 break-words text-sm text-text-secondary">
         {item.description || "Chưa có mô tả."}
       </p>
 

@@ -46,4 +46,23 @@ describe("PageHeader", () => {
     expect(header.className).toContain("mb-4");
     expect(header.className).not.toContain("mb-8");
   });
+
+  it("lets long headings wrap without widening the action row", () => {
+    render(
+      <PageHeader
+        title={"TiêuĐềKhôngCóĐiểmNgắt".repeat(8)}
+        description={"MôTảTiếngViệtRấtDài".repeat(8)}
+        actions={<button type="button">Thao tác</button>}
+      />,
+    );
+
+    const heading = screen.getByRole("heading", { level: 1 });
+    expect(heading).toHaveClass("break-words");
+    expect(heading.parentElement).toHaveClass("min-w-0", "flex-1");
+    expect(screen.getByText(/MôTảTiếngViệtRấtDài/u)).toHaveClass("break-words");
+    expect(screen.getByRole("button", { name: "Thao tác" }).parentElement).toHaveClass(
+      "max-w-full",
+      "flex-wrap",
+    );
+  });
 });

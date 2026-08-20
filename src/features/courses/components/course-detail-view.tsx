@@ -53,7 +53,7 @@ export const CourseDetailView: React.FC<CourseDetailViewProps> = ({ course }) =>
   }
 
   return (
-    <div data-testid="course-detail-view" className="space-y-8">
+    <div data-testid="course-detail-view" className="min-w-0 space-y-8">
       {/* Header section */}
       <div
         data-testid="course-detail-header"
@@ -68,16 +68,16 @@ export const CourseDetailView: React.FC<CourseDetailViewProps> = ({ course }) =>
           </span>
         </div>
 
-        <h1 className="mt-4 text-3xl font-bold tracking-tight text-text-primary">
+        <h1 className="mt-4 break-words text-3xl font-bold tracking-tight text-text-primary">
           {course.title}
         </h1>
 
-        <p className="mt-4 text-base text-text-secondary">
+        <p className="mt-4 break-words text-base text-text-secondary">
           {course.description || "Chưa có mô tả chi tiết cho khóa học này."}
         </p>
 
         <div className="mt-6 flex flex-wrap items-center justify-between gap-4 border-t border-border pt-6">
-          <div className="flex items-center gap-6 text-sm text-text-muted">
+          <div className="flex flex-wrap items-center gap-x-6 gap-y-2 text-sm text-text-muted">
             <span>{course.chapterCount} chương</span>
             <span>&bull;</span>
             <span>{course.lessonCount} bài học</span>
@@ -143,19 +143,19 @@ export const CourseDetailView: React.FC<CourseDetailViewProps> = ({ course }) =>
                 data-testid="course-chapter-row"
                 className="flex items-center justify-between gap-4 rounded-xl border border-border bg-surface p-4 transition-shadow hover:shadow-sm"
               >
-                <div className="flex items-start gap-3">
+                <div className="flex min-w-0 flex-1 items-start gap-3">
                   <span
                     aria-hidden="true"
                     className="flex size-8 shrink-0 items-center justify-center rounded-md bg-primary-soft text-sm font-bold text-primary"
                   >
                     {ch.chapterOrder}
                   </span>
-                  <div>
-                    <h3 className="font-semibold text-text-primary">
+                  <div className="min-w-0">
+                    <h3 className="break-words font-semibold text-text-primary">
                       {ch.title}
                     </h3>
                     {ch.description && (
-                      <p className="mt-1 text-xs text-text-muted">
+                      <p className="mt-1 break-words text-xs text-text-muted">
                         {ch.description}
                       </p>
                     )}

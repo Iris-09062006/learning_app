@@ -14,10 +14,10 @@ export const CourseRoadmapView: React.FC<CourseRoadmapViewProps> = ({
   roadmap,
 }) => {
   return (
-    <div data-testid="course-roadmap-view" className="space-y-8">
+    <div data-testid="course-roadmap-view" className="min-w-0 space-y-8">
       {/* Header section with progress */}
       <div data-testid="roadmap-header-card" className="rounded-xl border border-border bg-surface p-8 shadow-sm">
-        <h1 className="text-3xl font-bold tracking-tight text-text-primary">
+        <h1 className="break-words text-3xl font-bold tracking-tight text-text-primary">
           Lộ trình học: {roadmap.course.title}
         </h1>
         <div className="mt-6 space-y-2">
@@ -48,7 +48,7 @@ export const CourseRoadmapView: React.FC<CourseRoadmapViewProps> = ({
               className="rounded-xl border border-border bg-surface"
             >
               <div className="border-b border-border bg-surface-subtle px-6 py-4">
-                <h2 className="text-lg font-bold text-text-primary">
+                <h2 className="break-words text-lg font-bold text-text-primary">
                   Chương {chapter.order}: {chapter.title}
                 </h2>
               </div>
@@ -77,8 +77,8 @@ export const CourseRoadmapView: React.FC<CourseRoadmapViewProps> = ({
                             : "hover:bg-surface-subtle"
                         }`}
                       >
-                        <div className="flex-1">
-                          <div className="flex items-center gap-4">
+                        <div className="min-w-0 flex-1">
+                          <div className="flex min-w-0 items-center gap-4">
                             <div className="flex size-10 shrink-0 items-center justify-center rounded-full bg-surface-container">
                               {isCompleted && (
                                 <svg
@@ -146,10 +146,10 @@ export const CourseRoadmapView: React.FC<CourseRoadmapViewProps> = ({
                                 </svg>
                               )}
                             </div>
-                            <div>
+                            <div className="min-w-0">
                               <div className="flex flex-wrap items-center gap-2">
                                 <h3
-                                  className={`font-medium ${
+                                  className={`break-words font-medium ${
                                     isLocked
                                       ? "text-text-muted"
                                       : "text-text-primary"

@@ -26,7 +26,7 @@ export const CourseList: React.FC<CourseListProps> = ({ courses, search }) => {
   return (
     <div
       data-testid="course-list"
-      className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3"
+      className="grid min-w-0 grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3"
     >
       {courses.map((course) => (
         <CourseCard key={course.id} course={course} />

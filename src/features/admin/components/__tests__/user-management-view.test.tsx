@@ -36,6 +36,28 @@ describe("UserManagementView", () => {
     expect(emptyState).toHaveClass("border-border", "bg-surface");
   });
 
+  it("contains long user identifiers inside the scrollable table", () => {
+    const username = "NguoiDungKhongCoDiemNgat".repeat(8);
+    const email = `${"diachikhongcodiemngat".repeat(8)}@example.com`;
+    const { container } = render(
+      <UserManagementView
+        initialData={{ ...initialData, items: [{ ...initialData.items[0], username, email }] }}
+      />,
+    );
+
+    expect(screen.getByText(username)).toHaveClass("break-all");
+    expect(screen.getByText(email)).toHaveClass("break-all");
+    expect(container.querySelector("table")?.parentElement).toHaveClass(
+      "max-w-full",
+      "overflow-x-auto",
+    );
+    expect(container.querySelector("table")).toHaveClass(
+      "w-full",
+      "min-w-[48rem]",
+      "table-fixed",
+    );
+  });
+
   it("sends role-only mutations then refreshes the list", async () => {
     const fetchMock = vi.fn()
       .mockResolvedValueOnce(new Response(JSON.stringify({ success: true, data: { auditLogId: 7 } }), { status: 200 }))

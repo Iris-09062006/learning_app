@@ -113,8 +113,8 @@ export function UserManagementView({ initialData }: UserManagementViewProps) {
   }
 
   return (
-    <div className="space-y-6">
-      <form onSubmit={handleFilter} className="grid gap-4 rounded-xl border border-border bg-surface p-5 shadow-sm sm:grid-cols-2 lg:grid-cols-4">
+    <div className="min-w-0 space-y-6">
+      <form onSubmit={handleFilter} className="grid min-w-0 gap-4 rounded-xl border border-border bg-surface p-5 shadow-sm sm:grid-cols-2 lg:grid-cols-4">
         <div>
           <div className="relative">
             <Input
@@ -173,8 +173,8 @@ export function UserManagementView({ initialData }: UserManagementViewProps) {
 
       {message ? <p role={message.kind === "error" ? "alert" : "status"} className={message.kind === "error" ? "rounded-lg border border-danger bg-danger-soft px-3 py-2 text-sm text-danger" : "rounded-lg border border-success bg-success-soft px-3 py-2 text-sm text-success"}>{message.text}</p> : null}
 
-      <div className="overflow-x-auto rounded-xl border border-border bg-surface shadow-sm">
-        <table className="min-w-full divide-y divide-border text-left text-sm">
+      <div className="max-w-full overflow-x-auto rounded-xl border border-border bg-surface shadow-sm">
+        <table className="w-full min-w-[48rem] table-fixed divide-y divide-border text-left text-sm">
           <caption className="sr-only">Danh sách người dùng hệ thống</caption>
           <thead className="bg-surface-container-low">
             <tr>
@@ -187,7 +187,7 @@ export function UserManagementView({ initialData }: UserManagementViewProps) {
           <tbody className="divide-y divide-border">
             {data.items.map((user) => (
               <tr key={user.id}>
-                <td className="px-4 py-4"><p className="font-semibold text-text-primary">{user.username}</p><p className="text-xs text-text-muted">{user.email}</p></td>
+                <td className="px-4 py-4"><p className="break-all font-semibold text-text-primary">{user.username}</p><p className="break-all text-xs text-text-muted">{user.email}</p></td>
                 <td className="px-4 py-4">
                   <div className="w-full max-w-40">
                     <label htmlFor={`role-${user.id}`} className="sr-only">Vai trò của {user.username}</label>
@@ -219,7 +219,7 @@ export function UserManagementView({ initialData }: UserManagementViewProps) {
         {data.items.length === 0 ? <StatePanel variant="empty" className="m-4 shadow-none">Không tìm thấy người dùng phù hợp.</StatePanel> : null}
       </div>
 
-      <nav aria-label="Phân trang người dùng" className="flex items-center justify-between gap-4">
+      <nav aria-label="Phân trang người dùng" className="flex flex-wrap items-center justify-between gap-4">
         <Button variant="outline" disabled={data.page <= 1 || isLoading} onClick={() => void loadUsers(data.page - 1)}>Trang trước</Button>
         <span className="text-sm text-text-secondary">Trang {data.page} / {Math.max(data.totalPages, 1)} · {data.total} người dùng</span>
         <Button variant="outline" disabled={data.page >= data.totalPages || isLoading} onClick={() => void loadUsers(data.page + 1)}>Trang sau</Button>

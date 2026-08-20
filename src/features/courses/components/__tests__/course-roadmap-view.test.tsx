@@ -121,6 +121,26 @@ describe("CourseRoadmapView", () => {
     ).toBeInTheDocument();
   });
 
+  it("keeps long course, chapter, and lesson titles inside flexible tracks", () => {
+    const longTitle = "NộiDungTiếngViệtKhôngCóĐiểmNgắt".repeat(8);
+    const roadmap: RoadmapResponse = {
+      ...baseRoadmap,
+      course: { ...baseRoadmap.course, title: longTitle },
+      chapters: [{
+        ...baseRoadmap.chapters[0],
+        title: longTitle,
+        lessons: [{ ...baseRoadmap.chapters[0].lessons[0], title: longTitle }],
+      }],
+    };
+    render(<CourseRoadmapView roadmap={roadmap} />);
+
+    expect(screen.getByRole("heading", { level: 1 })).toHaveClass("break-words");
+    expect(screen.getByRole("heading", { level: 2 })).toHaveClass("break-words");
+    const lessonHeading = screen.getByRole("heading", { level: 3 });
+    expect(lessonHeading).toHaveClass("break-words");
+    expect(lessonHeading.closest(".min-w-0.flex-1")).not.toBeNull();
+  });
+
   it("renders lesson links for unlocked, in-progress, and completed lessons", () => {
     render(<CourseRoadmapView roadmap={baseRoadmap} />);
     const links = screen.getAllByTestId("lesson-link");

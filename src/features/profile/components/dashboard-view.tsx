@@ -95,7 +95,7 @@ export function DashboardView({ data }: DashboardViewProps) {
                 className="rounded-xl border border-border bg-surface p-6 shadow-sm"
               >
                 <div className="flex items-start justify-between gap-4">
-                  <div>
+                  <div className="min-w-0">
                     <p
                       className={`text-xs font-semibold uppercase tracking-wide ${
                         course.status === "completed"
@@ -111,7 +111,7 @@ export function DashboardView({ data }: DashboardViewProps) {
                           ? "Đã hủy"
                           : "Đang học"}
                     </p>
-                    <h3 className="mt-1 text-lg font-bold text-text-primary">
+                    <h3 className="mt-1 line-clamp-2 break-words text-lg font-bold text-text-primary" title={course.title}>
                       {course.title}
                     </h3>
                   </div>

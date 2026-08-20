@@ -85,6 +85,16 @@ describe("CourseCard", () => {
     );
   });
 
+  it("clamps long catalog titles while preserving the full title", () => {
+    const title = "KhóaHọcPythonKhôngCóĐiểmNgắt".repeat(8);
+    render(<CourseCard course={{ ...baseCourse, title }} />);
+
+    const heading = screen.getByRole("heading", { name: title });
+    expect(heading).toHaveClass("line-clamp-2", "break-words");
+    expect(heading).toHaveAttribute("title", title);
+    expect(screen.getByTestId("course-card")).toHaveClass("min-w-0");
+  });
+
   it("does not reintroduce legacy palette utilities or slash-opacity tokens", () => {
     const { container } = render(<CourseCard course={baseCourse} />);
 

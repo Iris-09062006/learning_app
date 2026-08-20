@@ -93,6 +93,22 @@ describe("ModerationQueueView", () => {
     ).toEqual(["/moderation/1", "/moderation/2", "/moderation/3"]);
   });
 
+  it("truncates long queue-card titles without discarding the accessible value", async () => {
+    const title = "BàiTậpKiểmDuyệtKhôngCóĐiểmNgắt".repeat(8);
+    vi.spyOn(globalThis, "fetch").mockResolvedValue(
+      json(queueResult([{ ...queueItem(1), title, description: title }])),
+    );
+    render(<ModerationQueueView />);
+
+    const heading = await screen.findByRole("heading", { level: 3, name: title });
+    expect(heading).toHaveClass("min-w-0", "flex-1", "truncate");
+    expect(heading).toHaveAttribute("title", title);
+    expect(screen.getByText(title, { selector: "p" })).toHaveClass(
+      "line-clamp-2",
+      "break-words",
+    );
+  });
+
   it("maps status chips to semantic B-family token pairs", async () => {
     const unexpected = "unexpected" as DbGeneratedExerciseStatus;
     vi.spyOn(globalThis, "fetch").mockResolvedValue(

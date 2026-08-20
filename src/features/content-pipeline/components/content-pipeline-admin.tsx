@@ -737,25 +737,25 @@ export function ContentPipelineAdmin() {
     {error ? <div role="alert" className="rounded-lg border border-danger bg-danger-soft p-3 text-sm text-danger">{error}</div> : null}
     {published ? <div className="rounded-lg border border-success bg-success-soft p-4 text-sm text-success">Course đã xuất bản. <Link className="font-semibold underline" href={`/courses/${published.courseId}`}>Mở Course</Link></div> : null}
 
-    <section className="grid gap-6 lg:grid-cols-[minmax(16rem,0.75fr)_minmax(0,2fr)]" aria-labelledby="review-title">
-      <div className="rounded-xl border border-border bg-surface p-4 shadow-sm">
+    <section className="grid min-w-0 gap-6 lg:grid-cols-[minmax(16rem,0.75fr)_minmax(0,2fr)]" aria-labelledby="review-title">
+      <div className="min-w-0 rounded-xl border border-border bg-surface p-4 shadow-sm">
         <h2 id="review-title" className="font-semibold text-text-primary">Course import queue</h2>
         {imports.length === 0 ? <StatePanel variant="empty" className="mt-3 p-5 shadow-none">Hàng chờ trống.</StatePanel> : <ul className="mt-3 space-y-2">{imports.map((item) => <li key={item.jobId}>
-          <Button variant="outline" type="button" className={`h-auto w-full flex-col items-start py-2 ${selectedJobId === item.jobId ? "border-primary bg-primary-soft text-text-primary" : "border-border bg-surface text-text-primary"}`}
+          <Button variant="outline" type="button" className={`h-auto min-w-0 w-full flex-col items-start py-2 ${selectedJobId === item.jobId ? "border-primary bg-primary-soft text-text-primary" : "border-border bg-surface text-text-primary"}`}
             onClick={() => { setSelectedJobId(item.jobId); setSourceReviewJobId(item.jobId); setSelectedOutlineLessonId(null); }}>
-            <span className="block font-semibold">{item.title}</span>
+            <span className="block max-w-full break-words font-semibold">{item.title}</span>
             <span className="block text-text-muted">{item.status} · {item.lessons.length} Lessons</span>
           </Button>
         </li>)}</ul>}
       </div>
 
-      <div className="rounded-xl border border-border bg-surface p-6 shadow-sm">
+      <div className="min-w-0 rounded-xl border border-border bg-surface p-6 shadow-sm">
         {!selectedImport ? <StatePanel variant="empty" className="p-5 shadow-none">Chọn một Course import.</StatePanel> : <div className="space-y-5">
           <Badge className="bg-primary-soft text-primary">{selectedImport.status} · outline r{selectedImport.outlineRevision}</Badge>
           <div className="rounded-lg border border-border bg-surface-subtle p-3 text-sm">
             <p className="font-semibold text-text-primary">Nguồn evidence ({selectedImport.sources.length})</p>
             <ul className="mt-2 space-y-1">{selectedImport.sources.map((source) => <li key={source.sourceDocumentId}>
-              <span className="text-text-secondary">{source.title}{source.domain ? ` · ${source.domain}` : ""} · {source.ingestionMethod} · {source.status} · {source.chunkCount} chunks</span>
+              <span className="break-words text-text-secondary">{source.title}{source.domain ? ` · ${source.domain}` : ""} · {source.ingestionMethod} · {source.status} · {source.chunkCount} chunks</span>
               {source.authorityScore !== null ? <span className="text-text-muted"> · authority {source.authorityScore.toFixed(2)}</span> : null}
               {source.relevanceScore !== null ? <span className="text-text-muted"> · relevance {source.relevanceScore.toFixed(2)}</span> : null}
               {["uploaded", "processing", "outline_review", "failed"].includes(selectedImport.status) && selectedImport.approvedOutlineRevision === null
@@ -773,7 +773,7 @@ export function ContentPipelineAdmin() {
             onChange={(event) => updateSelected((draft) => ({ ...draft, description: event.target.value }))} />
           <Textarea label="Course learning objectives (mỗi dòng một mục tiêu)" value={selectedImport.learningObjectives.join("\n")} disabled={!canEditOutline}
             onChange={(event) => updateSelected((draft) => ({ ...draft, learningObjectives: event.target.value.split("\n").filter(Boolean) }))} />
-          <ol className="space-y-3">{selectedImport.lessons.map((lesson, index) => <li className="rounded-lg border border-border bg-surface p-3" key={lesson.clientKey}>
+          <ol className="min-w-0 space-y-3">{selectedImport.lessons.map((lesson, index) => <li className="min-w-0 rounded-lg border border-border bg-surface p-3" key={lesson.clientKey}>
             {canEditOutline ? <div className="grid gap-2">
               <Input label={`Lesson ${index + 1} title`} value={lesson.title} onChange={(e) => editLesson(lesson.id, { title: e.target.value })} />
               <Textarea label="Summary" value={lesson.summary} onChange={(e) => editLesson(lesson.id, { summary: e.target.value })} />
@@ -801,9 +801,9 @@ export function ContentPipelineAdmin() {
                 <Button variant="outline" size="sm" type="button" onClick={() => reorderLesson(lesson.id, 1)} disabled={index === selectedImport.lessons.length - 1}>Di chuyển xuống</Button>
                 <Button variant="outline" size="sm" type="button" className="border-danger text-danger" onClick={() => removeLesson(lesson.id)} disabled={selectedImport.lessons.length <= 2}>Xóa Lesson</Button>
               </div>
-            </div> : <Button variant="ghost" type="button" className="h-auto w-full flex-col items-start py-2" onClick={() => setSelectedOutlineLessonId(lesson.id)}>
-              <span className="block font-semibold">{index + 1}. {lesson.title}</span>
-              <span className="block text-sm text-text-muted">{lesson.summary} · {lesson.contentDraft ? `content r${lesson.contentDraft.revision}` : "chưa có content"}</span>
+            </div> : <Button variant="ghost" type="button" className="h-auto min-w-0 w-full flex-col items-start py-2" onClick={() => setSelectedOutlineLessonId(lesson.id)}>
+              <span className="block max-w-full break-words font-semibold">{index + 1}. {lesson.title}</span>
+              <span className="block max-w-full break-words text-sm text-text-muted">{lesson.summary} · {lesson.contentDraft ? `content r${lesson.contentDraft.revision}` : "chưa có content"}</span>
             </Button>}
           </li>)}</ol>
           {canEditOutline ? <div className="flex flex-wrap gap-3">
@@ -848,7 +848,7 @@ function ContentEditor({ content, onChange, onSave, onRegenerate, busy }: {
   function updateSection(index: number, field: "heading" | "bodyMarkdown", value: string) {
     onChange({ ...content, sections: content.sections.map((section, sectionIndex) => sectionIndex === index ? { ...section, [field]: value } : section) });
   }
-  return <section className="rounded-xl border border-border bg-surface p-6 shadow-sm" aria-labelledby="lesson-editor-title">
+  return <section className="min-w-0 rounded-xl border border-border bg-surface p-6 shadow-sm" aria-labelledby="lesson-editor-title">
     <h2 id="lesson-editor-title" className="text-xl font-semibold text-text-primary">Lesson content review</h2>
     <div className="mt-4 grid gap-4">
       <Input label="Tiêu đề" value={content.title} onChange={(e) => onChange({ ...content, title: e.target.value })} />
@@ -858,7 +858,7 @@ function ContentEditor({ content, onChange, onSave, onRegenerate, busy }: {
         <Input aria-label={`Tiêu đề phần ${index + 1}`} className="mb-2" value={section.heading} onChange={(e) => updateSection(index, "heading", e.target.value)} />
         <Textarea aria-label={`Nội dung phần ${index + 1}`} className="min-h-36" value={section.bodyMarkdown} onChange={(e) => updateSection(index, "bodyMarkdown", e.target.value)} />
         <p className="mt-2 text-xs text-text-muted">Nguồn chunk: {section.citationChunkIndexes.join(", ")}</p>
-        <ul className="mt-2 space-y-1 text-xs text-text-secondary">{content.citations
+        <ul className="mt-2 space-y-1 break-words text-xs text-text-secondary">{content.citations
           .filter((citation) => citation.sectionIndex === index)
           .map((citation) => <li key={`${citation.documentChunkId ?? citation.chunkIndex}`}>
             {citation.sourceTitle
@@ -866,7 +866,7 @@ function ContentEditor({ content, onChange, onSave, onRegenerate, busy }: {
               : `Chunk ${citation.chunkIndex}: ${citation.quote}`}
           </li>)}</ul>
       </fieldset>)}
-      <div className="flex gap-3"><Button type="button" onClick={onSave} disabled={busy}>Lưu Lesson content</Button>
+      <div className="flex flex-wrap gap-3"><Button type="button" onClick={onSave} disabled={busy}>Lưu Lesson content</Button>
         <Button variant="outline" type="button" onClick={onRegenerate} disabled={busy}>Regenerate Lesson này</Button></div>
     </div>
   </section>;

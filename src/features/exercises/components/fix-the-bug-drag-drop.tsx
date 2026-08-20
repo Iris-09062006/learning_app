@@ -121,8 +121,8 @@ export const FixTheBugDragDrop: React.FC<FixTheBugDragDropProps> = ({
         </p>
 
         {selectedOption ? (
-          <div className="mt-3 flex items-center justify-between gap-3">
-            <code className="rounded-lg bg-code-background px-4 py-3 font-mono text-sm leading-6 text-code-text">
+          <div className="mt-3 flex min-w-0 items-center justify-between gap-3">
+            <code className="block min-w-0 flex-1 overflow-x-auto rounded-lg bg-code-background px-4 py-3 font-mono text-sm leading-6 text-code-text">
               {selectedOption.content}
             </code>
             <button
@@ -172,9 +172,9 @@ export const FixTheBugDragDrop: React.FC<FixTheBugDragDropProps> = ({
                 onDragStart={(event) => handleDragStart(event, option)}
                 onDragEnd={handleDragEnd}
                 aria-label={`Mảnh code: ${option.content}`}
-                className="cursor-pointer rounded-xl border border-border bg-surface p-4 text-left shadow-sm transition-all duration-200 hover:border-primary hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background active:cursor-grabbing"
+                className="min-w-0 cursor-pointer rounded-xl border border-border bg-surface p-4 text-left shadow-sm transition-all duration-200 hover:border-primary hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background active:cursor-grabbing"
               >
-                <code className="font-mono text-sm leading-6 text-code-text">
+                <code className="block max-w-full overflow-x-auto font-mono text-sm leading-6 text-code-text">
                   {option.content}
                 </code>
               </button>

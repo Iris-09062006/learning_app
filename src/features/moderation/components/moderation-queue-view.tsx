@@ -72,7 +72,7 @@ export function ModerationQueueView() {
   const totalPages = Math.ceil(total / limit);
 
   return (
-    <div className="space-y-6">
+    <div className="min-w-0 space-y-6">
       <PageHeader
         title="Hàng đợi kiểm duyệt bài tập"
         description="Rà soát bài tập do AI tạo trước khi xuất bản"
@@ -125,7 +125,7 @@ export function ModerationQueueView() {
           Không có bài tập nào khớp với bộ lọc hiện tại.
         </StatePanel>
       ) : (
-        <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+        <div className="grid min-w-0 grid-cols-1 gap-4 md:grid-cols-2">
           {items.map((item) => (
             <ModerationQueueItemCard key={item.id} item={item} />
           ))}
@@ -133,7 +133,7 @@ export function ModerationQueueView() {
       )}
 
       {totalPages > 1 && (
-        <div className="flex items-center justify-between rounded-xl border border-border bg-surface p-4 shadow-sm">
+        <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-border bg-surface p-4 shadow-sm">
           <Button
             variant="outline"
             size="sm"

@@ -72,6 +72,22 @@ describe("FixTheBugDragDrop", () => {
     ).not.toBeInTheDocument();
   });
 
+  it("contains long code fragments with local horizontal scrolling", () => {
+    const longCode = `result = ${"identifier".repeat(80)}`;
+    const longOptions = [{ id: 9, content: longCode, order: 1 }];
+    const { rerender } = render(
+      <FixTheBugDragDrop options={longOptions} value={null} onChange={vi.fn()} />,
+    );
+
+    const availableCode = screen.getByText(longCode);
+    expect(availableCode).toHaveClass("block", "max-w-full", "overflow-x-auto");
+    expect(availableCode.parentElement).toHaveClass("min-w-0");
+
+    rerender(<FixTheBugDragDrop options={longOptions} value={9} onChange={vi.fn()} />);
+    const selectedCode = screen.getByText(longCode);
+    expect(selectedCode).toHaveClass("min-w-0", "flex-1", "overflow-x-auto");
+  });
+
   it("clears the selection when the remove button is clicked", () => {
     const onChange = vi.fn();
     render(<FixTheBugDragDrop options={options} value={1} onChange={onChange} />);

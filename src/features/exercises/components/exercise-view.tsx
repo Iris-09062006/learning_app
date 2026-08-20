@@ -66,7 +66,7 @@ export const ExerciseView: React.FC<ExerciseViewProps> = ({ exercise }) => {
   }
 
   return (
-    <div data-testid="exercise-view" className="space-y-6">
+    <div data-testid="exercise-view" className="min-w-0 space-y-6">
       <div className="rounded-xl border border-border bg-surface p-6 shadow-sm">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <span className="rounded-full bg-primary-container px-3 py-1 text-xs font-semibold text-on-primary-container">
@@ -77,18 +77,18 @@ export const ExerciseView: React.FC<ExerciseViewProps> = ({ exercise }) => {
           </span>
         </div>
 
-        <h1 className="mt-3 text-xl font-bold text-text-primary">
+        <h1 className="mt-3 break-words text-xl font-bold text-text-primary">
           {exercise.title}
         </h1>
 
         {exercise.description && (
-          <p className="mt-2 whitespace-pre-wrap text-sm leading-relaxed text-text-secondary">
+          <p className="mt-2 whitespace-pre-wrap break-words text-sm leading-relaxed text-text-secondary">
             {exercise.description}
           </p>
         )}
 
         {exercise.codeSnippet && (
-          <pre className="mt-4 overflow-x-auto rounded-xl bg-code-background p-5 font-mono text-sm leading-7 text-code-text">
+          <pre className="mt-4 max-w-full overflow-x-auto rounded-xl bg-code-background p-5 font-mono text-sm leading-7 text-code-text">
             <code>{exercise.codeSnippet}</code>
           </pre>
         )}
@@ -124,7 +124,7 @@ export const ExerciseView: React.FC<ExerciseViewProps> = ({ exercise }) => {
                     : "border-border bg-surface hover:border-primary hover:bg-primary-soft",
                 ].join(" ")}
               >
-                <span className="text-sm text-text-primary">
+                <span className="min-w-0 break-words text-sm text-text-primary">
                   {option.content}
                 </span>
                 <span
@@ -180,7 +180,7 @@ export const ExerciseView: React.FC<ExerciseViewProps> = ({ exercise }) => {
               <p className="font-semibold">
                 {result.isCorrect ? "Chính xác!" : "Chưa chính xác"}
               </p>
-              <p className="mt-1 whitespace-pre-wrap">{result.feedback}</p>
+              <p className="mt-1 whitespace-pre-wrap break-words">{result.feedback}</p>
               {!result.isCorrect ? (
                 <AiExplanationView submissionId={result.submissionId} />
               ) : null}

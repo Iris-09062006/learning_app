@@ -106,7 +106,7 @@ export function ModerationReviewForm(props: ModerationReviewFormProps) {
   return (
     <form
       onSubmit={handleSubmit}
-      className="rounded-xl border border-border bg-surface p-6 shadow-sm"
+      className="min-w-0 rounded-xl border border-border bg-surface p-6 shadow-sm"
     >
       <div>
         <h2 className="text-lg font-semibold text-text-primary">Kiểm duyệt bài tập</h2>
@@ -170,7 +170,7 @@ export function ModerationReviewForm(props: ModerationReviewFormProps) {
       </div>
 
       {isEditing && (
-        <div className="mt-4 space-y-4 rounded-xl border border-border bg-surface-subtle p-4">
+        <div className="mt-4 min-w-0 space-y-4 rounded-xl border border-border bg-surface-subtle p-4">
           <Input
             id="edit-title"
             label="Tiêu đề"
@@ -186,7 +186,7 @@ export function ModerationReviewForm(props: ModerationReviewFormProps) {
             value={description}
             onChange={(event) => setDescription(event.target.value)}
           />
-          <div className="grid gap-4 sm:grid-cols-2">
+          <div className="grid min-w-0 gap-4 sm:grid-cols-2">
             <Select
               id="edit-exercise-type"
               label="Loại bài tập"

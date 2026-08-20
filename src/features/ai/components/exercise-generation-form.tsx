@@ -54,7 +54,7 @@ export function ExerciseGenerationForm({ context }: { context: ExerciseGeneratio
   }
 
   return (
-    <div className="space-y-6">
+    <div className="min-w-0 space-y-6">
       <div>
         <Link
           href="/moderation/lessons"
@@ -70,11 +70,11 @@ export function ExerciseGenerationForm({ context }: { context: ExerciseGeneratio
       {context.learningObjectives.length > 0 && (
         <aside className="rounded-xl border border-info bg-info-soft p-4 text-sm">
           <strong className="text-info">Mục tiêu chính thức:</strong>
-          <ul className="mt-2 list-disc space-y-1 pl-5 text-text-primary">{context.learningObjectives.map((objective) => <li key={objective}>{objective}</li>)}</ul>
+          <ul className="mt-2 list-disc space-y-1 break-words pl-5 text-text-primary">{context.learningObjectives.map((objective) => <li key={objective}>{objective}</li>)}</ul>
         </aside>
       )}
       {error && <p role="alert" className="rounded-xl border border-danger bg-danger-soft px-4 py-3 text-sm font-medium text-danger">{error}</p>}
-      {result && <p className="rounded-xl border border-success bg-success-soft px-4 py-3 text-sm font-medium text-success">Draft “{result.title}” đang chờ moderation. <Link className="font-semibold underline" href={`/moderation/${result.id}`}>Mở draft</Link></p>}
+      {result && <p className="break-words rounded-xl border border-success bg-success-soft px-4 py-3 text-sm font-medium text-success">Draft “{result.title}” đang chờ moderation. <Link className="font-semibold underline" href={`/moderation/${result.id}`}>Mở draft</Link></p>}
       <Card>
         <form onSubmit={submit} className="grid gap-5 p-6 md:grid-cols-2">
           <Select

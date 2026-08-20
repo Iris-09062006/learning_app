@@ -125,6 +125,26 @@ describe("CourseDetailView", () => {
     expect(screen.getByText(/3 bài học/)).toBeInTheDocument();
   });
 
+  it("wraps long detail and chapter copy without changing its content", () => {
+    const title = "KhóaHọcKhôngCóĐiểmNgắt".repeat(8);
+    const chapterTitle = "ChươngTiếngViệtKhôngCóĐiểmNgắt".repeat(8);
+    render(
+      <CourseDetailView
+        course={{
+          ...baseDetail,
+          title,
+          description: title,
+          chapters: [{ ...baseDetail.chapters[0], title: chapterTitle, description: chapterTitle }],
+        }}
+      />,
+    );
+
+    expect(screen.getByRole("heading", { level: 1, name: title })).toHaveClass("break-words");
+    expect(screen.getByRole("heading", { level: 3, name: chapterTitle })).toHaveClass("break-words");
+    expect(screen.getByTestId("course-detail-view")).toHaveClass("min-w-0");
+    expect(screen.getByTestId("course-chapter-row").firstElementChild).toHaveClass("min-w-0", "flex-1");
+  });
+
   it("renders empty state for chapters", () => {
     render(<CourseDetailView course={{ ...baseDetail, chapters: [] }} />);
     const emptyState = screen

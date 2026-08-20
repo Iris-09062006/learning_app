@@ -193,7 +193,7 @@ export function ModerationDetailView({ id }: ModerationDetailViewProps) {
             <h1 className="break-words text-2xl font-bold text-text-primary">
               {item.title}
             </h1>
-            <p className="mt-1 text-sm text-text-muted">
+            <p className="mt-1 break-words text-sm text-text-muted">
               ID: #{item.id} | Bài học: {item.lessonTitle ?? `#${item.lessonId}`}
             </p>
           </div>
@@ -207,12 +207,12 @@ export function ModerationDetailView({ id }: ModerationDetailViewProps) {
           {item.description}
         </p>
 
-        <div className="mt-4 grid grid-cols-1 gap-4 border-y border-border py-4 text-sm sm:grid-cols-2 lg:grid-cols-4">
+        <div className="mt-4 grid min-w-0 grid-cols-1 gap-4 border-y border-border py-4 text-sm sm:grid-cols-2 lg:grid-cols-4">
           <div>
             <span className="block text-xs font-semibold uppercase tracking-wide text-text-muted">
               Loại
             </span>
-            <span className="mt-1 block font-medium capitalize text-text-primary">
+            <span className="mt-1 block break-words font-medium capitalize text-text-primary">
               {item.exerciseType.replace("_", " ")}
             </span>
           </div>
@@ -220,7 +220,7 @@ export function ModerationDetailView({ id }: ModerationDetailViewProps) {
             <span className="block text-xs font-semibold uppercase tracking-wide text-text-muted">
               Độ khó
             </span>
-            <span className="mt-1 block font-medium capitalize text-text-primary">
+            <span className="mt-1 block break-words font-medium capitalize text-text-primary">
               {item.difficulty}
             </span>
           </div>
@@ -228,7 +228,7 @@ export function ModerationDetailView({ id }: ModerationDetailViewProps) {
             <span className="block text-xs font-semibold uppercase tracking-wide text-text-muted">
               Nhà cung cấp AI
             </span>
-            <span className="mt-1 block font-medium capitalize text-text-primary">
+            <span className="mt-1 block break-words font-medium capitalize text-text-primary">
               {item.provider} ({item.model || "N/A"})
             </span>
           </div>
@@ -267,7 +267,7 @@ export function ModerationDetailView({ id }: ModerationDetailViewProps) {
           <ol className="mt-4 space-y-3">
             {item.reviews.map((review) => (
               <li key={review.id} className="rounded-lg border border-border bg-surface-subtle p-3 text-sm">
-                <div className="flex justify-between gap-3">
+                <div className="flex flex-wrap justify-between gap-3">
                   <strong className="capitalize text-text-primary">
                     {review.status.replace("_", " ")}
                   </strong>
@@ -276,7 +276,7 @@ export function ModerationDetailView({ id }: ModerationDetailViewProps) {
                   </time>
                 </div>
                 {review.feedback && (
-                  <p className="mt-1 text-text-secondary">{review.feedback}</p>
+                  <p className="mt-1 break-words text-text-secondary">{review.feedback}</p>
                 )}
               </li>
             ))}

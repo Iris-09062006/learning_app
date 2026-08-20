@@ -44,6 +44,25 @@ describe("ExerciseView (fix_the_bug)", () => {
     expect(screen.getByRole("button", { name: "Mảnh code: return a * b;" })).toBeInTheDocument();
   });
 
+  it("keeps long titles, descriptions, and code inside the exercise surface", () => {
+    const longText = "NộiDungTiếngViệtKhôngCóĐiểmNgắt".repeat(8);
+    const { container } = render(
+      <ExerciseView
+        exercise={{
+          ...fixTheBugExercise,
+          title: longText,
+          description: longText,
+          codeSnippet: `value = ${"identifier".repeat(80)}`,
+        }}
+      />,
+    );
+
+    expect(screen.getByRole("heading", { level: 1, name: longText })).toHaveClass("break-words");
+    expect(screen.getByText(longText, { selector: "p" })).toHaveClass("break-words");
+    expect(container.querySelector("pre")).toHaveClass("max-w-full", "overflow-x-auto");
+    expect(screen.getByTestId("exercise-view")).toHaveClass("min-w-0");
+  });
+
   it("submits the selected option id only in the payload", async () => {
     const fetchSpy = vi.spyOn(globalThis, "fetch").mockResolvedValueOnce(
       new Response(
