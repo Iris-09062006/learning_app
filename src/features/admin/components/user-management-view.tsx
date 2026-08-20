@@ -2,8 +2,10 @@
 
 import { FormEvent, useState } from "react";
 
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Select } from "@/components/ui/select";
 import type { AdminUserListResult } from "@/features/admin/types";
 import type { UserRole } from "@/features/auth/auth.types";
 
@@ -111,59 +113,114 @@ export function UserManagementView({ initialData }: UserManagementViewProps) {
 
   return (
     <div className="space-y-6">
-      <form onSubmit={handleFilter} className="grid gap-4 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-800 dark:bg-slate-900 sm:grid-cols-2 lg:grid-cols-4">
+      <form onSubmit={handleFilter} className="grid gap-4 rounded-xl border border-border bg-surface p-5 shadow-sm sm:grid-cols-2 lg:grid-cols-4">
         <div>
-          <label htmlFor="user-search" className="mb-2 block text-sm font-semibold">Tìm kiếm</label>
-          <Input id="user-search" value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Email hoặc username" />
+          <div className="relative">
+            <Input
+              id="user-search"
+              value={search}
+              onChange={(event) => setSearch(event.target.value)}
+              placeholder="Email hoặc username"
+              aria-label="Tìm kiếm"
+              className="bg-surface-container-low pl-10"
+            />
+            <svg
+              aria-hidden="true"
+              className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-text-muted"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+              strokeWidth={2}
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                d="M21 21l-4.35-4.35M17 10.5a6.5 6.5 0 11-13 0 6.5 6.5 0 0113 0z"
+              />
+            </svg>
+          </div>
         </div>
         <div>
-          <label htmlFor="role-filter" className="mb-2 block text-sm font-semibold">Vai trò</label>
-          <select id="role-filter" value={role} onChange={(event) => setRole(event.target.value)} className="h-10 w-full rounded-lg border border-slate-300 bg-white px-3 text-sm dark:border-slate-700 dark:bg-slate-950">
-            <option value="">Tất cả</option><option value="learner">Learner</option><option value="moderator">Moderator</option><option value="admin">Admin</option>
-          </select>
+          <Select
+            id="role-filter"
+            label="Vai trò"
+            value={role}
+            onChange={(event) => setRole(event.target.value)}
+          >
+            <option value="">Tất cả</option>
+            <option value="learner">Learner</option>
+            <option value="moderator">Moderator</option>
+            <option value="admin">Admin</option>
+          </Select>
         </div>
         <div>
-          <label htmlFor="status-filter" className="mb-2 block text-sm font-semibold">Trạng thái</label>
-          <select id="status-filter" value={isActive} onChange={(event) => setIsActive(event.target.value)} className="h-10 w-full rounded-lg border border-slate-300 bg-white px-3 text-sm dark:border-slate-700 dark:bg-slate-950">
-            <option value="">Tất cả</option><option value="true">Đang hoạt động</option><option value="false">Đã vô hiệu hóa</option>
-          </select>
+          <Select
+            id="status-filter"
+            label="Trạng thái"
+            value={isActive}
+            onChange={(event) => setIsActive(event.target.value)}
+          >
+            <option value="">Tất cả</option>
+            <option value="true">Đang hoạt động</option>
+            <option value="false">Đã vô hiệu hóa</option>
+          </Select>
         </div>
-        <div className="flex items-end"><Button type="submit" isLoading={isLoading} className="w-full">Áp dụng bộ lọc</Button></div>
+        <div className="flex items-end">
+          <Button type="submit" isLoading={isLoading} className="w-full">Áp dụng bộ lọc</Button>
+        </div>
       </form>
 
-      {message ? <p role={message.kind === "error" ? "alert" : "status"} className={message.kind === "error" ? "text-sm text-red-600" : "text-sm text-emerald-600"}>{message.text}</p> : null}
+      {message ? <p role={message.kind === "error" ? "alert" : "status"} className={message.kind === "error" ? "text-sm text-danger" : "text-sm text-success"}>{message.text}</p> : null}
 
-      <div className="overflow-x-auto rounded-2xl border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-900">
-        <table className="min-w-full divide-y divide-slate-200 text-left text-sm dark:divide-slate-800">
+      <div className="overflow-x-auto rounded-xl border border-border bg-surface shadow-sm">
+        <table className="min-w-full divide-y divide-border text-left text-sm">
           <caption className="sr-only">Danh sách người dùng hệ thống</caption>
-          <thead className="bg-slate-50 dark:bg-slate-950"><tr><th scope="col" className="px-4 py-3">Người dùng</th><th scope="col" className="px-4 py-3">Vai trò</th><th scope="col" className="px-4 py-3">Trạng thái</th><th scope="col" className="px-4 py-3">Ngày tạo</th></tr></thead>
-          <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+          <thead className="bg-surface-container-low">
+            <tr>
+              <th scope="col" className="px-4 py-3 text-xs font-semibold uppercase tracking-wider text-text-secondary">Người dùng</th>
+              <th scope="col" className="px-4 py-3 text-xs font-semibold uppercase tracking-wider text-text-secondary">Vai trò</th>
+              <th scope="col" className="px-4 py-3 text-xs font-semibold uppercase tracking-wider text-text-secondary">Trạng thái</th>
+              <th scope="col" className="hidden px-4 py-3 text-xs font-semibold uppercase tracking-wider text-text-secondary sm:table-cell">Ngày tạo</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-border">
             {data.items.map((user) => (
               <tr key={user.id}>
-                <td className="px-4 py-4"><p className="font-semibold text-slate-900 dark:text-white">{user.username}</p><p className="text-xs text-slate-500">{user.email}</p></td>
+                <td className="px-4 py-4"><p className="font-semibold text-text-primary">{user.username}</p><p className="text-xs text-text-muted">{user.email}</p></td>
                 <td className="px-4 py-4">
-                  <label htmlFor={`role-${user.id}`} className="sr-only">Vai trò của {user.username}</label>
-                  <select id={`role-${user.id}`} value={user.role} disabled={mutatingId === user.id} onChange={(event) => void mutateUser(user.id, "role", event.target.value as UserRole)} className="h-9 rounded-lg border border-slate-300 bg-white px-2 dark:border-slate-700 dark:bg-slate-950">
-                    <option value="learner">Learner</option><option value="moderator">Moderator</option><option value="admin">Admin</option>
-                  </select>
+                  <div className="w-full max-w-40">
+                    <label htmlFor={`role-${user.id}`} className="sr-only">Vai trò của {user.username}</label>
+                    <Select
+                      id={`role-${user.id}`}
+                      value={user.role}
+                      disabled={mutatingId === user.id}
+                      onChange={(event) => void mutateUser(user.id, "role", event.target.value as UserRole)}
+                      className="bg-surface-container-low"
+                    >
+                      <option value="learner">Learner</option>
+                      <option value="moderator">Moderator</option>
+                      <option value="admin">Admin</option>
+                    </Select>
+                  </div>
                 </td>
                 <td className="px-4 py-4">
-                  <div className="flex flex-wrap gap-2">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <Badge variant={user.isActive ? "success" : "error"}>{user.isActive ? "Đang hoạt động" : "Đã vô hiệu hóa"}</Badge>
                     <Button size="sm" variant={user.isActive ? "danger" : "secondary"} isLoading={mutatingId === user.id} onClick={() => void mutateUser(user.id, "status", !user.isActive)}>{user.isActive ? (user.role === "learner" ? "Đuổi học viên" : "Vô hiệu hóa") : "Kích hoạt"}</Button>
                     <Button size="sm" variant="outline" isLoading={recoveringId === user.id} onClick={() => void requestRecovery(user.id)}>Gửi recovery</Button>
                   </div>
                 </td>
-                <td className="px-4 py-4 text-slate-600 dark:text-slate-300">{new Intl.DateTimeFormat("vi-VN").format(new Date(user.createdAt))}</td>
+                <td className="hidden px-4 py-4 text-text-secondary sm:table-cell">{new Intl.DateTimeFormat("vi-VN").format(new Date(user.createdAt))}</td>
               </tr>
             ))}
           </tbody>
         </table>
-        {data.items.length === 0 ? <p className="p-8 text-center text-slate-500">Không tìm thấy người dùng phù hợp.</p> : null}
+        {data.items.length === 0 ? <p className="p-8 text-center text-text-muted">Không tìm thấy người dùng phù hợp.</p> : null}
       </div>
 
       <nav aria-label="Phân trang người dùng" className="flex items-center justify-between gap-4">
         <Button variant="outline" disabled={data.page <= 1 || isLoading} onClick={() => void loadUsers(data.page - 1)}>Trang trước</Button>
-        <span className="text-sm text-slate-600 dark:text-slate-300">Trang {data.page} / {Math.max(data.totalPages, 1)} · {data.total} người dùng</span>
+        <span className="text-sm text-text-secondary">Trang {data.page} / {Math.max(data.totalPages, 1)} · {data.total} người dùng</span>
         <Button variant="outline" disabled={data.page >= data.totalPages || isLoading} onClick={() => void loadUsers(data.page + 1)}>Trang sau</Button>
       </nav>
     </div>
