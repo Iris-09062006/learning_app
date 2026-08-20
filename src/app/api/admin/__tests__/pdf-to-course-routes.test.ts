@@ -27,7 +27,10 @@ import { POST as generateOutline } from "../content-sources/[id]/course-outline/
 import { PATCH as editOutline, POST as generateJobOutline } from "../course-drafts/[id]/outline/route";
 import { POST as regenerateOutline } from "../course-drafts/[id]/outline/regenerate/route";
 import { POST as generateLessons } from "../course-drafts/[id]/lessons/generate/route";
-import { POST as regenerateLesson } from "../course-drafts/[id]/lessons/[lessonId]/regenerate/route";
+import {
+  maxDuration as regenerateLessonMaxDuration,
+  POST as regenerateLesson,
+} from "../course-drafts/[id]/lessons/[lessonId]/regenerate/route";
 import { ContentPipelineError } from "@/features/content-pipeline/services/content-pipeline-service";
 import { POST as ingestUrl } from "../content-sources/url/route";
 import { POST as initializeImport } from "../course-imports/route";
@@ -308,6 +311,21 @@ describe("two-stage PDF-to-Course routes", () => {
     expect(serviceMocks.regenerateCourseOutline).toHaveBeenCalledWith("61");
     expect(serviceMocks.generateCourseLessonContents).toHaveBeenCalledWith("61");
     expect(serviceMocks.regenerateCourseLessonContent).toHaveBeenCalledWith("61", "71");
+    expect(regenerateLessonMaxDuration).toBe(300);
+  });
+
+  it("maps AI provider lesson-generation failures to a retryable HTTP 502", async () => {
+    serviceMocks.generateCourseLessonContents.mockRejectedValue(
+      new ContentPipelineError("AI_PROVIDER_ERROR", "Unable to generate all Lesson contents.")
+    );
+    const response = await generateLessons(new Request("http://localhost", { method: "POST" }), {
+      params: Promise.resolve({ id: "61" }),
+    });
+    expect(response.status).toBe(502);
+    await expect(response.json()).resolves.toMatchObject({
+      success: false,
+      error: { code: "AI_PROVIDER_ERROR", message: "Unable to generate all Lesson contents." },
+    });
   });
 
   it("maps AI capacity exhaustion to HTTP 429", async () => {

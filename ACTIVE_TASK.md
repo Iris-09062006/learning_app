@@ -1,12 +1,16 @@
 # Active Task Queue
 
-- **Active task:** `TASK-082` — Pedagogical Lesson Generation Phase C
+- **Active task:** `TASK-083` — Pedagogical Lesson Generation Phase D
 - **Status:** `VERIFIED`
 - **Owner / Reviewer:** Codex
 - **Deferred design task:** `TASK-047` (`DRAFT`)
 - **Previous blocked task:** `TASK-044` — external Supabase Redirect URL verification
 
 ## Current objective
+
+TASK-083 implements and verifies only T026–T036 of feature `003-pedagogical-lesson-generation`: the verified pedagogical runner is active for Continue and Lesson-wide regeneration, Course generation uses bounded three-pipeline scheduling with a 240-second deadline and partial-success retry semantics, and persistence plus downstream compatibility pass without migrations or external contract changes.
+
+## Previous verified objective
 
 TASK-082 implements and verifies only T017–T025 of feature `003-pedagogical-lesson-generation`: independent
 semantic Quality Review, exactly one targeted correction, one independent re-review, and the

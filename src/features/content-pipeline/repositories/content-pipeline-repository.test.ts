@@ -26,9 +26,48 @@ import {
   listCourseDraftBatches,
   listCourseImportSources,
   materializeCourseImportSource,
+  persistCourseLessonContentForJob,
   removeStagedCourseImportSource,
   uploadSourceObject,
 } from "./content-pipeline-repository";
+
+describe("pedagogical Lesson persistence compatibility", () => {
+  beforeEach(() => vi.clearAllMocks());
+
+  it("uses the unchanged immutable RPC input without transient pipeline artifacts", async () => {
+    const rpc = vi.fn().mockResolvedValue({ data: null, error: null });
+    mocks.createServerSupabaseClient.mockResolvedValue({ rpc });
+    await persistCourseLessonContentForJob({
+      jobId: 61,
+      outlineLessonId: 71,
+      draft: {
+        title: "Nhập môn Mạng máy tính",
+        summary: "Tiến trình khái niệm có chủ đích.",
+        estimatedMinutes: 15,
+        sections: [{ heading: "Nền tảng kết nối", bodyMarkdown: "Thiết bị trao đổi dữ liệu.",
+          citationChunkIndexes: [0], citationSourceRefs: [{ sourceDocumentId: 9, chunkIndex: 0 }] }],
+      },
+      citations: [{ sectionIndex: 0, documentChunkId: 101 }],
+      provider: "9router",
+      model: "gemini-3.6-flash",
+    });
+
+    expect(rpc).toHaveBeenCalledOnce();
+    expect(rpc).toHaveBeenCalledWith("persist_lesson_content_draft_for_job", {
+      p_job_id: 61,
+      p_outline_lesson_id: 71,
+      p_title: "Nhập môn Mạng máy tính",
+      p_summary: "Tiến trình khái niệm có chủ đích.",
+      p_estimated_minutes: 15,
+      p_sections: [{ heading: "Nền tảng kết nối", bodyMarkdown: "Thiết bị trao đổi dữ liệu.",
+        citationChunkIndexes: [0], citationSourceRefs: [{ sourceDocumentId: 9, chunkIndex: 0 }] }],
+      p_citations: [{ sectionIndex: 0, documentChunkId: 101 }],
+      p_provider: "9router",
+      p_model: "gemini-3.6-flash",
+    });
+    expect(JSON.stringify(rpc.mock.calls[0][1])).not.toMatch(/synthesis|blueprint|purpose|finding|correction/);
+  });
+});
 
 describe("source object upload", () => {
   beforeEach(() => { vi.clearAllMocks(); });

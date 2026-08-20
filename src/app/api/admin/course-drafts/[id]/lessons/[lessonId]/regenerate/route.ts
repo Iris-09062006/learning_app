@@ -4,7 +4,7 @@ import { contentPipelineErrorResponse } from "@/app/api/admin/content-pipeline-r
 import { regenerateCourseLessonContent } from "@/features/content-pipeline/services/content-pipeline-service";
 
 export const runtime = "nodejs";
-export const maxDuration = 60;
+export const maxDuration = 300;
 interface RouteContext { params: Promise<{ id: string; lessonId: string }> }
 
 export async function POST(_request: Request, context: RouteContext) {
