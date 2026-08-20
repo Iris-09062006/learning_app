@@ -192,6 +192,7 @@ describe("content pipeline Admin", () => {
     fireEvent.click(screen.getByRole("button", { name: "Nghiên cứu" }));
     const heading = await screen.findByRole("heading", { name: "Ứng viên nguồn nghiên cứu" });
     await waitFor(() => expect(heading).toHaveFocus());
+    expect(heading).toHaveClass("focus-visible:ring-focus-ring");
     expect(ingestBodies).toHaveLength(0);
 
     const checkboxes = screen.getAllByRole("checkbox");
@@ -298,6 +299,7 @@ describe("content pipeline Admin", () => {
     fireEvent.click(screen.getByRole("button", { name: "Nghiên cứu thêm" }));
     const alert = await screen.findByRole("alert");
     expect(alert).toHaveFocus();
+    expect(alert).toHaveClass("focus-visible:ring-focus-ring");
     expect(within(alert).getByRole("button", { name: "Thử lại nghiên cứu" })).toBeEnabled();
     expect(topicInput).toHaveValue("Python");
     expect(candidate).toBeChecked();

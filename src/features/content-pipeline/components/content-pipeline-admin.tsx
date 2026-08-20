@@ -669,12 +669,12 @@ export function ContentPipelineAdmin() {
         <p id="course-research-help" className="mt-2 text-xs text-text-muted">Tìm kiếm ưu tiên tiếng Việt; kết quả chỉ là ứng viên cho đến khi Admin xác nhận ingest.</p>
       </form>
       {researchError ? <div ref={researchErrorAlert} tabIndex={-1} role="alert"
-        className="mt-3 rounded-lg border border-danger bg-danger-soft p-3 text-sm text-danger">{researchError}
+        className="mt-3 rounded-lg border border-danger bg-danger-soft p-3 text-sm text-danger focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background">{researchError}
         <Button variant="ghost" size="sm" type="button" className="ml-2 px-0 font-semibold underline" onClick={() => runResearch(researchCandidates.length > 0 && researchHasMore)} disabled={researchBusy}>Thử lại nghiên cứu</Button>
       </div> : null}
       {researchCandidates.length ? <div className="mt-5 rounded-lg border border-border bg-surface p-4">
         <div className="flex flex-wrap items-center justify-between gap-3">
-          <h3 ref={researchResultsHeading} tabIndex={-1} className="font-semibold text-text-primary">Ứng viên nguồn nghiên cứu</h3>
+          <h3 ref={researchResultsHeading} tabIndex={-1} className="rounded-sm font-semibold text-text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background">Ứng viên nguồn nghiên cứu</h3>
           <Button variant="outline" size="sm" type="button" onClick={() => runResearch(true)} disabled={researchBusy || !researchHasMore}>
             {researchBusy ? "Đang nghiên cứu…" : "Nghiên cứu thêm"}
           </Button>

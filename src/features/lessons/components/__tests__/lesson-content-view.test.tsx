@@ -93,7 +93,9 @@ describe("LessonContentView", () => {
 
     expect(screen.getAllByText("Đang học")).toHaveLength(2);
     expect(screen.getByRole("button", { name: /Tiếp tục học/ })).toBeInTheDocument();
-    expect(screen.getByRole("article", { name: "Bài học" })).toHaveFocus();
+    const article = screen.getByRole("article", { name: "Bài học" });
+    expect(article).toHaveFocus();
+    expect(article).toHaveClass("focus-visible:ring-focus-ring");
   });
 
   it("renders in-progress Markdown as structured, safe learning content", () => {

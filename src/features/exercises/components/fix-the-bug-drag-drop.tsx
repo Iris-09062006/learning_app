@@ -159,7 +159,7 @@ export const FixTheBugDragDrop: React.FC<FixTheBugDragDropProps> = ({
             ref={optionsRef}
             tabIndex={-1}
             className={[
-              "mt-3 grid gap-3 sm:grid-cols-2",
+              "mt-3 grid rounded-xl gap-3 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background sm:grid-cols-2",
               isDragging ? "opacity-60" : "",
             ].join(" ")}
           >

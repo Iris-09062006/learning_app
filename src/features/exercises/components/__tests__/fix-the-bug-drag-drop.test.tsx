@@ -45,6 +45,22 @@ describe("FixTheBugDragDrop", () => {
     );
   });
 
+  it("shows a focus-visible indicator when the empty slot moves focus to the options", () => {
+    render(<FixTheBugDragDrop options={options} value={null} onChange={vi.fn()} />);
+
+    fireEvent.click(
+      screen.getByRole("button", {
+        name: "Chọn mảnh code ở bên dưới để điền vào vị trí này",
+      }),
+    );
+
+    const optionsGroup = screen.getByRole("button", {
+      name: "Mảnh code: return x + 1;",
+    }).parentElement as HTMLElement;
+    expect(optionsGroup).toHaveFocus();
+    expect(optionsGroup).toHaveClass("focus-visible:ring-focus-ring");
+  });
+
   it("shows the selected option in the drop zone and removes it from the list", () => {
     const onChange = vi.fn();
     render(<FixTheBugDragDrop options={options} value={1} onChange={onChange} />);

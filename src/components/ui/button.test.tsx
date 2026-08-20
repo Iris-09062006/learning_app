@@ -69,6 +69,7 @@ describe("Button", () => {
     expect(button.className).toContain("disabled:bg-surface-subtle");
     expect(button.className).toContain("disabled:text-text-muted");
     expect(button.className).toContain("disabled:opacity-100");
+    expect(button.className).not.toContain("transition-colors");
     expect(button.className).not.toContain("disabled:opacity-50");
     expect(handleClick).not.toHaveBeenCalled();
   });

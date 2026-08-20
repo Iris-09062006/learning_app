@@ -183,7 +183,7 @@ export const LessonContentView: React.FC<LessonContentViewProps> = ({ lesson }) 
       ) : (
         <div className="grid grid-cols-1 gap-6 lg:grid-cols-[minmax(0,1fr)_15rem] lg:items-start">
           <div className="min-w-0 space-y-8">
-            <article ref={contentRef} tabIndex={-1} aria-labelledby="lesson-body-title" className="scroll-mt-20 rounded-xl border border-border bg-surface p-6 shadow-sm outline-none sm:p-8">
+            <article ref={contentRef} tabIndex={-1} aria-labelledby="lesson-body-title" className="scroll-mt-20 rounded-xl border border-border bg-surface p-6 shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background sm:p-8">
               <div className="mb-8 flex items-center gap-4 border-b border-border pb-4">
                 <span className="flex size-10 items-center justify-center rounded-xl bg-primary-soft text-lg" aria-hidden="true">✦</span>
                 <div>
