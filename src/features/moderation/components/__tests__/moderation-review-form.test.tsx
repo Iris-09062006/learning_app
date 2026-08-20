@@ -73,7 +73,8 @@ describe("ModerationReviewForm", () => {
     expect(init.method).toBe("POST");
     expect(JSON.parse(init.body as string)).toEqual({ decision: "approved" });
   });
-it("submits the needs_revision decision with feedback in the comment field", async () => {
+
+  it("submits the needs_revision decision with feedback in the comment field", async () => {
     const fetchMock = vi
       .spyOn(globalThis, "fetch")
       .mockResolvedValue(json({ reviewId: 2 }));
@@ -91,6 +92,29 @@ it("submits the needs_revision decision with feedback in the comment field", asy
     expect(JSON.parse(init.body as string)).toEqual({
       decision: "needs_revision",
       comment: "Cần bổ sung giải thích",
+    });
+  });
+
+  it("submits the rejected decision with the exact payload once", async () => {
+    const fetchMock = vi
+      .spyOn(globalThis, "fetch")
+      .mockResolvedValue(json({ reviewId: 4 }));
+    const { onSuccess } = renderForm();
+
+    fireEvent.click(screen.getByRole("radio", { name: "Từ chối" }));
+    fireEvent.change(screen.getByLabelText("Phản hồi"), {
+      target: { value: "Không đúng mục tiêu Lesson" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Gửi đánh giá" }));
+
+    await waitFor(() => expect(onSuccess).toHaveBeenCalledTimes(1));
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+
+    const init = fetchMock.mock.calls[0][1] as RequestInit;
+    expect(init.method).toBe("POST");
+    expect(JSON.parse(init.body as string)).toEqual({
+      decision: "rejected",
+      comment: "Không đúng mục tiêu Lesson",
     });
   });
 

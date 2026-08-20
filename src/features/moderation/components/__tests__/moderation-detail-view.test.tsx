@@ -84,7 +84,7 @@ afterEach(() => {
 describe("ModerationDetailView", () => {
   it("renders item data, status chip, JSON payload and the review form", async () => {
     mockDetail(queueItem(5, "pending"));
-    render(<ModerationDetailView id={5} />);
+    const { container } = render(<ModerationDetailView id={5} />);
 
     expect(
       await screen.findByRole("heading", { level: 1, name: "Bài tập kiểm duyệt 5" }),
@@ -110,9 +110,12 @@ describe("ModerationDetailView", () => {
       { selector: "pre" },
     );
     expect(payload.textContent).toContain("let x = 1;");
+    expect(payload).toHaveAttribute("aria-label", "Payload bài tập dạng JSON");
+    expect(payload).toHaveAttribute("tabindex", "0");
     expect(
       screen.getByRole("heading", { name: "Kiểm duyệt bài tập" }),
     ).toBeInTheDocument();
+    expect(container.querySelector("main")).toBeInTheDocument();
   });
 
   it("publishes an approved item and shows the success state while re-fetching", async () => {
@@ -135,9 +138,14 @@ describe("ModerationDetailView", () => {
     const publishCall = fetchMock.mock.calls.find(
       ([, init]) => (init as RequestInit)?.method === "POST",
     );
+    const publishCalls = fetchMock.mock.calls.filter(
+      ([, init]) => (init as RequestInit)?.method === "POST",
+    );
+    expect(publishCalls).toHaveLength(1);
     expect(String(publishCall?.[0])).toContain(
       "/api/moderation/generated-exercises/6/publish",
     );
+    expect((publishCall?.[1] as RequestInit).method).toBe("POST");
     const getCalls = fetchMock.mock.calls.filter(
       ([, init]) => !(init as RequestInit)?.method,
     );
@@ -156,7 +164,8 @@ describe("ModerationDetailView", () => {
     expect(alert).toHaveTextContent("DRAFT_NOT_APPROVED");
     expect(alert).toHaveClass("border-danger", "bg-danger-soft", "text-danger");
   });
-it("renders the error state as an alert for a missing item", async () => {
+
+  it("renders the error state as an alert for a missing item", async () => {
     vi.spyOn(globalThis, "fetch").mockResolvedValueOnce(
       json({ error: "Not Found" }, false, 404),
     );

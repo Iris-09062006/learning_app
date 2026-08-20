@@ -113,7 +113,7 @@ export function ModerationDetailView({ id }: ModerationDetailViewProps) {
 
   if (loading) {
     return (
-      <div className="space-y-6">
+      <main className="space-y-6">
         <div className="h-5 w-40 animate-pulse rounded bg-surface-container" />
         <div className="rounded-xl border border-border bg-surface p-6 shadow-sm">
           <div className="space-y-3">
@@ -124,13 +124,13 @@ export function ModerationDetailView({ id }: ModerationDetailViewProps) {
             <div className="h-48 w-full animate-pulse rounded-lg bg-surface-container" />
           </div>
         </div>
-      </div>
+      </main>
     );
   }
 
   if (error || !item) {
     return (
-      <div className="space-y-4">
+      <main className="space-y-4">
         <Link
           href="/moderation"
           className="inline-flex items-center gap-1.5 text-sm font-medium text-primary transition hover:text-primary-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
@@ -144,14 +144,14 @@ export function ModerationDetailView({ id }: ModerationDetailViewProps) {
           <p className="font-semibold">Lỗi</p>
           <p className="mt-0.5">{error || "Bài tập không tồn tại"}</p>
         </div>
-      </div>
+      </main>
     );
   }
 
   const status = statusConfig[item.status] ?? defaultStatusConfig;
 
   return (
-    <div className="space-y-6">
+    <main className="space-y-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <Link
           href="/moderation"
@@ -253,7 +253,11 @@ export function ModerationDetailView({ id }: ModerationDetailViewProps) {
               {JSON.stringify(item.content).length.toLocaleString()} bytes
             </span>
           </div>
-          <pre className="max-h-96 overflow-x-auto rounded-lg bg-code-background p-4 font-mono text-xs leading-relaxed text-code-text">
+          <pre
+            aria-label="Payload bài tập dạng JSON"
+            tabIndex={0}
+            className="max-h-96 overflow-x-auto rounded-lg bg-code-background p-4 font-mono text-xs leading-relaxed text-code-text focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring"
+          >
             {JSON.stringify(item.content, null, 2)}
           </pre>
         </div>
@@ -293,6 +297,6 @@ export function ModerationDetailView({ id }: ModerationDetailViewProps) {
           onSuccess={fetchDetail}
         />
       )}
-    </div>
+    </main>
   );
 }

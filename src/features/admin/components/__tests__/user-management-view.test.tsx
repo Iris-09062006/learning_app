@@ -38,7 +38,10 @@ describe("UserManagementView", () => {
     fireEvent.change(screen.getByLabelText("Vai trò của Root"), { target: { value: "moderator" } });
     await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(2));
     expect(fetchMock.mock.calls[0][0]).toContain("/role");
-    expect(fetchMock.mock.calls[0][1]).toMatchObject({ body: JSON.stringify({ role: "moderator" }) });
+    expect(fetchMock.mock.calls[0][1]).toMatchObject({
+      method: "PATCH",
+      body: JSON.stringify({ role: "moderator" }),
+    });
     expect(await screen.findByRole("status")).toHaveTextContent("audit log");
   });
 
@@ -68,7 +71,30 @@ describe("UserManagementView", () => {
 
     fireEvent.click(screen.getByRole("button", { name: "Đuổi học viên" }));
     await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(2));
-    expect(fetchMock.mock.calls[0][1]).toMatchObject({ body: JSON.stringify({ isActive: false }) });
+    expect(fetchMock.mock.calls[0][1]).toMatchObject({
+      method: "PATCH",
+      body: JSON.stringify({ isActive: false }),
+    });
     expect(await screen.findByRole("status")).toHaveTextContent("Đã đuổi học viên");
+  });
+
+  it("sends exactly one recovery POST and announces the audit result", async () => {
+    const fetchMock = vi.fn().mockResolvedValueOnce(new Response(JSON.stringify({
+      success: true,
+      data: { auditLogId: 9 },
+    }), { status: 200 }));
+    vi.stubGlobal("fetch", fetchMock);
+    render(<UserManagementView initialData={initialData} />);
+
+    fireEvent.click(screen.getByRole("button", { name: "Gửi recovery" }));
+
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(1));
+    expect(fetchMock).toHaveBeenCalledWith(
+      "/api/admin/users/00000000-0000-4000-8000-000000000001/recover",
+      { method: "POST" },
+    );
+    expect(await screen.findByRole("status")).toHaveTextContent(
+      "Đã gửi email recovery và ghi audit log.",
+    );
   });
 });
