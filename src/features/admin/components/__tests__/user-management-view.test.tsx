@@ -34,6 +34,9 @@ describe("UserManagementView", () => {
       .closest("[data-state]");
     expect(emptyState).toHaveAttribute("data-state", "empty");
     expect(emptyState).toHaveClass("border-border", "bg-surface");
+    expect(
+      screen.getByRole("region", { name: "Danh sách người dùng hệ thống" }),
+    ).toHaveAttribute("tabindex", "0");
   });
 
   it("contains long user identifiers inside the scrollable table", () => {

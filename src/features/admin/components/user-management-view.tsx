@@ -173,7 +173,12 @@ export function UserManagementView({ initialData }: UserManagementViewProps) {
 
       {message ? <p role={message.kind === "error" ? "alert" : "status"} className={message.kind === "error" ? "rounded-lg border border-danger bg-danger-soft px-3 py-2 text-sm text-danger" : "rounded-lg border border-success bg-success-soft px-3 py-2 text-sm text-success"}>{message.text}</p> : null}
 
-      <div className="max-w-full overflow-x-auto rounded-xl border border-border bg-surface shadow-sm">
+      <div
+        aria-label="Danh sách người dùng hệ thống"
+        role="region"
+        tabIndex={0}
+        className="max-w-full overflow-x-auto rounded-xl border border-border bg-surface shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring focus-visible:ring-offset-2"
+      >
         <table className="w-full min-w-[48rem] table-fixed divide-y divide-border text-left text-sm">
           <caption className="sr-only">Danh sách người dùng hệ thống</caption>
           <thead className="bg-surface-container-low">
