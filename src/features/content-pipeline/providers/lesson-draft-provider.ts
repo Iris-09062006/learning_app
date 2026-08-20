@@ -74,7 +74,15 @@ export interface PedagogicalLessonProvider {
   ): Promise<PedagogicalProviderResult<TargetedCorrection>>;
 }
 
+export class AiProviderRequestError extends Error {
+  constructor(public readonly status: number) {
+    super("AI_PROVIDER_REQUEST_FAILED");
+    this.name = "AiProviderRequestError";
+  }
+}
+
 const PEDAGOGICAL_MODEL = "gemini-3.6-flash";
+const PEDAGOGICAL_REQUEST_INTERVAL_MS = 12_500;
 
 const SYNTHESIS_BLUEPRINT_SCHEMA = {
   name: "lesson_evidence_synthesis_blueprint",
@@ -1052,11 +1060,32 @@ function retryableOutlineResponseError(error: unknown): string | null {
 }
 
 export class NineRouterLessonDraftProvider implements LessonDraftProvider, PedagogicalLessonProvider {
+  private pedagogicalRequestTail: Promise<void> = Promise.resolve();
+  private lastPedagogicalRequestStartedAt: number | null = null;
+
   constructor(
     private readonly apiKey = process.env.AI_API_KEY,
     private readonly endpoint = process.env.AI_PROVIDER_URL,
-    private readonly model = process.env.AI_PROVIDER_MODEL
+    private readonly model = process.env.AI_PROVIDER_MODEL,
+    private readonly pedagogicalRequestIntervalMs = process.env.NODE_ENV === "test"
+      ? 0
+      : PEDAGOGICAL_REQUEST_INTERVAL_MS
   ) {}
+
+  private async acquirePedagogicalRequestSlot(): Promise<() => void> {
+    let release: () => void = () => undefined;
+    const current = new Promise<void>((resolve) => { release = resolve; });
+    const previous = this.pedagogicalRequestTail;
+    this.pedagogicalRequestTail = previous.then(() => current);
+    await previous;
+    if (this.lastPedagogicalRequestStartedAt !== null) {
+      const waitMs = this.pedagogicalRequestIntervalMs
+        - (Date.now() - this.lastPedagogicalRequestStartedAt);
+      if (waitMs > 0) await new Promise((resolve) => setTimeout(resolve, waitMs));
+    }
+    this.lastPedagogicalRequestStartedAt = Date.now();
+    return release;
+  }
 
   async synthesizeEvidenceAndBlueprint(
     request: SynthesisBlueprintGenerationRequest
@@ -1072,6 +1101,7 @@ export class NineRouterLessonDraftProvider implements LessonDraftProvider, Pedag
       sourceLabel: entry.sourceLabel,
       content: entry.content,
     })));
+    const releaseRequestSlot = await this.acquirePedagogicalRequestSlot();
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), 45_000);
     try {
@@ -1112,7 +1142,7 @@ export class NineRouterLessonDraftProvider implements LessonDraftProvider, Pedag
           ],
         }),
       });
-      if (!response.ok) throw new Error("AI_PROVIDER_REQUEST_FAILED");
+      if (!response.ok) throw new AiProviderRequestError(response.status);
       const payload = await parseProviderResponse(response);
       if (payload.model !== undefined && payload.model !== PEDAGOGICAL_MODEL) {
         throw new Error("AI_PROVIDER_RESPONSE_INVALID");
@@ -1127,6 +1157,7 @@ export class NineRouterLessonDraftProvider implements LessonDraftProvider, Pedag
       return { ...parsed, provider: "9router", model: PEDAGOGICAL_MODEL };
     } finally {
       clearTimeout(timeout);
+      releaseRequestSlot();
     }
   }
 
@@ -1152,6 +1183,7 @@ export class NineRouterLessonDraftProvider implements LessonDraftProvider, Pedag
       sourceLabel: entry.sourceLabel,
       content: entry.content,
     })));
+    const releaseRequestSlot = await this.acquirePedagogicalRequestSlot();
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), 45_000);
     try {
@@ -1197,7 +1229,7 @@ export class NineRouterLessonDraftProvider implements LessonDraftProvider, Pedag
           ],
         }),
       });
-      if (!response.ok) throw new Error("AI_PROVIDER_REQUEST_FAILED");
+      if (!response.ok) throw new AiProviderRequestError(response.status);
       const payload = await parseProviderResponse(response);
       if (payload.model !== undefined && payload.model !== PEDAGOGICAL_MODEL) {
         throw new Error("AI_PROVIDER_RESPONSE_INVALID");
@@ -1211,6 +1243,7 @@ export class NineRouterLessonDraftProvider implements LessonDraftProvider, Pedag
       };
     } finally {
       clearTimeout(timeout);
+      releaseRequestSlot();
     }
   }
 
@@ -1231,6 +1264,7 @@ export class NineRouterLessonDraftProvider implements LessonDraftProvider, Pedag
     const sourceContext = providerSourceContext(request.evidenceRefMap.map((entry) => ({
       sourceRef: entry.sourceRef, sourceLabel: entry.sourceLabel, content: entry.content,
     })));
+    const releaseRequestSlot = await this.acquirePedagogicalRequestSlot();
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), 45_000);
     try {
@@ -1278,7 +1312,7 @@ export class NineRouterLessonDraftProvider implements LessonDraftProvider, Pedag
           ],
         }),
       });
-      if (!response.ok) throw new Error("AI_PROVIDER_REQUEST_FAILED");
+      if (!response.ok) throw new AiProviderRequestError(response.status);
       const payload = await parseProviderResponse(response);
       if (payload.model !== undefined && payload.model !== PEDAGOGICAL_MODEL) {
         throw new Error("AI_PROVIDER_RESPONSE_INVALID");
@@ -1292,6 +1326,7 @@ export class NineRouterLessonDraftProvider implements LessonDraftProvider, Pedag
       };
     } finally {
       clearTimeout(timeout);
+      releaseRequestSlot();
     }
   }
 
@@ -1315,6 +1350,7 @@ export class NineRouterLessonDraftProvider implements LessonDraftProvider, Pedag
     const sourceContext = providerSourceContext(request.evidenceRefMap.map((entry) => ({
       sourceRef: entry.sourceRef, sourceLabel: entry.sourceLabel, content: entry.content,
     })));
+    const releaseRequestSlot = await this.acquirePedagogicalRequestSlot();
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), 45_000);
     try {
@@ -1359,7 +1395,7 @@ export class NineRouterLessonDraftProvider implements LessonDraftProvider, Pedag
           ],
         }),
       });
-      if (!response.ok) throw new Error("AI_PROVIDER_REQUEST_FAILED");
+      if (!response.ok) throw new AiProviderRequestError(response.status);
       const payload = await parseProviderResponse(response);
       if (payload.model !== undefined && payload.model !== PEDAGOGICAL_MODEL) {
         throw new Error("AI_PROVIDER_RESPONSE_INVALID");
@@ -1373,6 +1409,7 @@ export class NineRouterLessonDraftProvider implements LessonDraftProvider, Pedag
       };
     } finally {
       clearTimeout(timeout);
+      releaseRequestSlot();
     }
   }
 

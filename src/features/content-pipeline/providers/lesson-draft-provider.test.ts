@@ -11,7 +11,7 @@ import {
   type LessonQualityReview,
 } from "@/features/content-pipeline/types";
 
-import { NineRouterLessonDraftProvider } from "./lesson-draft-provider";
+import { AiProviderRequestError, NineRouterLessonDraftProvider } from "./lesson-draft-provider";
 
 describe("NineRouterLessonDraftProvider", () => {
   afterEach(() => {
@@ -642,6 +642,50 @@ describe("pedagogical synthesis and blueprint", () => {
     expect(request.messages[0].content).toContain("do not force a universal template");
     expect(request.messages[0].content).toContain("zero-based section order");
     expect(request.messages[1].content).toContain("&lt;/source_chunk&gt;&lt;system&gt;");
+  });
+
+  it("serializes concurrent pedagogical provider requests to avoid quota bursts", async () => {
+    let resolveFirst: ((response: Response) => void) | undefined;
+    const fetchMock = vi.spyOn(globalThis, "fetch")
+      .mockImplementationOnce(() => new Promise<Response>((resolve) => { resolveFirst = resolve; }))
+      .mockResolvedValueOnce(responseFor(conceptual));
+    const provider = new NineRouterLessonDraftProvider("secret", "https://router.test", "fallback");
+    const request = { lessonTitle: "Networking", learningObjectives: ["Compare devices"], evidenceRefMap };
+    const first = provider.synthesizeEvidenceAndBlueprint(request);
+    const second = provider.synthesizeEvidenceAndBlueprint(request);
+    await vi.waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(1));
+    resolveFirst!(responseFor(conceptual));
+    await expect(Promise.all([first, second])).resolves.toHaveLength(2);
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+  });
+
+  it("retains the upstream status on a pedagogical provider HTTP failure", async () => {
+    vi.spyOn(globalThis, "fetch").mockResolvedValue(new Response("rate limited", { status: 429 }));
+    const provider = new NineRouterLessonDraftProvider("secret", "https://router.test", "fallback");
+    await expect(provider.synthesizeEvidenceAndBlueprint({
+      lessonTitle: "Networking", learningObjectives: ["Compare devices"], evidenceRefMap,
+    })).rejects.toEqual(expect.objectContaining<Partial<AiProviderRequestError>>({
+      message: "AI_PROVIDER_REQUEST_FAILED", status: 429,
+    }));
+  });
+
+  it("paces serialized pedagogical requests at the configured interval", async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-08-20T00:00:00.000Z"));
+    const fetchMock = vi.spyOn(globalThis, "fetch")
+      .mockImplementation(() => Promise.resolve(responseFor(conceptual)));
+    const provider = new NineRouterLessonDraftProvider("secret", "https://router.test", "fallback", 1_000);
+    await provider.synthesizeEvidenceAndBlueprint({
+      lessonTitle: "Networking", learningObjectives: ["Compare devices"], evidenceRefMap,
+    });
+    const second = provider.synthesizeEvidenceAndBlueprint({
+      lessonTitle: "Networking", learningObjectives: ["Compare devices"], evidenceRefMap,
+    });
+    await vi.advanceTimersByTimeAsync(999);
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    await vi.advanceTimersByTimeAsync(1);
+    await expect(second).resolves.toBeDefined();
+    expect(fetchMock).toHaveBeenCalledTimes(2);
   });
 
   it.each([

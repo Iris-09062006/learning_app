@@ -1,12 +1,18 @@
 # Active Task Queue
 
-- **Active task:** `TASK-084` — Repair Live Pedagogical Lesson Generation
+- **Active task:** `TASK-085` — Handle Gemini Lesson Generation Quota
 - **Status:** `VERIFIED`
 - **Owner / Reviewer:** Codex
 - **Deferred design task:** `TASK-047` (`DRAFT`)
 - **Previous blocked task:** `TASK-044` — external Supabase Redirect URL verification
 
 ## Current objective
+
+TASK-085 handles the confirmed Gemini HTTP 429 behind local Course Lesson generation: pedagogical
+provider requests are serialized to prevent quota bursts, and upstream quota exhaustion maps to the
+existing recoverable `RATE_LIMITED` contract instead of a misleading 502. All local gates pass.
+
+## Previous verified objective
 
 TASK-084 repairs the live `502 AI_PROVIDER_ERROR` from
 `POST /api/admin/course-drafts/25/lessons/generate`: Gemini's one-based blueprint section order is

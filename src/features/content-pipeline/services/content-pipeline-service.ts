@@ -3,6 +3,7 @@ import "server-only";
 import { createHash, randomUUID } from "node:crypto";
 
 import {
+  AiProviderRequestError,
   NineRouterLessonDraftProvider,
   type LessonDraftProvider,
   type PedagogicalLessonProvider,
@@ -157,6 +158,14 @@ export class PedagogicalLessonGenerationError extends Error {
     super("Unable to produce a Lesson candidate that passes pedagogical Quality Review.");
     this.name = "PedagogicalLessonGenerationError";
   }
+}
+
+function pedagogicalProviderHttpStatus(error: unknown): number | null {
+  if (error instanceof AiProviderRequestError) return error.status;
+  if (error instanceof PedagogicalLessonGenerationError) {
+    return pedagogicalProviderHttpStatus(error.cause);
+  }
+  return null;
 }
 
 async function requireAdmin(): Promise<string> {
@@ -1512,11 +1521,18 @@ export async function generateCourseLessonContents(
     return { jobId, status: "content_review" as const };
   } catch (error) {
     await failCourseImport(jobId, "LESSON_GENERATION_FAILED").catch(() => undefined);
-    const code = error instanceof ContentPipelineError ? error.code : "AI_PROVIDER_ERROR";
+    const providerStatus = pedagogicalProviderHttpStatus(error);
+    const code = error instanceof ContentPipelineError ? error.code
+      : providerStatus === 429 ? "RATE_LIMITED" : "AI_PROVIDER_ERROR";
     emitContentPipelineSignal({ event: code === "INVALID_SOURCE_REFERENCE" ? "source_reference" : "lesson_generation",
       outcome: "failure", stage: "generate_lessons", code, actorId: adminId, jobId,
       sourceCount: approvedJob.sources.length, durationMs: Date.now() - startedAt });
     if (error instanceof ContentPipelineError) throw error;
+    if (providerStatus === 429) {
+      throw new ContentPipelineError("RATE_LIMITED", "AI provider rate limit exceeded. Retry later.", {
+        retryAfterSeconds: 60,
+      });
+    }
     throw new ContentPipelineError("AI_PROVIDER_ERROR", "Unable to generate all Lesson contents.");
   }
 }
@@ -1542,6 +1558,11 @@ export async function regenerateCourseLessonContent(
   } catch (error) {
     await failCourseImport(jobId, "LESSON_GENERATION_FAILED").catch(() => undefined);
     if (error instanceof ContentPipelineError) throw error;
+    if (pedagogicalProviderHttpStatus(error) === 429) {
+      throw new ContentPipelineError("RATE_LIMITED", "AI provider rate limit exceeded. Retry later.", {
+        retryAfterSeconds: 60,
+      });
+    }
     throw new ContentPipelineError("AI_PROVIDER_ERROR", "Unable to regenerate Lesson content.");
   }
 }

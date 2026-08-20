@@ -11,6 +11,10 @@
 
 ## Active Task
 
+`TASK-085` is verified: pedagogical provider requests are serialized to prevent Gemini quota bursts,
+and confirmed upstream HTTP 429 responses map to the recoverable rate-limit API contract. Full local
+gates pass without database mutation, push, or deployment.
+
 `TASK-084` is verified: Gemini one-based blueprint section order is normalized to the unchanged
 internal zero-based contract, repairing the deterministic `AI_RESPONSE_INVALID` behind job 25's
 Lesson-generation 502. Full local gates pass without database mutation, push, or deployment.
@@ -78,6 +82,7 @@ Supabase Auth Redirect URLs wildcard and a fresh confirmation email.
 
 | Task ID | Title | Status | Phase | Evidence |
 |---|---|---|---|---|
+| `TASK-085` | Handle Gemini Lesson Generation Quota | VERIFIED | Content operations hotfix | `reports/TASK-085-implementation.md`, `reports/TASK-085-review.md`, `reports/TASK-085-test.md` |
 | `TASK-084` | Repair Live Pedagogical Lesson Generation | VERIFIED | Content operations hotfix | `reports/TASK-084-implementation.md`, `reports/TASK-084-review.md`, `reports/TASK-084-test.md` |
 | `TASK-083` | Pedagogical Lesson Generation Phase D | VERIFIED | Feature 003 Phase D | `reports/TASK-083-implementation.md`, `reports/TASK-083-review.md`, `reports/TASK-083-test.md` |
 | `TASK-082` | Pedagogical Lesson Generation Phase C | VERIFIED | Feature 003 Phase C | `reports/TASK-082-implementation.md`, `reports/TASK-082-review.md`, `reports/TASK-082-test.md` |

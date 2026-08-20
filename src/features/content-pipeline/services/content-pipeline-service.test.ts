@@ -279,6 +279,7 @@ import type {
   TargetedCorrection,
 } from "@/features/content-pipeline/types";
 import {
+  AiProviderRequestError,
   NineRouterLessonDraftProvider,
   type PedagogicalLessonProvider,
 } from "@/features/content-pipeline/providers/lesson-draft-provider";
@@ -1874,6 +1875,22 @@ describe("two-stage Course imports", () => {
     await expect(generateCourseLessonContents(61, provider)).rejects.toMatchObject({ code: "AI_PROVIDER_ERROR" });
     expect(mocks.failCourseImport).toHaveBeenCalledWith(61, "LESSON_GENERATION_FAILED");
     expect(mocks.persistCourseLessonContent).not.toHaveBeenCalled();
+  });
+
+  it("maps an upstream Lesson provider 429 to the recoverable rate-limit contract", async () => {
+    const job = scheduledCourseJob(1);
+    mocks.getCourseImport.mockResolvedValueOnce(job).mockResolvedValueOnce({
+      ...job, status: "generating_content", approvedOutlineRevision: 1,
+    });
+    mocks.getCourseImportChunks.mockResolvedValue(scheduledChunks(1));
+    const provider = coursePedagogicalProvider();
+    provider.synthesizeEvidenceAndBlueprint.mockRejectedValue(new AiProviderRequestError(429));
+
+    await expect(generateCourseLessonContents(61, provider)).rejects.toMatchObject({
+      code: "RATE_LIMITED", details: { retryAfterSeconds: 60 },
+    });
+    expect(mocks.failCourseImport).toHaveBeenCalledWith(61, "LESSON_GENERATION_FAILED");
+    expect(mocks.persistCourseLessonContentForJob).not.toHaveBeenCalled();
   });
 
   it("rejects outline output with an Exercise field", async () => {
