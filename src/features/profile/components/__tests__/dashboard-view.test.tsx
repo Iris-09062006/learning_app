@@ -29,6 +29,9 @@ describe("DashboardView", () => {
   it("renders an actionable empty enrollment state", () => {
     render(<DashboardView data={{ ...data, courses: [], profile: { ...data.profile, learningMetrics: { enrolledCourses: 0, activeCourses: 0, completedCourses: 0, completedLessons: 0, totalLessons: 0 } } }} />);
     expect(screen.getByText("Bạn chưa đăng ký khóa học nào.")).toBeInTheDocument();
+    expect(
+      screen.getByText("Bạn chưa đăng ký khóa học nào.").closest("[data-state]"),
+    ).toHaveAttribute("data-state", "empty");
     expect(screen.getByRole("link", { name: "Khám phá khóa học" })).toHaveAttribute("href", "/courses");
   });
 

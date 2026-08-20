@@ -194,6 +194,7 @@ describe("ModerationQueueView", () => {
     );
     render(<ModerationQueueView />);
 
+    expect(screen.getByRole("status")).toHaveAttribute("aria-busy", "true");
     expect(screen.getByText("Đang tải danh sách...")).toBeInTheDocument();
 
     const alert = await screen.findByRole("alert");
@@ -218,9 +219,11 @@ describe("ModerationQueueView", () => {
     vi.spyOn(globalThis, "fetch").mockResolvedValue(json(queueResult([], 0)));
     render(<ModerationQueueView />);
 
-    expect(
-      await screen.findByText("Không có bài tập nào khớp với bộ lọc hiện tại."),
-    ).toBeInTheDocument();
+    const emptyState = await screen.findByRole("status");
+    expect(emptyState).toHaveTextContent(
+      "Không có bài tập nào khớp với bộ lọc hiện tại.",
+    );
+    expect(emptyState).toHaveAttribute("data-state", "empty");
   });
 
   it("renders with the shared Stitch tokens and no legacy or dark-hardcoded palette", async () => {

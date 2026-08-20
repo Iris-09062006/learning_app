@@ -2,6 +2,7 @@ import Link from "next/link";
 
 import { PageHeader } from "@/components/layout/page-header";
 import { Card } from "@/components/ui/card";
+import { StatePanel } from "@/components/ui/state-panel";
 import { LearningRecommendationCard } from "@/features/ai/components/learning-recommendation-card";
 import type { LearnerDashboardData } from "@/features/profile/types";
 
@@ -73,15 +74,19 @@ export function DashboardView({ data }: DashboardViewProps) {
         </div>
 
         {data.courses.length === 0 ? (
-          <div className="rounded-xl border border-dashed border-border bg-surface p-8 text-center">
-            <p className="text-text-secondary">Bạn chưa đăng ký khóa học nào.</p>
-            <Link
-              href="/courses"
-              className="mt-4 inline-flex min-h-10 items-center justify-center rounded-lg bg-primary px-4 text-sm font-semibold text-on-primary transition-colors hover:bg-primary-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
-            >
-              Khám phá khóa học
-            </Link>
-          </div>
+          <StatePanel
+            variant="empty"
+            action={
+              <Link
+                href="/courses"
+                className="inline-flex min-h-10 items-center justify-center rounded-lg bg-primary px-4 text-sm font-semibold text-on-primary transition-colors hover:bg-primary-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+              >
+                Khám phá khóa học
+              </Link>
+            }
+          >
+            Bạn chưa đăng ký khóa học nào.
+          </StatePanel>
         ) : (
           <div className="grid gap-5 lg:grid-cols-2">
             {data.courses.map((course) => (

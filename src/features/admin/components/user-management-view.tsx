@@ -6,6 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
+import { StatePanel } from "@/components/ui/state-panel";
 import type { AdminUserListResult } from "@/features/admin/types";
 import type { UserRole } from "@/features/auth/auth.types";
 
@@ -170,7 +171,7 @@ export function UserManagementView({ initialData }: UserManagementViewProps) {
         </div>
       </form>
 
-      {message ? <p role={message.kind === "error" ? "alert" : "status"} className={message.kind === "error" ? "text-sm text-danger" : "text-sm text-success"}>{message.text}</p> : null}
+      {message ? <p role={message.kind === "error" ? "alert" : "status"} className={message.kind === "error" ? "rounded-lg border border-danger bg-danger-soft px-3 py-2 text-sm text-danger" : "rounded-lg border border-success bg-success-soft px-3 py-2 text-sm text-success"}>{message.text}</p> : null}
 
       <div className="overflow-x-auto rounded-xl border border-border bg-surface shadow-sm">
         <table className="min-w-full divide-y divide-border text-left text-sm">
@@ -215,7 +216,7 @@ export function UserManagementView({ initialData }: UserManagementViewProps) {
             ))}
           </tbody>
         </table>
-        {data.items.length === 0 ? <p className="p-8 text-center text-text-muted">Không tìm thấy người dùng phù hợp.</p> : null}
+        {data.items.length === 0 ? <StatePanel variant="empty" className="m-4 shadow-none">Không tìm thấy người dùng phù hợp.</StatePanel> : null}
       </div>
 
       <nav aria-label="Phân trang người dùng" className="flex items-center justify-between gap-4">

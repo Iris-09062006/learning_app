@@ -69,7 +69,11 @@ export function ProfileForm({ initialUsername }: ProfileFormProps) {
       {message ? (
         <p
           role={message.type === "error" ? "alert" : "status"}
-          className={message.type === "error" ? "text-sm text-danger" : "text-sm text-success"}
+          className={
+            message.type === "error"
+              ? "rounded-lg border border-danger bg-danger-soft px-3 py-2 text-sm text-danger"
+              : "rounded-lg border border-success bg-success-soft px-3 py-2 text-sm text-success"
+          }
         >
           {message.text}
         </p>

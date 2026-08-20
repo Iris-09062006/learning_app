@@ -82,6 +82,16 @@ afterEach(() => {
 });
 
 describe("ModerationDetailView", () => {
+  it("announces its existing loading state", () => {
+    vi.spyOn(globalThis, "fetch").mockImplementation(() => new Promise(() => undefined));
+    render(<ModerationDetailView id={5} />);
+
+    expect(screen.getByRole("main")).toHaveAttribute("aria-busy", "true");
+    expect(screen.getByRole("status")).toHaveTextContent(
+      "Đang tải chi tiết kiểm duyệt",
+    );
+  });
+
   it("renders item data, status chip, JSON payload and the review form", async () => {
     mockDetail(queueItem(5, "pending"));
     const { container } = render(<ModerationDetailView id={5} />);

@@ -461,7 +461,9 @@ describe("content pipeline Admin", () => {
     fireEvent.click(screen.getByRole("button", { name: "Bắt đầu workflow mới" }));
 
     expect(screen.getByLabelText("Chủ đề Course")).toHaveValue("");
-    expect(screen.getByText("Chọn một Course import.")).toBeInTheDocument();
+    expect(
+      screen.getByText("Chọn một Course import.").closest("[data-state]"),
+    ).toHaveAttribute("data-state", "empty");
     expect(screen.getByText("Đã mở workflow mới. Các Course import đã lưu vẫn còn trong hàng chờ.")).toBeInTheDocument();
     expect(sessionStorage.getItem("learningapp.course-outline-generation")).toBeNull();
     expect(screen.getByRole("button", { name: /Python nền tảng/ })).toBeInTheDocument();
@@ -502,7 +504,9 @@ describe("content pipeline Admin", () => {
     expect(await screen.findByText("Attached Python source")).toBeInTheDocument();
     expect(screen.getByLabelText("Chủ đề Course")).toHaveValue("Python async");
     fireEvent.click(await screen.findByRole("button", { name: "Publish Course" }));
-    expect(await screen.findByText("Hàng chờ trống.")).toBeInTheDocument();
+    expect(
+      (await screen.findByText("Hàng chờ trống.")).closest("[data-state]"),
+    ).toHaveAttribute("data-state", "empty");
     expect(screen.getByRole("link", { name: "Mở Course" })).toHaveAttribute("href", "/courses/31");
     await waitFor(() => {
       expect(screen.queryByText("Attached Python source")).not.toBeInTheDocument();

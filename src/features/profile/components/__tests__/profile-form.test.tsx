@@ -25,7 +25,11 @@ describe("ProfileForm", () => {
     fireEvent.change(screen.getByLabelText("Username"), { target: { value: "  New learner  " } });
     fireEvent.click(screen.getByRole("button", { name: "Lưu thay đổi" }));
     await waitFor(() => expect(screen.getByRole("status")).toHaveTextContent("Đã cập nhật"));
-    expect(screen.getByRole("status")).toHaveClass("text-success");
+    expect(screen.getByRole("status")).toHaveClass(
+      "border-success",
+      "bg-success-soft",
+      "text-success",
+    );
     expect(fetchMock).toHaveBeenCalledWith("/api/profile", expect.objectContaining({
       method: "PATCH", body: JSON.stringify({ username: "New learner" }),
     }));
@@ -40,7 +44,11 @@ describe("ProfileForm", () => {
     fireEvent.change(screen.getByLabelText("Username"), { target: { value: "Learner 2" } });
     fireEvent.click(screen.getByRole("button", { name: "Lưu thay đổi" }));
     await waitFor(() => expect(screen.getByRole("alert")).toHaveTextContent("Lỗi máy chủ"));
-    expect(screen.getByRole("alert")).toHaveClass("text-danger");
+    expect(screen.getByRole("alert")).toHaveClass(
+      "border-danger",
+      "bg-danger-soft",
+      "text-danger",
+    );
     expect(fetchMock).toHaveBeenCalledWith("/api/profile", expect.objectContaining({
       method: "PATCH",
     }));

@@ -107,6 +107,10 @@ describe("CourseDetailView", () => {
         screen.getByText("Vui lòng đăng nhập để đăng ký khóa học.")
       ).toBeInTheDocument();
     });
+    expect(screen.getByRole("alert")).toHaveClass(
+      "border-danger",
+      "bg-danger-soft",
+    );
     expect(fetchSpy).toHaveBeenCalledWith("/api/courses/1/enroll", {
       method: "POST",
     });
@@ -123,9 +127,11 @@ describe("CourseDetailView", () => {
 
   it("renders empty state for chapters", () => {
     render(<CourseDetailView course={{ ...baseDetail, chapters: [] }} />);
-    expect(
-      screen.getByText("Nội dung bài học đang được cập nhật.")
-    ).toBeInTheDocument();
+    const emptyState = screen
+      .getByText("Nội dung bài học đang được cập nhật.")
+      .closest("[data-state]");
+    expect(emptyState).toHaveAttribute("data-state", "empty");
+    expect(emptyState).toHaveClass("border-border", "bg-surface");
   });
 
   it("adopts shared surface/border tokens and the orange brand accent", () => {

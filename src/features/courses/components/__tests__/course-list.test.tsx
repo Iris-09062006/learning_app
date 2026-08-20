@@ -18,7 +18,14 @@ const makeCourse = (id: number): CourseSummary => ({
 describe("CourseList", () => {
   it("renders empty state when no courses", () => {
     render(<CourseList courses={[]} />);
-    expect(screen.getByTestId("course-list-empty")).toBeInTheDocument();
+    expect(screen.getByTestId("course-list-empty")).toHaveAttribute(
+      "data-state",
+      "empty",
+    );
+    expect(screen.getByTestId("course-list-empty")).toHaveClass(
+      "border-border",
+      "bg-surface",
+    );
     expect(screen.queryByTestId("course-list")).not.toBeInTheDocument();
   });
 

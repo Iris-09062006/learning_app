@@ -1,4 +1,5 @@
 import React from "react";
+import { StatePanel } from "@/components/ui/state-panel";
 import type { CourseSummary } from "@/features/courses/types";
 import { CourseCard } from "./course-card";
 
@@ -10,16 +11,15 @@ interface CourseListProps {
 export const CourseList: React.FC<CourseListProps> = ({ courses, search }) => {
   if (!courses || courses.length === 0) {
     return (
-      <div
+      <StatePanel
+        variant="empty"
         data-testid="course-list-empty"
-        className="rounded-xl border border-dashed border-border bg-surface p-12 text-center"
+        className="p-12"
       >
-        <p className="text-sm text-text-muted">
-          {search
-            ? `Không tìm thấy khóa học phù hợp với “${search}”.`
-            : "Hiện chưa có khóa học nào được phát hành."}
-        </p>
-      </div>
+        {search
+          ? `Không tìm thấy khóa học phù hợp với “${search}”.`
+          : "Hiện chưa có khóa học nào được phát hành."}
+      </StatePanel>
     );
   }
 

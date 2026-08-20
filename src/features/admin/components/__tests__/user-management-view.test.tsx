@@ -26,6 +26,16 @@ describe("UserManagementView", () => {
     expect(screen.getByText(/1 người dùng/)).toBeInTheDocument();
   });
 
+  it("uses the shared empty panel when filters return no users", () => {
+    render(<UserManagementView initialData={{ ...initialData, items: [], total: 0 }} />);
+
+    const emptyState = screen
+      .getByText("Không tìm thấy người dùng phù hợp.")
+      .closest("[data-state]");
+    expect(emptyState).toHaveAttribute("data-state", "empty");
+    expect(emptyState).toHaveClass("border-border", "bg-surface");
+  });
+
   it("sends role-only mutations then refreshes the list", async () => {
     const fetchMock = vi.fn()
       .mockResolvedValueOnce(new Response(JSON.stringify({ success: true, data: { auditLogId: 7 } }), { status: 200 }))
@@ -52,7 +62,9 @@ describe("UserManagementView", () => {
     }), { status: 409 })));
     render(<UserManagementView initialData={initialData} />);
     fireEvent.click(screen.getByRole("button", { name: "Vô hiệu hóa" }));
-    expect(await screen.findByRole("alert")).toHaveTextContent("final active administrator");
+    const alert = await screen.findByRole("alert");
+    expect(alert).toHaveTextContent("final active administrator");
+    expect(alert).toHaveClass("border-danger", "bg-danger-soft");
   });
 
   it("labels learner deactivation as kicking and requires confirmation", async () => {

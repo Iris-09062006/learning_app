@@ -6,6 +6,7 @@ import type { ModerationQueueItem } from "../types";
 import { ModerationReviewForm } from "./moderation-review-form";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { StatePanel } from "@/components/ui/state-panel";
 
 interface ModerationDetailViewProps {
   id: number;
@@ -113,7 +114,8 @@ export function ModerationDetailView({ id }: ModerationDetailViewProps) {
 
   if (loading) {
     return (
-      <main className="space-y-6">
+      <main aria-busy="true" className="space-y-6">
+        <span className="sr-only" role="status">Đang tải chi tiết kiểm duyệt…</span>
         <div className="h-5 w-40 animate-pulse rounded bg-surface-container" />
         <div className="rounded-xl border border-border bg-surface p-6 shadow-sm">
           <div className="space-y-3">
@@ -137,13 +139,9 @@ export function ModerationDetailView({ id }: ModerationDetailViewProps) {
         >
           &larr; Quay lại hàng đợi kiểm duyệt
         </Link>
-        <div
-          role="alert"
-          className="rounded-xl border border-danger bg-danger-soft px-4 py-3 text-sm text-danger"
-        >
-          <p className="font-semibold">Lỗi</p>
-          <p className="mt-0.5">{error || "Bài tập không tồn tại"}</p>
-        </div>
+        <StatePanel variant="error" title="Lỗi">
+          {error || "Bài tập không tồn tại"}
+        </StatePanel>
       </main>
     );
   }

@@ -3,6 +3,7 @@
 import React from "react";
 import Link from "next/link";
 
+import { StatePanel } from "@/components/ui/state-panel";
 import type { RoadmapResponse } from "@/features/courses/types";
 
 interface CourseRoadmapViewProps {
@@ -37,9 +38,9 @@ export const CourseRoadmapView: React.FC<CourseRoadmapViewProps> = ({
       {/* Chapters & Lessons */}
       <div className="space-y-6">
         {roadmap.chapters.length === 0 ? (
-          <p className="text-sm text-text-muted">
+          <StatePanel variant="empty" className="shadow-none">
             Chưa có bài học nào được xuất bản.
-          </p>
+          </StatePanel>
         ) : (
           roadmap.chapters.map((chapter) => (
             <div
@@ -53,7 +54,10 @@ export const CourseRoadmapView: React.FC<CourseRoadmapViewProps> = ({
               </div>
               <div className="divide-y divide-border">
                 {chapter.lessons.length === 0 ? (
-                  <p className="px-6 py-4 text-sm text-text-muted">
+                  <p
+                    role="status"
+                    className="m-4 rounded-lg border border-dashed border-border bg-surface-subtle px-4 py-5 text-center text-sm text-text-muted"
+                  >
                     Chương này chưa có bài học.
                   </p>
                 ) : (

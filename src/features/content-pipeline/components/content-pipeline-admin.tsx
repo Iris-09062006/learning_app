@@ -6,6 +6,7 @@ import { FormEvent, useCallback, useEffect, useMemo, useRef, useState } from "re
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { StatePanel } from "@/components/ui/state-panel";
 import { Textarea } from "@/components/ui/textarea";
 
 import type {
@@ -704,7 +705,7 @@ export function ContentPipelineAdmin() {
           disabled={busy || researchBusy || !selectedCandidateKeys.some((key) => !sourceAttempts.some((attempt) => attempt.candidateKey === key))}>
           Xác nhận và ingest nguồn đã chọn
         </Button>
-      </div> : researchBusy ? <p className="mt-3 text-sm text-text-secondary" role="status">Đang tìm ứng viên nguồn…</p> : null}
+      </div> : researchBusy ? <StatePanel variant="loading" className="mt-3 p-5 shadow-none">Đang tìm ứng viên nguồn…</StatePanel> : null}
       <div className="mt-5 grid gap-4 md:grid-cols-2">
         <form className="rounded-lg border border-border bg-surface p-4" onSubmit={ingestManualUrl}>
           <Input label="URL thủ công" name="manualUrl" type="url" required disabled={busy || reviewedSourceCount >= 8} />
@@ -723,7 +724,7 @@ export function ContentPipelineAdmin() {
           <div className="flex gap-2">{attempt.status === "failed" ? <Button variant="outline" size="sm" type="button" onClick={() => retrySourceAttempt(attempt)} disabled={busy}>Retry</Button> : null}
             {!attempt.attached ? <Button variant="outline" size="sm" type="button" className="border-danger text-danger" onClick={() => removeSourceAttempt(attempt)} disabled={busy || attempt.status === "ingesting"}>Remove</Button> : null}</div>
         </div>
-      </li>)}</ul> : <p className="mt-3 text-sm text-text-muted">Chưa có nguồn staged.</p>}
+      </li>)}</ul> : <StatePanel variant="empty" className="mt-3 p-5 shadow-none">Chưa có nguồn staged.</StatePanel>}
       <div className="mt-4 flex flex-wrap gap-3">
         <Button type="button" onClick={initializeOrAttachSources}
           disabled={busy || !sourceAttempts.some((attempt) => attempt.status === "extracted" && !attempt.attached)}> {sourceReviewJobId ? "Attach nguồn usable" : "Khởi tạo Course import"}</Button>
@@ -732,14 +733,14 @@ export function ContentPipelineAdmin() {
       </div>
     </section>
 
-    <div aria-live="polite" className="text-sm text-text-secondary">{message}</div>
+    <div aria-live="polite" className="rounded-lg border border-border bg-surface px-3 py-2 text-sm text-text-secondary">{message}</div>
     {error ? <div role="alert" className="rounded-lg border border-danger bg-danger-soft p-3 text-sm text-danger">{error}</div> : null}
     {published ? <div className="rounded-lg border border-success bg-success-soft p-4 text-sm text-success">Course đã xuất bản. <Link className="font-semibold underline" href={`/courses/${published.courseId}`}>Mở Course</Link></div> : null}
 
     <section className="grid gap-6 lg:grid-cols-[minmax(16rem,0.75fr)_minmax(0,2fr)]" aria-labelledby="review-title">
       <div className="rounded-xl border border-border bg-surface p-4 shadow-sm">
         <h2 id="review-title" className="font-semibold text-text-primary">Course import queue</h2>
-        {imports.length === 0 ? <p className="mt-3 text-sm text-text-muted">Hàng chờ trống.</p> : <ul className="mt-3 space-y-2">{imports.map((item) => <li key={item.jobId}>
+        {imports.length === 0 ? <StatePanel variant="empty" className="mt-3 p-5 shadow-none">Hàng chờ trống.</StatePanel> : <ul className="mt-3 space-y-2">{imports.map((item) => <li key={item.jobId}>
           <Button variant="outline" type="button" className={`h-auto w-full flex-col items-start py-2 ${selectedJobId === item.jobId ? "border-primary bg-primary-soft text-text-primary" : "border-border bg-surface text-text-primary"}`}
             onClick={() => { setSelectedJobId(item.jobId); setSourceReviewJobId(item.jobId); setSelectedOutlineLessonId(null); }}>
             <span className="block font-semibold">{item.title}</span>
@@ -749,7 +750,7 @@ export function ContentPipelineAdmin() {
       </div>
 
       <div className="rounded-xl border border-border bg-surface p-6 shadow-sm">
-        {!selectedImport ? <p className="text-sm text-text-muted">Chọn một Course import.</p> : <div className="space-y-5">
+        {!selectedImport ? <StatePanel variant="empty" className="p-5 shadow-none">Chọn một Course import.</StatePanel> : <div className="space-y-5">
           <Badge className="bg-primary-soft text-primary">{selectedImport.status} · outline r{selectedImport.outlineRevision}</Badge>
           <div className="rounded-lg border border-border bg-surface-subtle p-3 text-sm">
             <p className="font-semibold text-text-primary">Nguồn evidence ({selectedImport.sources.length})</p>

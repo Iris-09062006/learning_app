@@ -4,6 +4,7 @@ import React, { useState } from "react";
 import { useRouter } from "next/navigation";
 
 import { Button } from "@/components/ui/button";
+import { StatePanel } from "@/components/ui/state-panel";
 import type { CourseDetail } from "@/features/courses/types";
 
 interface CourseDetailViewProps {
@@ -113,7 +114,10 @@ export const CourseDetailView: React.FC<CourseDetailViewProps> = ({ course }) =>
                   : "Đăng ký khóa học"}
             </Button>
             {errorMessage && (
-              <p role="alert" className="max-w-xs text-right text-xs text-danger">
+              <p
+                role="alert"
+                className="max-w-xs rounded-lg border border-danger bg-danger-soft px-3 py-2 text-left text-xs text-danger"
+              >
                 {errorMessage}
               </p>
             )}
@@ -128,9 +132,9 @@ export const CourseDetailView: React.FC<CourseDetailViewProps> = ({ course }) =>
         </h2>
 
         {course.chapters.length === 0 ? (
-          <p className="text-sm text-text-muted">
+          <StatePanel variant="empty" className="shadow-none">
             Nội dung bài học đang được cập nhật.
-          </p>
+          </StatePanel>
         ) : (
           <div className="space-y-3">
             {course.chapters.map((ch) => (

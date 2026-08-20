@@ -160,9 +160,11 @@ describe("CourseRoadmapView", () => {
       chapters: [],
     };
     render(<CourseRoadmapView roadmap={emptyRoadmap} />);
-    expect(
-      screen.getByText("Chưa có bài học nào được xuất bản.")
-    ).toBeInTheDocument();
+    const emptyState = screen
+      .getByText("Chưa có bài học nào được xuất bản.")
+      .closest("[data-state]");
+    expect(emptyState).toHaveAttribute("data-state", "empty");
+    expect(emptyState).toHaveClass("border-border", "bg-surface");
   });
 
   it("renders empty lesson message when chapter has no lessons", () => {
@@ -178,9 +180,9 @@ describe("CourseRoadmapView", () => {
       ],
     };
     render(<CourseRoadmapView roadmap={roadmapNoLessons} />);
-    expect(
-      screen.getByText("Chương này chưa có bài học.")
-    ).toBeInTheDocument();
+    const chapterState = screen.getByText("Chương này chưa có bài học.");
+    expect(chapterState).toHaveAttribute("role", "status");
+    expect(chapterState).toHaveClass("border-border", "bg-surface-subtle");
   });
 
   it("adopts shared surface/border tokens and status accents", () => {

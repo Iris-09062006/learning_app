@@ -7,6 +7,7 @@ import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { PageHeader } from "@/components/layout/page-header";
 import { Select } from "@/components/ui/select";
+import { StatePanel } from "@/components/ui/state-panel";
 
 const statusOptions = [
   { value: "pending", label: "Chờ duyệt" },
@@ -112,47 +113,17 @@ export function ModerationQueueView() {
       />
 
       {loading ? (
-        <div className="flex flex-col items-center justify-center gap-3 rounded-xl border border-border bg-surface py-16 shadow-sm">
-          <div
-            aria-hidden="true"
-            className="h-8 w-8 animate-spin rounded-full border-2 border-surface-container-highest border-t-primary"
-          />
-          <p className="text-sm text-text-muted">
-            Đang tải danh sách...
-          </p>
-        </div>
+        <StatePanel variant="loading" className="py-16">
+          Đang tải danh sách...
+        </StatePanel>
       ) : error ? (
-        <div
-          role="alert"
-          className="rounded-xl border border-danger bg-danger-soft px-4 py-3"
-        >
-          <p className="font-semibold text-danger">
-            Lỗi tải danh sách
-          </p>
-          <p className="mt-0.5 text-sm text-danger">
-            {error}
-          </p>
-        </div>
+        <StatePanel variant="error" title="Lỗi tải danh sách">
+          {error}
+        </StatePanel>
       ) : items.length === 0 ? (
-        <div className="flex flex-col items-center justify-center gap-2 rounded-xl border border-border bg-surface py-16 text-center shadow-sm">
-          <svg
-            aria-hidden="true"
-            className="h-10 w-10 text-text-muted"
-            fill="none"
-            viewBox="0 0 24 24"
-            stroke="currentColor"
-            strokeWidth={1.5}
-          >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              d="M20.25 7.5l-.625 10.632a2.25 2.25 0 01-2.247 2.118H6.622a2.25 2.25 0 01-2.247-2.118L3.75 7.5m8.25 3v6.75m0 0l-3-3m3 3l3-3M3.375 7.5h17.25c.621 0 1.125-.504 1.125-1.125v-1.5c0-.621-.504-1.125-1.125-1.125H3.375c-.621 0-1.125.504-1.125 1.125v1.5c0 .621.504 1.125 1.125 1.125z"
-            />
-          </svg>
-          <p className="text-sm text-text-muted">
-            Không có bài tập nào khớp với bộ lọc hiện tại.
-          </p>
-        </div>
+        <StatePanel variant="empty" role="status" className="py-16">
+          Không có bài tập nào khớp với bộ lọc hiện tại.
+        </StatePanel>
       ) : (
         <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
           {items.map((item) => (
