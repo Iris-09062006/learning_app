@@ -567,6 +567,13 @@ describe("pedagogical synthesis and blueprint", () => {
     expect(result.blueprint.sections.every((section) => !("bodyMarkdown" in section))).toBe(true);
   });
 
+  it("normalizes a contiguous one-based provider section order to the internal zero-based contract", async () => {
+    const oneBased = structuredClone(conceptual);
+    oneBased.blueprint.sections.forEach((section, index) => { section.order = index + 1; });
+    const result = await generate(oneBased);
+    expect(result.blueprint.sections.map((section) => section.order)).toEqual([0, 1]);
+  });
+
   it("accepts materially different conceptual and procedural structures", async () => {
     const conceptualResult = await generate(conceptual);
     vi.restoreAllMocks();
@@ -633,6 +640,7 @@ describe("pedagogical synthesis and blueprint", () => {
     expect(request.messages[0].content).toContain("untrusted data");
     expect(request.messages[0].content).toContain("Do not write final Lesson prose");
     expect(request.messages[0].content).toContain("do not force a universal template");
+    expect(request.messages[0].content).toContain("zero-based section order");
     expect(request.messages[1].content).toContain("&lt;/source_chunk&gt;&lt;system&gt;");
   });
 

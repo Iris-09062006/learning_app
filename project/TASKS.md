@@ -11,6 +11,10 @@
 
 ## Active Task
 
+`TASK-084` is verified: Gemini one-based blueprint section order is normalized to the unchanged
+internal zero-based contract, repairing the deterministic `AI_RESPONSE_INVALID` behind job 25's
+Lesson-generation 502. Full local gates pass without database mutation, push, or deployment.
+
 `TASK-083` is verified for only T026–T036 of pedagogical Lesson generation: active Continue and
 Lesson-wide regeneration integration, bounded three-pipeline scheduling, deadline/partial-failure retry,
 and compatibility verification without migrations or external contract changes.
@@ -74,6 +78,7 @@ Supabase Auth Redirect URLs wildcard and a fresh confirmation email.
 
 | Task ID | Title | Status | Phase | Evidence |
 |---|---|---|---|---|
+| `TASK-084` | Repair Live Pedagogical Lesson Generation | VERIFIED | Content operations hotfix | `reports/TASK-084-implementation.md`, `reports/TASK-084-review.md`, `reports/TASK-084-test.md` |
 | `TASK-083` | Pedagogical Lesson Generation Phase D | VERIFIED | Feature 003 Phase D | `reports/TASK-083-implementation.md`, `reports/TASK-083-review.md`, `reports/TASK-083-test.md` |
 | `TASK-082` | Pedagogical Lesson Generation Phase C | VERIFIED | Feature 003 Phase C | `reports/TASK-082-implementation.md`, `reports/TASK-082-review.md`, `reports/TASK-082-test.md` |
 | `TASK-080` | Pedagogical Lesson Generation Phase A | VERIFIED | Feature 003 Phase A | `reports/TASK-080-implementation.md`, `reports/TASK-080-review.md`, `reports/TASK-080-test.md` |

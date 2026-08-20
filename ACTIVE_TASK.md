@@ -1,12 +1,19 @@
 # Active Task Queue
 
-- **Active task:** `TASK-083` — Pedagogical Lesson Generation Phase D
+- **Active task:** `TASK-084` — Repair Live Pedagogical Lesson Generation
 - **Status:** `VERIFIED`
 - **Owner / Reviewer:** Codex
 - **Deferred design task:** `TASK-047` (`DRAFT`)
 - **Previous blocked task:** `TASK-044` — external Supabase Redirect URL verification
 
 ## Current objective
+
+TASK-084 repairs the live `502 AI_PROVIDER_ERROR` from
+`POST /api/admin/course-drafts/25/lessons/generate`: Gemini's one-based blueprint section order is
+now normalized to the unchanged internal zero-based contract. All local quality gates pass; the
+retryable job was not mutated, and no public/database contract, push, or deployment occurred.
+
+## Previous verified objective
 
 TASK-083 implements and verifies only T026–T036 of feature `003-pedagogical-lesson-generation`: the verified pedagogical runner is active for Continue and Lesson-wide regeneration, Course generation uses bounded three-pipeline scheduling with a 240-second deadline and partial-success retry semantics, and persistence plus downstream compatibility pass without migrations or external contract changes.
 
