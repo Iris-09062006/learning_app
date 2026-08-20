@@ -1,12 +1,20 @@
 # Active Task Queue
 
-- **Active task:** `TASK-089` — Feature 005 Per-Lesson Generation Phase C
+- **Active task:** `TASK-090` — Gemini 3.7 Provider Response Boundary
 - **Status:** `VERIFIED`
 - **Owner / Reviewer:** Codex
 - **Deferred design task:** `TASK-047` (`DRAFT`)
 - **Previous blocked task:** `TASK-044` — external Supabase Redirect URL verification
 
 ## Current objective
+
+TASK-090 traces and, only if deterministically proven, minimally repairs the HTTP-200 Gemini 3.7
+stage-one synthesis response boundary without changing Feature 005 orchestration, timeouts,
+model-call budgets, persistence, citations, regeneration, publication, Exercises, learner progress,
+or database contracts. The one-based order boundary mismatch is proven, normalized to the unchanged
+zero-based internal contract, and all required local gates pass without a live provider request.
+
+## Previous verified objective
 
 TASK-089 replaces the Admin generate-all Continue request with explicit sequential one-Lesson POSTs driven by refreshed persisted drafts, adds an isolated 300-second client timeout and accessible server-truth progress, and preserves all Phase B/backend, scheduler, database, and downstream contracts. Phase D is untouched.
 

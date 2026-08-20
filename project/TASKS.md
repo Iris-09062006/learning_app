@@ -11,6 +11,10 @@
 
 ## Active Task
 
+`TASK-090` is verified for the targeted Gemini 3.7 provider response boundary. A proven contiguous
+one-based stage-one section order is normalized to the unchanged zero-based internal contract while
+all Feature 005 orchestration, timeout, call-budget, persistence, and downstream contracts remain intact.
+
 `TASK-089` is verified for Feature 005 frontend Phase C: Continue refreshes persisted Course truth,
 generates missing Lessons sequentially through the Phase B endpoint with an isolated 300-second timeout,
 stops on failure, and resumes explicitly from the first missing Lesson without Phase D or backend changes.
@@ -74,6 +78,7 @@ Supabase Auth Redirect URLs wildcard and a fresh confirmation email.
 
 | Task ID | Title | Status | Phase | Evidence |
 |---|---|---|---|---|
+| `TASK-090` | Gemini 3.7 Provider Response Boundary | VERIFIED | Feature 005 targeted hotfix | `reports/TASK-090-implementation.md`, `reports/TASK-090-review.md`, `reports/TASK-090-test.md` |
 | `TASK-089` | Per-Lesson Generation Phase C | VERIFIED | Feature 005 Phase C | `reports/TASK-089-implementation.md`, `reports/TASK-089-review.md`, `reports/TASK-089-test.md` |
 | `TASK-088` | Per-Lesson Generation Phase B | VERIFIED | Feature 005 Phase B | `reports/TASK-088-implementation.md`, `reports/TASK-088-review.md`, `reports/TASK-088-test.md` |
 | `TASK-083` | Pedagogical Lesson Generation Phase D | VERIFIED | Feature 003 Phase D | `reports/TASK-083-implementation.md`, `reports/TASK-083-review.md`, `reports/TASK-083-test.md` |

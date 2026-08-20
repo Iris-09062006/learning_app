@@ -567,6 +567,13 @@ describe("pedagogical synthesis and blueprint", () => {
     expect(result.blueprint.sections.every((section) => !("bodyMarkdown" in section))).toBe(true);
   });
 
+  it("normalizes a Gemini 3.7 contiguous one-based section order to the internal zero-based contract", async () => {
+    const gemini37Response = structuredClone(conceptual);
+    gemini37Response.blueprint.sections.forEach((section, index) => { section.order = index + 1; });
+    const result = await generate(gemini37Response);
+    expect(result.blueprint.sections.map((section) => section.order)).toEqual([0, 1]);
+  });
+
   it("accepts materially different conceptual and procedural structures", async () => {
     const conceptualResult = await generate(conceptual);
     vi.restoreAllMocks();
@@ -625,14 +632,19 @@ describe("pedagogical synthesis and blueprint", () => {
     expect(fetchMock).toHaveBeenCalledTimes(1);
     const request = JSON.parse(String(fetchMock.mock.calls[0][1]?.body)) as {
       model: string;
+      reasoning_effort: string;
+      temperature?: unknown;
       messages: Array<{ content: string }>;
       response_format: unknown;
     };
     expect(request.model).toBe("gemini-3.7-flash");
+    expect(request.reasoning_effort).toBe("low");
+    expect(request).not.toHaveProperty("temperature");
     expect(JSON.stringify(request.response_format)).not.toMatch(/minItems|maxItems|uniqueItems|minimum|maximum/);
     expect(request.messages[0].content).toContain("untrusted data");
     expect(request.messages[0].content).toContain("Do not write final Lesson prose");
     expect(request.messages[0].content).toContain("do not force a universal template");
+    expect(request.messages[0].content).toContain("zero-based section order");
     expect(request.messages[1].content).toContain("&lt;/source_chunk&gt;&lt;system&gt;");
   });
 
