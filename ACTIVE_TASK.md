@@ -1,12 +1,19 @@
 # Active Task Queue
 
-- **Active task:** `TASK-086` — Migrate Pedagogical Lessons to Gemini 3.7 Flash
+- **Active task:** `TASK-087` — Stabilize Gemini 3.7 Lesson Generation Latency
 - **Status:** `VERIFIED`
 - **Owner / Reviewer:** Codex
 - **Deferred design task:** `TASK-047` (`DRAFT`)
 - **Previous blocked task:** `TASK-044` — external Supabase Redirect URL verification
 
 ## Current objective
+
+TASK-087 addresses the observed job 24 failure at 59.914 seconds after the Gemini 3.7 migration:
+remove unsupported sampling parameters, use documented low reasoning effort, prevent queued Lesson
+workers from continuing after a failure, and align the Admin request timeout with the server
+scheduling window. All local quality gates pass.
+
+## Previous verified objective
 
 TASK-086 migrates the complete pedagogical Lesson model lock from `gemini-3.6-flash` to the GA
 `gemini-3.7-flash` identifier requested by the user. Endpoint, structured schemas, exact stage call

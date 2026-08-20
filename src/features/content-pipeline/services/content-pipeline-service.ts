@@ -87,7 +87,7 @@ import { checkRateLimit } from "@/lib/rate-limiter";
 const MAX_FILE_BYTES = 10 * 1024 * 1024;
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 const PEDAGOGICAL_MODEL = "gemini-3.7-flash";
-const MAX_CONCURRENT_LESSON_PIPELINES = 3;
+const MAX_CONCURRENT_LESSON_PIPELINES = 1;
 const COURSE_LESSON_SCHEDULING_DEADLINE_MS = 240_000;
 
 export type ContentPipelineErrorCode =

@@ -11,6 +11,11 @@
 
 ## Active Task
 
+`TASK-087` is verified: stabilize Gemini 3.7 Lesson generation after job 24 failed at 59.914 seconds
+by removing unsupported sampling parameters, lowering documented reasoning effort, eliminating
+redundant queued Lesson workers, and aligning the Admin timeout with the server scheduling window.
+Full local gates pass.
+
 `TASK-086` is verified: the complete pedagogical Lesson model lock migrated from
 `gemini-3.6-flash` to the official GA `gemini-3.7-flash` identifier without changing endpoint,
 call budgets, pacing, persistence, citations, or public API behavior. Full local gates pass.
@@ -86,6 +91,7 @@ Supabase Auth Redirect URLs wildcard and a fresh confirmation email.
 
 | Task ID | Title | Status | Phase | Evidence |
 |---|---|---|---|---|
+| `TASK-087` | Stabilize Gemini 3.7 Lesson Generation Latency | VERIFIED | Content operations hotfix | `reports/TASK-087-implementation.md`, `reports/TASK-087-review.md`, `reports/TASK-087-test.md` |
 | `TASK-086` | Migrate Pedagogical Lessons to Gemini 3.7 Flash | VERIFIED | Content operations hotfix | `reports/TASK-086-implementation.md`, `reports/TASK-086-review.md`, `reports/TASK-086-test.md` |
 | `TASK-085` | Handle Gemini Lesson Generation Quota | VERIFIED | Content operations hotfix | `reports/TASK-085-implementation.md`, `reports/TASK-085-review.md`, `reports/TASK-085-test.md` |
 | `TASK-084` | Repair Live Pedagogical Lesson Generation | VERIFIED | Content operations hotfix | `reports/TASK-084-implementation.md`, `reports/TASK-084-review.md`, `reports/TASK-084-test.md` |

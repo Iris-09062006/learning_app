@@ -5,6 +5,7 @@ import type { CourseImportDraft, ResearchCandidate } from "../../types";
 import {
   ContentPipelineAdmin,
   decodePipelineCheckpoint,
+  LESSON_GENERATION_REQUEST_TIMEOUT_MS,
   mergeResearchCandidates,
   requestPipelineApi,
 } from "../content-pipeline-admin";
@@ -136,6 +137,10 @@ function researchCandidate(index: number, overrides: Partial<ResearchCandidate> 
 describe("content pipeline Admin", () => {
   beforeEach(() => sessionStorage.clear());
   afterEach(() => { vi.useRealTimers(); vi.restoreAllMocks(); sessionStorage.clear(); });
+
+  it("allows the Lesson request to outlive the server scheduling window", () => {
+    expect(LESSON_GENERATION_REQUEST_TIMEOUT_MS).toBe(300_000);
+  });
 
   it("does not expose JSON parser errors for an HTML gateway timeout", async () => {
     vi.spyOn(globalThis, "fetch").mockResolvedValue(new Response("<html>timeout</html>", { status: 504 }));

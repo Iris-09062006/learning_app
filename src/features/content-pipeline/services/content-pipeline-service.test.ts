@@ -659,6 +659,10 @@ describe("Phase B pedagogical section normalization", () => {
     expect(fetchMock).toHaveBeenCalledTimes(3);
     expect(fetchMock.mock.calls.map((call) => JSON.parse(String(call[1]?.body)).model))
       .toEqual(["gemini-3.7-flash", "gemini-3.7-flash", "gemini-3.7-flash"]);
+    expect(fetchMock.mock.calls.map((call) => JSON.parse(String(call[1]?.body)).reasoning_effort))
+      .toEqual(["low", "low", "low"]);
+    expect(fetchMock.mock.calls.map((call) => JSON.parse(String(call[1]?.body))))
+      .not.toEqual(expect.arrayContaining([expect.objectContaining({ temperature: expect.anything() })]));
   });
 
   it("uses exactly five raw HTTP requests on the complete correction path", async () => {
@@ -673,6 +677,10 @@ describe("Phase B pedagogical section normalization", () => {
     expect(fetchMock).toHaveBeenCalledTimes(5);
     expect(fetchMock.mock.calls.map((call) => JSON.parse(String(call[1]?.body)).model))
       .toEqual(Array.from({ length: 5 }, () => "gemini-3.7-flash"));
+    expect(fetchMock.mock.calls.map((call) => JSON.parse(String(call[1]?.body)).reasoning_effort))
+      .toEqual(Array.from({ length: 5 }, () => "low"));
+    expect(fetchMock.mock.calls.map((call) => JSON.parse(String(call[1]?.body))))
+      .not.toEqual(expect.arrayContaining([expect.objectContaining({ temperature: expect.anything() })]));
     expect(result.candidate.sections[1]).toEqual(candidate.sections[1]);
     expect(mocks.persistCourseLessonContentForJob).not.toHaveBeenCalled();
   });
@@ -1477,16 +1485,6 @@ describe("Course draft batches", () => {
 });
 
 describe("two-stage Course imports", () => {
-  function deferred() {
-    let resolve!: () => void;
-    let reject!: (error: unknown) => void;
-    const promise = new Promise<void>((resolvePromise, rejectPromise) => {
-      resolve = resolvePromise;
-      reject = rejectPromise;
-    });
-    return { promise, resolve, reject };
-  }
-
   function scheduledCourseJob(lessonCount: number) {
     return {
       jobId: 61, sourceDocumentId: 9, sourceFilename: "source.md", status: "outline_review",
@@ -1689,7 +1687,7 @@ describe("two-stage Course imports", () => {
     expect(provider.generateLessonDraft).not.toHaveBeenCalled();
   });
 
-  it("caps Lesson pipelines at three and keeps every Lesson stage sequential", async () => {
+  it("runs one Lesson pipeline at a time and keeps every Lesson stage sequential", async () => {
     const job = scheduledCourseJob(6);
     mocks.getCourseImport.mockResolvedValueOnce(job).mockResolvedValueOnce({
       ...job, status: "generating_content", approvedOutlineRevision: 1,
@@ -1699,7 +1697,6 @@ describe("two-stage Course imports", () => {
     const defaultSynthesis = provider.synthesizeEvidenceAndBlueprint.getMockImplementation()!;
     const defaultSections = provider.generateLessonSections.getMockImplementation()!;
     const defaultReview = provider.reviewLessonCandidate.getMockImplementation()!;
-    const firstWave = deferred();
     const states = new Map<string, string>();
     let activePipelines = 0;
     let peakPipelines = 0;
@@ -1708,7 +1705,6 @@ describe("two-stage Course imports", () => {
       states.set(request.lessonTitle, "synthesis");
       activePipelines += 1;
       peakPipelines = Math.max(peakPipelines, activePipelines);
-      if (provider.synthesizeEvidenceAndBlueprint.mock.calls.length <= 3) await firstWave.promise;
       return defaultSynthesis(request);
     });
     provider.generateLessonSections.mockImplementation(async (request) => {
@@ -1724,14 +1720,11 @@ describe("two-stage Course imports", () => {
       return result;
     });
 
-    const run = generateCourseLessonContents(61, provider);
-    await vi.waitFor(() => expect(provider.synthesizeEvidenceAndBlueprint).toHaveBeenCalledTimes(3));
-    expect(activePipelines).toBe(3);
-    expect(provider.generateLessonSections).not.toHaveBeenCalled();
-    firstWave.resolve();
-    await expect(run).resolves.toEqual({ jobId: 61, status: "content_review" });
+    await expect(generateCourseLessonContents(61, provider)).resolves.toEqual({
+      jobId: 61, status: "content_review",
+    });
 
-    expect(peakPipelines).toBe(3);
+    expect(peakPipelines).toBe(1);
     expect([...states.values()]).toEqual(Array(6).fill("review"));
     expect(provider.synthesizeEvidenceAndBlueprint).toHaveBeenCalledTimes(6);
     expect(provider.generateLessonSections).toHaveBeenCalledTimes(6);
@@ -1740,7 +1733,7 @@ describe("two-stage Course imports", () => {
     expect(mocks.persistCourseLessonContentForJob).toHaveBeenCalledTimes(6);
   });
 
-  it("preserves in-flight successes, stops queued work, and retries only missing Lessons", async () => {
+  it("stops after the first failed Lesson and retries only missing Lessons", async () => {
     const job = scheduledCourseJob(4);
     mocks.getCourseImport.mockResolvedValueOnce(job).mockResolvedValueOnce({
       ...job, status: "generating_content", approvedOutlineRevision: 1,
@@ -1748,40 +1741,23 @@ describe("two-stage Course imports", () => {
     mocks.getCourseImportChunks.mockResolvedValue(scheduledChunks(4));
     const provider = coursePedagogicalProvider();
     const defaultSynthesis = provider.synthesizeEvidenceAndBlueprint.getMockImplementation()!;
-    const defaultReview = provider.reviewLessonCandidate.getMockImplementation()!;
-    const failB = deferred();
-    const passInFlight = deferred();
     provider.synthesizeEvidenceAndBlueprint.mockImplementation(async (request) => {
       if (request.lessonTitle === "Lesson 2") {
-        await failB.promise;
         throw new Error("PIPELINE_B_FAILED");
       }
       return defaultSynthesis(request);
     });
-    provider.reviewLessonCandidate.mockImplementation(async (request) => {
-      await passInFlight.promise;
-      return defaultReview(request);
-    });
 
-    const result = generateCourseLessonContents(61, provider).catch((error: unknown) => error);
-    await vi.waitFor(() => {
-      expect(provider.synthesizeEvidenceAndBlueprint).toHaveBeenCalledTimes(3);
-      expect(provider.reviewLessonCandidate).toHaveBeenCalledTimes(2);
-    });
-    failB.resolve();
-    await Promise.resolve();
-    await Promise.resolve();
+    await expect(generateCourseLessonContents(61, provider)).rejects.toMatchObject({ code: "AI_PROVIDER_ERROR" });
     expect(provider.synthesizeEvidenceAndBlueprint.mock.calls.map(([request]) => request.lessonTitle))
-      .toEqual(["Lesson 1", "Lesson 2", "Lesson 3"]);
-    passInFlight.resolve();
-    await expect(result).resolves.toMatchObject({ code: "AI_PROVIDER_ERROR" });
+      .toEqual(["Lesson 1", "Lesson 2"]);
     expect(mocks.persistCourseLessonContentForJob.mock.calls.map(([input]) => input.outlineLessonId).sort())
-      .toEqual([71, 73]);
+      .toEqual([71]);
     expect(mocks.failCourseImport).toHaveBeenCalledTimes(1);
     expect(mocks.failCourseImport).toHaveBeenCalledWith(61, "LESSON_GENERATION_FAILED");
 
     const retryJob = { ...job, status: "failed", lessons: job.lessons.map((lesson) => ({
-      ...lesson, contentDraft: [71, 73].includes(lesson.id) ? { id: lesson.id + 100, revision: 1 } : null,
+      ...lesson, contentDraft: lesson.id === 71 ? { id: lesson.id + 100, revision: 1 } : null,
     })) };
     mocks.getCourseImport.mockResolvedValueOnce(retryJob).mockResolvedValueOnce({
       ...retryJob, status: "generating_content", approvedOutlineRevision: 1,
@@ -1792,9 +1768,9 @@ describe("two-stage Course imports", () => {
       jobId: 61, status: "content_review",
     });
     expect(retryProvider.synthesizeEvidenceAndBlueprint.mock.calls.map(([request]) => request.lessonTitle))
-      .toEqual(["Lesson 2", "Lesson 4"]);
+      .toEqual(["Lesson 2", "Lesson 3", "Lesson 4"]);
     expect(mocks.persistCourseLessonContentForJob.mock.calls.map(([input]) => input.outlineLessonId).sort())
-      .toEqual([72, 74]);
+      .toEqual([72, 73, 74]);
   });
 
   it("stops new stages and queued Lessons at the 240-second scheduling deadline", async () => {
@@ -1815,7 +1791,7 @@ describe("two-stage Course imports", () => {
     });
 
     await expect(generateCourseLessonContents(61, provider)).rejects.toMatchObject({ code: "AI_PROVIDER_ERROR" });
-    expect(provider.synthesizeEvidenceAndBlueprint).toHaveBeenCalledTimes(3);
+    expect(provider.synthesizeEvidenceAndBlueprint).toHaveBeenCalledOnce();
     expect(provider.generateLessonSections).not.toHaveBeenCalled();
     expect(provider.reviewLessonCandidate).not.toHaveBeenCalled();
     expect(mocks.persistCourseLessonContentForJob).not.toHaveBeenCalled();
