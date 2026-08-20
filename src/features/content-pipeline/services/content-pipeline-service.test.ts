@@ -286,7 +286,7 @@ import { WebSearchProviderError } from "@/features/content-pipeline/providers/we
 import { WebContentExtractionProviderError } from "@/features/content-pipeline/providers/web-content-extraction-provider";
 import { resetRateLimitBuckets } from "@/lib/rate-limiter";
 
-afterEach(() => { vi.unstubAllEnvs(); resetRateLimitBuckets(); });
+afterEach(() => { vi.useRealTimers(); vi.unstubAllEnvs(); resetRateLimitBuckets(); });
 
 describe("Phase B pedagogical section normalization", () => {
   const chunks: CourseSourceChunk[] = [
@@ -1476,6 +1476,91 @@ describe("Course draft batches", () => {
 });
 
 describe("two-stage Course imports", () => {
+  function deferred() {
+    let resolve!: () => void;
+    let reject!: (error: unknown) => void;
+    const promise = new Promise<void>((resolvePromise, rejectPromise) => {
+      resolve = resolvePromise;
+      reject = rejectPromise;
+    });
+    return { promise, resolve, reject };
+  }
+
+  function scheduledCourseJob(lessonCount: number) {
+    return {
+      jobId: 61, sourceDocumentId: 9, sourceFilename: "source.md", status: "outline_review",
+      outlineStale: false, outlineRevision: 1, approvedOutlineRevision: null,
+      sources: [{ sourceDocumentId: 9, sourceOrder: 0, title: "source.md" }],
+      lessons: Array.from({ length: lessonCount }, (_, index) => ({
+        id: 71 + index, title: `Lesson ${index + 1}`, learningObjectives: [`Learn ${index + 1}`],
+        sourceChunkIndexes: [index], sourceChunks: [{ documentChunkId: 101 + index,
+          sourceDocumentId: 9, sourceOrder: 0, chunkIndex: index }], contentDraft: null,
+      })),
+    };
+  }
+
+  function scheduledChunks(lessonCount: number): CourseSourceChunk[] {
+    return Array.from({ length: lessonCount }, (_, index) => ({
+      documentChunkId: 101 + index, sourceDocumentId: 9, sourceOrder: 0, sourceTitle: "source.md",
+      sourceUrl: null, sourceDomain: null, chunkIndex: index, content: `Evidence ${index + 1}`,
+    }));
+  }
+
+  function coursePedagogicalProvider() {
+    return {
+      generateLessonDraft: vi.fn(),
+      synthesizeEvidenceAndBlueprint: vi.fn<PedagogicalLessonProvider["synthesizeEvidenceAndBlueprint"]>(async (
+        request: Parameters<PedagogicalLessonProvider["synthesizeEvidenceAndBlueprint"]>[0]
+      ) => ({
+        synthesis: {
+          items: request.evidenceRefMap.map((entry) => ({ itemKey: `core-${entry.sourceRef}`,
+            kind: "concept" as const, statement: `Evidence for ${request.lessonTitle}`,
+            evidenceRefs: [entry.sourceRef] })),
+          coverageGaps: [],
+        },
+        blueprint: {
+          progressionRationale: "Teach the approved core idea directly.",
+          sections: request.evidenceRefMap.map((entry, order) => ({
+            sectionKey: `core-${entry.sourceRef}`, order, purpose: "concept" as const,
+            heading: `Hiểu ${request.lessonTitle} ${order + 1}`,
+            teachingObjective: request.learningObjectives[0],
+            synthesisItemKeys: [`core-${entry.sourceRef}`], evidenceRefs: [entry.sourceRef],
+            expectedElements: ["supported explanation"],
+          })),
+        },
+        provider: "fake",
+        model: "gemini-3.6-flash",
+      })),
+      generateLessonSections: vi.fn<PedagogicalLessonProvider["generateLessonSections"]>(async (
+        request: Parameters<PedagogicalLessonProvider["generateLessonSections"]>[0]
+      ) => ({
+        result: {
+          title: request.lessonTitle,
+          summary: `Tóm tắt ${request.lessonTitle}`,
+          estimatedMinutes: 10,
+          sections: request.blueprint.sections.map((section) => ({
+            sectionKey: section.sectionKey,
+            purpose: section.purpose,
+            heading: section.heading,
+            bodyMarkdown: `Bài học có chủ đích cho ${request.lessonTitle}.`,
+            citationEvidenceRefs: [...section.evidenceRefs],
+          })),
+        },
+        provider: "fake",
+        model: "gemini-3.6-flash",
+      })),
+      reviewLessonCandidate: vi.fn<PedagogicalLessonProvider["reviewLessonCandidate"]>(async (
+        request: Parameters<PedagogicalLessonProvider["reviewLessonCandidate"]>[0]
+      ) => ({
+        result: { verdict: "pass" as const, findings: [],
+          reviewedSectionKeys: request.candidate.sections.map((section) => section.sectionKey) },
+        provider: "fake",
+        model: "gemini-3.6-flash",
+      })),
+      correctLessonCandidate: vi.fn(),
+    };
+  }
+
   beforeEach(() => {
     vi.clearAllMocks();
     mocks.webExtract.mockRejectedValue(new WebContentExtractionProviderError("UPSTREAM", "Tavily unavailable"));
@@ -1529,8 +1614,10 @@ describe("two-stage Course imports", () => {
       outlineRevision: 1, approvedOutlineRevision: null,
       sources: [{ sourceDocumentId: 9, sourceOrder: 0, title: "python.pdf" }],
       lessons: [
-        { id: 71, title: "Biến", learningObjectives: ["Khai báo biến"], sourceChunkIndexes: [0], sourceChunks: [{ documentChunkId: 1 }], contentDraft: null },
-        { id: 72, title: "Hàm", learningObjectives: ["Định nghĩa hàm"], sourceChunkIndexes: [1], sourceChunks: [{ documentChunkId: 2 }], contentDraft: null },
+        { id: 71, title: "Biến", learningObjectives: ["Khai báo biến"], sourceChunkIndexes: [0],
+          sourceChunks: [{ documentChunkId: 1, sourceDocumentId: 9, sourceOrder: 0, chunkIndex: 0 }], contentDraft: null },
+        { id: 72, title: "Hàm", learningObjectives: ["Định nghĩa hàm"], sourceChunkIndexes: [1],
+          sourceChunks: [{ documentChunkId: 2, sourceDocumentId: 9, sourceOrder: 0, chunkIndex: 1 }], contentDraft: null },
       ],
     };
     mocks.getCourseImport.mockResolvedValueOnce(job).mockResolvedValueOnce({
@@ -1540,17 +1627,221 @@ describe("two-stage Course imports", () => {
       { documentChunkId: 1, sourceDocumentId: 9, sourceOrder: 0, sourceTitle: "python.pdf", sourceUrl: null, sourceDomain: null, chunkIndex: 0, content: "Biến" },
       { documentChunkId: 2, sourceDocumentId: 9, sourceOrder: 0, sourceTitle: "python.pdf", sourceUrl: null, sourceDomain: null, chunkIndex: 1, content: "Hàm" },
     ]);
-    const provider = { generateLessonDraft: vi.fn().mockImplementation(async (request) => ({
-      draft: { title: "Lesson", summary: "Tóm tắt", estimatedMinutes: 10,
-        sections: [{ heading: "Nội dung", bodyMarkdown: "Bài học", citationChunkIndexes: [request.chunks[0].chunkIndex] }] },
-      provider: "9router", model: "model",
-    })) };
+    const provider = coursePedagogicalProvider();
     await generateCourseLessonContents(61, provider);
     expect(mocks.prepareCourseLessonGeneration).toHaveBeenCalledWith(61);
-    expect(provider.generateLessonDraft).toHaveBeenCalledTimes(2);
+    expect(provider.synthesizeEvidenceAndBlueprint).toHaveBeenCalledTimes(2);
+    expect(provider.generateLessonSections).toHaveBeenCalledTimes(2);
+    expect(provider.reviewLessonCandidate).toHaveBeenCalledTimes(2);
+    expect(provider.generateLessonDraft).not.toHaveBeenCalled();
     expect(mocks.persistCourseLessonContentForJob).toHaveBeenCalledTimes(2);
     expect(mocks.getCourseImportChunks).toHaveBeenCalledWith(61);
     expect(mocks.webExtract).not.toHaveBeenCalled();
+  });
+
+  it("persists distinct conceptual and procedural blueprint structures through Continue", async () => {
+    const job = scheduledCourseJob(2);
+    job.lessons[0] = { ...job.lessons[0], title: "Nhập môn Mạng máy tính",
+      learningObjectives: ["Explain network foundations"] };
+    job.lessons[1] = { ...job.lessons[1], title: "Sao chép và di chuyển tệp với cp và mv",
+      learningObjectives: ["Use cp and mv safely"] };
+    mocks.getCourseImport.mockResolvedValueOnce(job).mockResolvedValueOnce({
+      ...job, status: "generating_content", approvedOutlineRevision: 1,
+    });
+    mocks.getCourseImportChunks.mockResolvedValue(scheduledChunks(2));
+    const provider = coursePedagogicalProvider();
+    provider.synthesizeEvidenceAndBlueprint.mockImplementation(async (request) => {
+      const procedural = request.lessonTitle.includes("cp và mv");
+      const purposes = procedural
+        ? (["procedure", "worked_example", "practice"] as const)
+        : (["introduction", "concept", "example"] as const);
+      return {
+        synthesis: { items: [{ itemKey: "approved", kind: procedural ? "procedure" as const : "concept" as const,
+          statement: `Approved evidence for ${request.lessonTitle}`, evidenceRefs: [0] }], coverageGaps: [] },
+        blueprint: { progressionRationale: procedural
+          ? "Prepare, demonstrate the commands, then practice."
+          : "Establish prerequisites, explain the concept, then ground it in an example.",
+        sections: purposes.map((purpose, order) => ({ sectionKey: `${purpose}-${order}`, order, purpose,
+          heading: procedural ? [`Chuẩn bị thao tác`, `Ví dụ cp và mv từng bước`, `Tự thực hành`][order]
+            : [`Nền tảng kết nối`, `Mạng hoạt động ra sao`, `Tình huống Wi-Fi`][order],
+          teachingObjective: request.learningObjectives[0], synthesisItemKeys: ["approved"],
+          evidenceRefs: [0], expectedElements: procedural ? ["ordered action"] : ["conceptual connection"] })) },
+        provider: "fake", model: "gemini-3.6-flash",
+      };
+    });
+
+    await generateCourseLessonContents(61, provider);
+    const drafts = mocks.persistCourseLessonContentForJob.mock.calls.map(([input]) => input.draft);
+    expect(drafts.map((draft) => draft.sections.map((section: { heading: string }) => section.heading)))
+      .toEqual([
+        ["Nền tảng kết nối", "Mạng hoạt động ra sao", "Tình huống Wi-Fi"],
+        ["Chuẩn bị thao tác", "Ví dụ cp và mv từng bước", "Tự thực hành"],
+      ]);
+    expect(drafts[0].sections.map((section: { heading: string }) => section.heading))
+      .not.toEqual(drafts[1].sections.map((section: { heading: string }) => section.heading));
+    expect(JSON.stringify(drafts)).not.toMatch(/"purpose"|"blueprint"|"synthesis"/);
+    expect(drafts.flatMap((draft) => draft.sections.map((section: { heading: string }) => section.heading)))
+      .not.toEqual(expect.arrayContaining(["Khái niệm", "Vai trò", "Tầm quan trọng"]));
+    expect(provider.synthesizeEvidenceAndBlueprint).toHaveBeenCalledTimes(2);
+    expect(provider.generateLessonSections).toHaveBeenCalledTimes(2);
+    expect(provider.reviewLessonCandidate).toHaveBeenCalledTimes(2);
+    expect(provider.generateLessonDraft).not.toHaveBeenCalled();
+  });
+
+  it("caps Lesson pipelines at three and keeps every Lesson stage sequential", async () => {
+    const job = scheduledCourseJob(6);
+    mocks.getCourseImport.mockResolvedValueOnce(job).mockResolvedValueOnce({
+      ...job, status: "generating_content", approvedOutlineRevision: 1,
+    });
+    mocks.getCourseImportChunks.mockResolvedValue(scheduledChunks(6));
+    const provider = coursePedagogicalProvider();
+    const defaultSynthesis = provider.synthesizeEvidenceAndBlueprint.getMockImplementation()!;
+    const defaultSections = provider.generateLessonSections.getMockImplementation()!;
+    const defaultReview = provider.reviewLessonCandidate.getMockImplementation()!;
+    const firstWave = deferred();
+    const states = new Map<string, string>();
+    let activePipelines = 0;
+    let peakPipelines = 0;
+    provider.synthesizeEvidenceAndBlueprint.mockImplementation(async (request) => {
+      expect(states.has(request.lessonTitle)).toBe(false);
+      states.set(request.lessonTitle, "synthesis");
+      activePipelines += 1;
+      peakPipelines = Math.max(peakPipelines, activePipelines);
+      if (provider.synthesizeEvidenceAndBlueprint.mock.calls.length <= 3) await firstWave.promise;
+      return defaultSynthesis(request);
+    });
+    provider.generateLessonSections.mockImplementation(async (request) => {
+      expect(states.get(request.lessonTitle)).toBe("synthesis");
+      states.set(request.lessonTitle, "sections");
+      return defaultSections(request);
+    });
+    provider.reviewLessonCandidate.mockImplementation(async (request) => {
+      expect(states.get(request.lessonTitle)).toBe("sections");
+      states.set(request.lessonTitle, "review");
+      const result = await defaultReview(request);
+      activePipelines -= 1;
+      return result;
+    });
+
+    const run = generateCourseLessonContents(61, provider);
+    await vi.waitFor(() => expect(provider.synthesizeEvidenceAndBlueprint).toHaveBeenCalledTimes(3));
+    expect(activePipelines).toBe(3);
+    expect(provider.generateLessonSections).not.toHaveBeenCalled();
+    firstWave.resolve();
+    await expect(run).resolves.toEqual({ jobId: 61, status: "content_review" });
+
+    expect(peakPipelines).toBe(3);
+    expect([...states.values()]).toEqual(Array(6).fill("review"));
+    expect(provider.synthesizeEvidenceAndBlueprint).toHaveBeenCalledTimes(6);
+    expect(provider.generateLessonSections).toHaveBeenCalledTimes(6);
+    expect(provider.reviewLessonCandidate).toHaveBeenCalledTimes(6);
+    expect(provider.generateLessonDraft).not.toHaveBeenCalled();
+    expect(mocks.persistCourseLessonContentForJob).toHaveBeenCalledTimes(6);
+  });
+
+  it("preserves in-flight successes, stops queued work, and retries only missing Lessons", async () => {
+    const job = scheduledCourseJob(4);
+    mocks.getCourseImport.mockResolvedValueOnce(job).mockResolvedValueOnce({
+      ...job, status: "generating_content", approvedOutlineRevision: 1,
+    });
+    mocks.getCourseImportChunks.mockResolvedValue(scheduledChunks(4));
+    const provider = coursePedagogicalProvider();
+    const defaultSynthesis = provider.synthesizeEvidenceAndBlueprint.getMockImplementation()!;
+    const defaultReview = provider.reviewLessonCandidate.getMockImplementation()!;
+    const failB = deferred();
+    const passInFlight = deferred();
+    provider.synthesizeEvidenceAndBlueprint.mockImplementation(async (request) => {
+      if (request.lessonTitle === "Lesson 2") {
+        await failB.promise;
+        throw new Error("PIPELINE_B_FAILED");
+      }
+      return defaultSynthesis(request);
+    });
+    provider.reviewLessonCandidate.mockImplementation(async (request) => {
+      await passInFlight.promise;
+      return defaultReview(request);
+    });
+
+    const result = generateCourseLessonContents(61, provider).catch((error: unknown) => error);
+    await vi.waitFor(() => {
+      expect(provider.synthesizeEvidenceAndBlueprint).toHaveBeenCalledTimes(3);
+      expect(provider.reviewLessonCandidate).toHaveBeenCalledTimes(2);
+    });
+    failB.resolve();
+    await Promise.resolve();
+    await Promise.resolve();
+    expect(provider.synthesizeEvidenceAndBlueprint.mock.calls.map(([request]) => request.lessonTitle))
+      .toEqual(["Lesson 1", "Lesson 2", "Lesson 3"]);
+    passInFlight.resolve();
+    await expect(result).resolves.toMatchObject({ code: "AI_PROVIDER_ERROR" });
+    expect(mocks.persistCourseLessonContentForJob.mock.calls.map(([input]) => input.outlineLessonId).sort())
+      .toEqual([71, 73]);
+    expect(mocks.failCourseImport).toHaveBeenCalledTimes(1);
+    expect(mocks.failCourseImport).toHaveBeenCalledWith(61, "LESSON_GENERATION_FAILED");
+
+    const retryJob = { ...job, status: "failed", lessons: job.lessons.map((lesson) => ({
+      ...lesson, contentDraft: [71, 73].includes(lesson.id) ? { id: lesson.id + 100, revision: 1 } : null,
+    })) };
+    mocks.getCourseImport.mockResolvedValueOnce(retryJob).mockResolvedValueOnce({
+      ...retryJob, status: "generating_content", approvedOutlineRevision: 1,
+    });
+    mocks.persistCourseLessonContentForJob.mockClear();
+    const retryProvider = coursePedagogicalProvider();
+    await expect(generateCourseLessonContents(61, retryProvider)).resolves.toEqual({
+      jobId: 61, status: "content_review",
+    });
+    expect(retryProvider.synthesizeEvidenceAndBlueprint.mock.calls.map(([request]) => request.lessonTitle))
+      .toEqual(["Lesson 2", "Lesson 4"]);
+    expect(mocks.persistCourseLessonContentForJob.mock.calls.map(([input]) => input.outlineLessonId).sort())
+      .toEqual([72, 74]);
+  });
+
+  it("stops new stages and queued Lessons at the 240-second scheduling deadline", async () => {
+    vi.useFakeTimers();
+    const startedAt = new Date("2026-08-14T00:00:00.000Z");
+    vi.setSystemTime(startedAt);
+    const job = scheduledCourseJob(4);
+    mocks.getCourseImport.mockResolvedValueOnce(job).mockResolvedValueOnce({
+      ...job, status: "generating_content", approvedOutlineRevision: 1,
+    });
+    mocks.getCourseImportChunks.mockResolvedValue(scheduledChunks(4));
+    const provider = coursePedagogicalProvider();
+    const defaultSynthesis = provider.synthesizeEvidenceAndBlueprint.getMockImplementation()!;
+    provider.synthesizeEvidenceAndBlueprint.mockImplementation(async (request) => {
+      const result = await defaultSynthesis(request);
+      vi.setSystemTime(new Date(startedAt.getTime() + 240_000));
+      return result;
+    });
+
+    await expect(generateCourseLessonContents(61, provider)).rejects.toMatchObject({ code: "AI_PROVIDER_ERROR" });
+    expect(provider.synthesizeEvidenceAndBlueprint).toHaveBeenCalledTimes(3);
+    expect(provider.generateLessonSections).not.toHaveBeenCalled();
+    expect(provider.reviewLessonCandidate).not.toHaveBeenCalled();
+    expect(mocks.persistCourseLessonContentForJob).not.toHaveBeenCalled();
+    expect(mocks.failCourseImport).toHaveBeenCalledTimes(1);
+  });
+
+  it("does not persist a Lesson rejected by independent Quality Review", async () => {
+    const job = scheduledCourseJob(1);
+    mocks.getCourseImport.mockResolvedValueOnce(job).mockResolvedValueOnce({
+      ...job, status: "generating_content", approvedOutlineRevision: 1,
+    });
+    mocks.getCourseImportChunks.mockResolvedValue(scheduledChunks(1));
+    const provider = coursePedagogicalProvider();
+    provider.reviewLessonCandidate.mockImplementation(async (request) => ({
+      result: { verdict: "reject" as const, findings: [{ findingKey: "scope", code: "OUTLINE_SCOPE_DRIFT" as const,
+        disposition: "reject" as const, sectionKeys: [], message: "Reject drift." }],
+        reviewedSectionKeys: request.candidate.sections.map((section) => section.sectionKey) },
+      provider: "fake", model: "gemini-3.6-flash",
+    }) as Awaited<ReturnType<PedagogicalLessonProvider["reviewLessonCandidate"]>>);
+
+    await expect(generateCourseLessonContents(61, provider)).rejects.toMatchObject({ code: "AI_PROVIDER_ERROR" });
+    expect(provider.synthesizeEvidenceAndBlueprint).toHaveBeenCalledOnce();
+    expect(provider.generateLessonSections).toHaveBeenCalledOnce();
+    expect(provider.reviewLessonCandidate).toHaveBeenCalledOnce();
+    expect(provider.correctLessonCandidate).not.toHaveBeenCalled();
+    expect(provider.generateLessonDraft).not.toHaveBeenCalled();
+    expect(mocks.persistCourseLessonContentForJob).not.toHaveBeenCalled();
   });
 
   it("keeps an already complete content review out of the generating state", async () => {
@@ -1560,7 +1851,7 @@ describe("two-stage Course imports", () => {
       lessons: [{ id: 71, title: "Biến", learningObjectives: ["Khai báo biến"], sourceChunkIndexes: [0], contentDraft: { id: 81 } }],
     });
 
-    await expect(generateCourseLessonContents(61, { generateLessonDraft: vi.fn() })).resolves.toEqual({
+    await expect(generateCourseLessonContents(61, coursePedagogicalProvider())).resolves.toEqual({
       jobId: 61,
       status: "content_review",
     });
@@ -1572,11 +1863,13 @@ describe("two-stage Course imports", () => {
       jobId: 61, sourceDocumentId: 9, sourceFilename: "python.pdf", status: "outline_review",
       outlineRevision: 1, approvedOutlineRevision: null,
       sources: [{ sourceDocumentId: 9, sourceOrder: 0, title: "python.pdf" }],
-      lessons: [{ id: 71, title: "Biến", learningObjectives: ["Khai báo biến"], sourceChunkIndexes: [0], sourceChunks: [{ documentChunkId: 1 }], contentDraft: null }],
+      lessons: [{ id: 71, title: "Biến", learningObjectives: ["Khai báo biến"], sourceChunkIndexes: [0],
+        sourceChunks: [{ documentChunkId: 1, sourceDocumentId: 9, sourceOrder: 0, chunkIndex: 0 }], contentDraft: null }],
     };
     mocks.getCourseImport.mockResolvedValueOnce(job).mockResolvedValueOnce({ ...job, approvedOutlineRevision: 1 });
     mocks.getCourseImportChunks.mockResolvedValue([{ documentChunkId: 1, sourceDocumentId: 9, sourceOrder: 0, sourceTitle: "python.pdf", sourceUrl: null, sourceDomain: null, chunkIndex: 0, content: "Biến" }]);
-    const provider = { generateLessonDraft: vi.fn().mockRejectedValue(new Error("AI_PROVIDER_TIMEOUT")) };
+    const provider = coursePedagogicalProvider();
+    provider.synthesizeEvidenceAndBlueprint.mockRejectedValue(new Error("AI_PROVIDER_TIMEOUT"));
 
     await expect(generateCourseLessonContents(61, provider)).rejects.toMatchObject({ code: "AI_PROVIDER_ERROR" });
     expect(mocks.failCourseImport).toHaveBeenCalledWith(61, "LESSON_GENERATION_FAILED");
@@ -1775,12 +2068,7 @@ describe("two-stage Course imports", () => {
       { documentChunkId: 101, sourceDocumentId: 9, sourceOrder: 0, sourceTitle: "A", sourceUrl: null, sourceDomain: "a.test", chunkIndex: 0, content: "A" },
       { documentChunkId: 202, sourceDocumentId: 10, sourceOrder: 1, sourceTitle: "B", sourceUrl: null, sourceDomain: "b.test", chunkIndex: 0, content: "B" },
     ]);
-    const provider = { generateLessonDraft: vi.fn().mockResolvedValue({
-      draft: { title: "Đối chiếu", summary: "Tóm tắt", estimatedMinutes: 10, sections: [
-        { heading: "A", bodyMarkdown: "A", citationSourceRefs: [0] },
-        { heading: "B", bodyMarkdown: "B", citationSourceRefs: [1] },
-      ] }, provider: "9router", model: "model",
-    }) };
+    const provider = coursePedagogicalProvider();
     await generateCourseLessonContents(61, provider);
     expect(mocks.persistCourseLessonContentForJob).toHaveBeenCalledWith(expect.objectContaining({
       jobId: 61,
@@ -1801,9 +2089,10 @@ describe("two-stage Course imports", () => {
     mocks.getCourseImportChunks.mockResolvedValue([
       { documentChunkId: 101, sourceDocumentId: 9, sourceOrder: 0, sourceTitle: "A", sourceUrl: null, sourceDomain: null, chunkIndex: 0, content: "A" },
     ]);
-    const provider = { generateLessonDraft: vi.fn() };
+    const provider = coursePedagogicalProvider();
     await expect(generateCourseLessonContents(61, provider)).rejects.toMatchObject({ code: "INVALID_STATE" });
     expect(provider.generateLessonDraft).not.toHaveBeenCalled();
+    expect(provider.synthesizeEvidenceAndBlueprint).not.toHaveBeenCalled();
     expect(mocks.persistCourseLessonContentForJob).not.toHaveBeenCalled();
   });
 
@@ -1814,7 +2103,7 @@ describe("two-stage Course imports", () => {
       sources: [{ sourceDocumentId: 9 }, { sourceDocumentId: 10 }], lessons: [],
     });
 
-    await expect(generateCourseLessonContents(61, { generateLessonDraft: vi.fn() }))
+    await expect(generateCourseLessonContents(61, coursePedagogicalProvider()))
       .rejects.toMatchObject({ code: "STALE_OUTLINE" });
     expect(mocks.prepareCourseLessonGeneration).not.toHaveBeenCalled();
     expect(console.info).toHaveBeenLastCalledWith("[content-pipeline] operational", expect.objectContaining({
@@ -1830,9 +2119,9 @@ describe("two-stage Course imports", () => {
       sources: [{ sourceDocumentId: 9 }, { sourceDocumentId: 10 }],
       lessons: [
         { id: 71, title: "A", learningObjectives: ["A"], sourceChunkIndexes: [0],
-          sourceChunks: [{ documentChunkId: 101 }], contentDraft: { id: 81 } },
+          sourceChunks: [{ documentChunkId: 101, sourceDocumentId: 9, sourceOrder: 0, chunkIndex: 0 }], contentDraft: { id: 81 } },
         { id: 72, title: "B", learningObjectives: ["B"], sourceChunkIndexes: [0],
-          sourceChunks: [{ documentChunkId: 202 }], contentDraft: { id: 82 } },
+          sourceChunks: [{ documentChunkId: 202, sourceDocumentId: 10, sourceOrder: 1, chunkIndex: 0 }], contentDraft: { id: 82 } },
       ],
     };
     mocks.getCourseImport.mockResolvedValue(job);
@@ -1840,17 +2129,15 @@ describe("two-stage Course imports", () => {
       { documentChunkId: 101, sourceDocumentId: 9, sourceOrder: 0, sourceTitle: "A", sourceUrl: null, sourceDomain: null, chunkIndex: 0, content: "A" },
       { documentChunkId: 202, sourceDocumentId: 10, sourceOrder: 1, sourceTitle: "B", sourceUrl: null, sourceDomain: null, chunkIndex: 0, content: "B" },
     ]);
-    const provider = { generateLessonDraft: vi.fn().mockResolvedValue({
-      draft: { title: "B mới", summary: "B", estimatedMinutes: 10,
-        sections: [{ heading: "B", bodyMarkdown: "B", citationSourceRefs: [0] }] },
-      provider: "9router", model: "model",
-    }) };
+    const provider = coursePedagogicalProvider();
     await expect(regenerateCourseLessonContent(61, 72, provider)).resolves.toMatchObject({
       outlineLessonId: 72,
     });
-    expect(provider.generateLessonDraft).toHaveBeenCalledOnce();
-    expect(provider.generateLessonDraft).toHaveBeenCalledWith(expect.objectContaining({
-      chunks: [expect.objectContaining({ content: "B" })],
+    expect(provider.generateLessonDraft).not.toHaveBeenCalled();
+    expect(provider.synthesizeEvidenceAndBlueprint).toHaveBeenCalledOnce();
+    expect(provider.synthesizeEvidenceAndBlueprint).toHaveBeenCalledWith(expect.objectContaining({
+      lessonTitle: "B",
+      evidenceRefMap: [expect.objectContaining({ content: "B", documentChunkId: 202 })],
     }));
     expect(mocks.persistCourseLessonContentForJob).toHaveBeenCalledWith(expect.objectContaining({
       outlineLessonId: 72,

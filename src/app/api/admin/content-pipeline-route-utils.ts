@@ -12,11 +12,12 @@ export function contentPipelineErrorResponse(error: unknown) {
               : error.code === "UNSUPPORTED_MEDIA_TYPE" ? 415
                 : ["INVALID_SOURCE", "FETCH_FAILED", "EXTRACTION_ERROR", "EXTRACTION_FAILED"].includes(error.code) ? 422
                   : error.code === "INVALID_SOURCE_REFERENCE" ? 400
-            : error.code.startsWith("SEARCH_PROVIDER_") ? 503
-            : error.code === "WEB_EXTRACTION_UNAVAILABLE" ? 503
-            : error.code === "RATE_LIMITED" ? 429
-            : error.code === "VALIDATION_ERROR" ? 400
-              : 500;
+                    : error.code === "AI_PROVIDER_ERROR" ? 502
+                      : error.code.startsWith("SEARCH_PROVIDER_") ? 503
+                        : error.code === "WEB_EXTRACTION_UNAVAILABLE" ? 503
+                          : error.code === "RATE_LIMITED" ? 429
+                            : error.code === "VALIDATION_ERROR" ? 400
+                              : 500;
     const headers: Record<string, string> = { "Cache-Control": "no-store" };
     if (error.code === "RATE_LIMITED" && typeof error.details?.retryAfterSeconds === "number") {
       headers["Retry-After"] = String(Math.max(1, Math.ceil(error.details.retryAfterSeconds)));

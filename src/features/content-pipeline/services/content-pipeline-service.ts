@@ -74,7 +74,6 @@ import {
   type LessonBlueprint,
   type LessonQualityReview,
   type ProviderStructuredCourseOutline,
-  type ProviderStructuredLessonDraft,
   type StructuredCourseOutline,
   type StructuredLessonDraft,
   type SupportedSourceMimeType,
@@ -87,6 +86,8 @@ import { checkRateLimit } from "@/lib/rate-limiter";
 const MAX_FILE_BYTES = 10 * 1024 * 1024;
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 const PEDAGOGICAL_MODEL = "gemini-3.6-flash";
+const MAX_CONCURRENT_LESSON_PIPELINES = 3;
+const COURSE_LESSON_SCHEDULING_DEADLINE_MS = 240_000;
 
 export type ContentPipelineErrorCode =
   | "UNAUTHENTICATED"
@@ -1028,13 +1029,15 @@ export async function generatePedagogicalLessonSections(
   job: CourseImportDraft,
   outlineLessonId: number,
   chunks: readonly CourseSourceChunk[],
-  provider: PedagogicalLessonProvider
+  provider: PedagogicalLessonProvider,
+  shouldStartStage: () => boolean = () => true
 ) {
   const { evidence, evidenceRefMap } = buildApprovedLessonEvidenceBoundary(
     job,
     outlineLessonId,
     chunks
   );
+  if (!shouldStartStage()) throw new PedagogicalLessonGenerationError(new Error("LESSON_PIPELINE_STOPPED"));
   const planned = await provider.synthesizeEvidenceAndBlueprint({
     lessonTitle: evidence.lessonTitle,
     learningObjectives: evidence.learningObjectives,
@@ -1043,6 +1046,7 @@ export async function generatePedagogicalLessonSections(
   if (planned.model !== PEDAGOGICAL_MODEL) {
     throw new PedagogicalLessonGenerationError(new Error("PEDAGOGICAL_MODEL_MISMATCH"));
   }
+  if (!shouldStartStage()) throw new PedagogicalLessonGenerationError(new Error("LESSON_PIPELINE_STOPPED"));
   const generated = await provider.generateLessonSections({
     lessonTitle: evidence.lessonTitle,
     learningObjectives: evidence.learningObjectives,
@@ -1173,10 +1177,13 @@ export async function generateReviewedPedagogicalLesson(
   job: CourseImportDraft,
   outlineLessonId: number,
   chunks: readonly CourseSourceChunk[],
-  provider: PedagogicalLessonProvider
+  provider: PedagogicalLessonProvider,
+  shouldStartStage: () => boolean = () => true
 ) {
   try {
-    const phaseB = await generatePedagogicalLessonSections(job, outlineLessonId, chunks, provider);
+    const phaseB = await generatePedagogicalLessonSections(
+      job, outlineLessonId, chunks, provider, shouldStartStage
+    );
     const reviewRequest = {
       lessonTitle: phaseB.evidence.lessonTitle,
       learningObjectives: phaseB.evidence.learningObjectives,
@@ -1185,12 +1192,14 @@ export async function generateReviewedPedagogicalLesson(
       blueprint: phaseB.blueprint,
       candidate: phaseB.candidate,
     };
+    if (!shouldStartStage()) throw new PedagogicalLessonGenerationError(new Error("LESSON_PIPELINE_STOPPED"));
     const initialReview = await provider.reviewLessonCandidate(reviewRequest);
     if (initialReview.model !== PEDAGOGICAL_MODEL) throw new Error("PEDAGOGICAL_MODEL_MISMATCH");
     validateLessonQualityReview(initialReview.result, phaseB.candidate, phaseB.evidenceRefMap);
     if (initialReview.result.verdict === "pass") return phaseB;
     if (initialReview.result.verdict === "reject") throw new PedagogicalLessonGenerationError();
 
+    if (!shouldStartStage()) throw new PedagogicalLessonGenerationError(new Error("LESSON_PIPELINE_STOPPED"));
     const corrected = await provider.correctLessonCandidate({
       ...reviewRequest,
       review: initialReview.result,
@@ -1204,6 +1213,7 @@ export async function generateReviewedPedagogicalLesson(
       phaseB.evidenceRefMap,
       job.sources.length > 1
     );
+    if (!shouldStartStage()) throw new PedagogicalLessonGenerationError(new Error("LESSON_PIPELINE_STOPPED"));
     const finalReview = await provider.reviewLessonCandidate({
       ...reviewRequest,
       candidate: merged.candidate,
@@ -1409,8 +1419,9 @@ async function generateOneCourseLesson(
   job: CourseImportDraft,
   outlineLessonId: number,
   chunks: CourseSourceChunk[],
-  provider: LessonDraftProvider,
-  actorId: string
+  provider: PedagogicalLessonProvider,
+  actorId: string,
+  shouldStartStage: () => boolean = () => true
 ) {
   await requireAiCapacity("ai:lesson-content", actorId);
   const lesson = job.lessons.find((item) => item.id === outlineLessonId);
@@ -1425,53 +1436,15 @@ async function generateOneCourseLesson(
   if (!selected.length || (allowedIds.size > 0 && selected.length !== allowedIds.size)) {
     throw new ContentPipelineError("INVALID_STATE", "Outline Lesson has invalid or foreign source context.");
   }
-  const multiSource = job.sources.length > 1;
-  const providerMap = new Map(selected.map((chunk, sourceRef) => [sourceRef, chunk]));
-  const generated = await provider.generateLessonDraft({
-    documentTitle: job.sourceFilename,
-    lessonTitle: lesson.title,
-    learningObjectives: lesson.learningObjectives,
-    chunks: multiSource
-      ? selected.map((chunk, sourceRef) => ({ sourceRef, sourceLabel: sourceLabel(chunk), content: chunk.content }))
-      : selected.map((chunk) => ({ chunkIndex: chunk.chunkIndex, content: chunk.content })),
-  });
-  const providerDraft = generated.draft as StructuredLessonDraft | ProviderStructuredLessonDraft;
-  const citations: Array<{ sectionIndex: number; documentChunkId: number }> = [];
-  const sections = providerDraft.sections.map((section, sectionIndex) => {
-    const providerRefs = "citationSourceRefs" in section && Array.isArray(section.citationSourceRefs) &&
-      section.citationSourceRefs.every((sourceRef) => typeof sourceRef === "number")
-      ? section.citationSourceRefs as number[] : null;
-    const legacyIndexes = "citationChunkIndexes" in section && Array.isArray(section.citationChunkIndexes)
-      ? section.citationChunkIndexes : null;
-    const resolved = providerRefs
-      ? providerRefs.map((sourceRef) => providerMap.get(sourceRef))
-      : (legacyIndexes ?? []).map((chunkIndex) => selected.find((chunk) =>
-          chunk.sourceDocumentId === job.sourceDocumentId && chunk.chunkIndex === chunkIndex));
-    if (!resolved.length || resolved.some((chunk) => !chunk) ||
-      new Set(resolved.map((chunk) => chunk!.documentChunkId)).size !== resolved.length) {
-      throw new ContentPipelineError("INVALID_SOURCE_REFERENCE", "Lesson contains an invalid source citation.");
-    }
-    for (const chunk of resolved) citations.push({ sectionIndex, documentChunkId: chunk!.documentChunkId });
-    return {
-      heading: section.heading,
-      bodyMarkdown: section.bodyMarkdown,
-      citationChunkIndexes: resolved.map((chunk) => chunk!.chunkIndex),
-      citationSourceRefs: multiSource ? resolved.map((chunk) => ({
-        sourceDocumentId: chunk!.sourceDocumentId,
-        chunkIndex: chunk!.chunkIndex,
-      })) : undefined,
-    };
-  });
+  buildApprovedLessonEvidenceBoundary(job, lesson.id, chunks);
+  const generated = await generateReviewedPedagogicalLesson(
+    job, lesson.id, chunks, provider, shouldStartStage
+  );
   await persistCourseLessonContentForJob({
     jobId: job.jobId,
     outlineLessonId: lesson.id,
-    draft: {
-      title: providerDraft.title,
-      summary: providerDraft.summary,
-      estimatedMinutes: providerDraft.estimatedMinutes,
-      sections,
-    },
-    citations,
+    draft: generated.draft,
+    citations: generated.citations,
     provider: generated.provider,
     model: generated.model,
   });
@@ -1479,7 +1452,7 @@ async function generateOneCourseLesson(
 
 export async function generateCourseLessonContents(
   jobIdValue: unknown,
-  provider: LessonDraftProvider = new NineRouterLessonDraftProvider()
+  provider: PedagogicalLessonProvider = new NineRouterLessonDraftProvider()
 ) {
   const adminId = await requireAdmin();
   const startedAt = Date.now();
@@ -1502,9 +1475,37 @@ export async function generateCourseLessonContents(
   }
   const chunks = await getCourseImportChunks(jobId);
   try {
-    await Promise.all(approvedJob.lessons
-      .filter((lesson) => !lesson.contentDraft)
-      .map((lesson) => generateOneCourseLesson(approvedJob, lesson.id, chunks, provider, adminId)));
+    const missingLessons = approvedJob.lessons.filter((lesson) => !lesson.contentDraft);
+    const deadlineAt = startedAt + COURSE_LESSON_SCHEDULING_DEADLINE_MS;
+    let nextLessonIndex = 0;
+    let stopped = false;
+    let firstFailure: unknown;
+    const shouldStartStage = () => !stopped && Date.now() < deadlineAt;
+    const worker = async () => {
+      while (!stopped) {
+        if (Date.now() >= deadlineAt) {
+          stopped = true;
+          firstFailure ??= new PedagogicalLessonGenerationError(new Error("LESSON_SCHEDULING_DEADLINE"));
+          return;
+        }
+        const lesson = missingLessons[nextLessonIndex++];
+        if (!lesson) return;
+        try {
+          await generateOneCourseLesson(
+            approvedJob, lesson.id, chunks, provider, adminId, shouldStartStage
+          );
+        } catch (error) {
+          firstFailure ??= error;
+          stopped = true;
+          return;
+        }
+      }
+    };
+    await Promise.all(Array.from(
+      { length: Math.min(MAX_CONCURRENT_LESSON_PIPELINES, missingLessons.length) },
+      () => worker()
+    ));
+    if (firstFailure !== undefined) throw firstFailure;
     emitContentPipelineSignal({ event: "lesson_generation", outcome: "success", stage: "generate_lessons",
       code: "OK", actorId: adminId, jobId, sourceCount: approvedJob.sources.length,
       durationMs: Date.now() - startedAt });
@@ -1523,7 +1524,7 @@ export async function generateCourseLessonContents(
 export async function regenerateCourseLessonContent(
   jobIdValue: unknown,
   outlineLessonIdValue: unknown,
-  provider: LessonDraftProvider = new NineRouterLessonDraftProvider()
+  provider: PedagogicalLessonProvider = new NineRouterLessonDraftProvider()
 ) {
   const adminId = await requireAdmin();
   const jobId = asPositiveId(jobIdValue, "jobId");
