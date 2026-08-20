@@ -53,7 +53,7 @@
   --warning: #8a5a00; /* T021: darkened amber for WCAG AA on warning-soft (5.5:1) */
   --warning-soft: #fff5dd;
 
-  --danger: #dc4554;
+  --danger: #b42333; /* T037: WCAG AA on danger-soft (5.7:1) */
   --danger-soft: #fdecef;
 
   --info: #2f66c2; /* T021: darkened blue for WCAG AA on info-soft (4.9:1) */

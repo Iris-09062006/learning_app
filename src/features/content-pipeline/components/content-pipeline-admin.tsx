@@ -758,7 +758,7 @@ export function ContentPipelineAdmin() {
               {source.authorityScore !== null ? <span className="text-text-muted"> · authority {source.authorityScore.toFixed(2)}</span> : null}
               {source.relevanceScore !== null ? <span className="text-text-muted"> · relevance {source.relevanceScore.toFixed(2)}</span> : null}
               {["uploaded", "processing", "outline_review", "failed"].includes(selectedImport.status) && selectedImport.approvedOutlineRevision === null
-                ? <Button variant="ghost" size="sm" type="button" className="ml-2 px-0 font-semibold text-danger underline disabled:opacity-50" onClick={() => detachReviewedSource(source.sourceDocumentId)} disabled={busy || selectedImport.sources.length <= 1}>Detach</Button> : null}
+                ? <Button variant="ghost" size="sm" type="button" className="ml-2 px-0 font-semibold text-danger underline" onClick={() => detachReviewedSource(source.sourceDocumentId)} disabled={busy || selectedImport.sources.length <= 1}>Detach</Button> : null}
             </li>)}</ul>
           </div>
           {selectedImport.outlineStale ? <div role="alert" className="rounded-lg border border-warning bg-warning-soft p-3 text-sm text-warning">
