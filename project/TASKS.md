@@ -11,9 +11,9 @@
 
 ## Active Task
 
-`TASK-083` is verified for only T026–T036 of pedagogical Lesson generation: active Continue and
-Lesson-wide regeneration integration, bounded three-pipeline scheduling, deadline/partial-failure retry,
-and compatibility verification without migrations or external contract changes.
+`TASK-088` is verified for Feature 005 backend Phase B: one POST generates one requested Lesson,
+completed replay is idempotent, and the exact `gemini-3.7-flash` model is asserted while the existing
+Course-wide scheduler, regeneration, persistence, frontend, and downstream contracts remain unchanged.
 
 `TASK-082` is verified for only T017–T025 of pedagogical Lesson generation: independent semantic
 Quality Review, one targeted correction, independent re-review, and exact three/five-call budgets.
@@ -74,6 +74,7 @@ Supabase Auth Redirect URLs wildcard and a fresh confirmation email.
 
 | Task ID | Title | Status | Phase | Evidence |
 |---|---|---|---|---|
+| `TASK-088` | Per-Lesson Generation Phase B | VERIFIED | Feature 005 Phase B | `reports/TASK-088-implementation.md`, `reports/TASK-088-review.md`, `reports/TASK-088-test.md` |
 | `TASK-083` | Pedagogical Lesson Generation Phase D | VERIFIED | Feature 003 Phase D | `reports/TASK-083-implementation.md`, `reports/TASK-083-review.md`, `reports/TASK-083-test.md` |
 | `TASK-082` | Pedagogical Lesson Generation Phase C | VERIFIED | Feature 003 Phase C | `reports/TASK-082-implementation.md`, `reports/TASK-082-review.md`, `reports/TASK-082-test.md` |
 | `TASK-080` | Pedagogical Lesson Generation Phase A | VERIFIED | Feature 003 Phase A | `reports/TASK-080-implementation.md`, `reports/TASK-080-review.md`, `reports/TASK-080-test.md` |

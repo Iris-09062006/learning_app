@@ -248,6 +248,7 @@ import {
   generateCourseDraft,
   generateCourseOutline,
   generateCourseOutlineForJob,
+  generateCourseLessonContent,
   generateCourseLessonContents,
   regenerateCourseLessonContent,
   regenerateCourseOutline,
@@ -417,14 +418,14 @@ describe("Phase B pedagogical section normalization", () => {
     const provider: PedagogicalLessonProvider = {
       synthesizeEvidenceAndBlueprint: vi.fn(async () => {
         callOrder.push("synthesis_blueprint");
-        return { synthesis, blueprint, provider: "fake", model: "gemini-3.6-flash" };
+        return { synthesis, blueprint, provider: "fake", model: "gemini-3.7-flash" };
       }),
       generateLessonSections: vi.fn(async (
         request: Parameters<PedagogicalLessonProvider["generateLessonSections"]>[0]
       ) => {
         callOrder.push("sections");
         expect(request.evidenceRefMap.map((entry) => entry.documentChunkId)).toEqual([101, 202]);
-        return { result: candidate, provider: "fake", model: "gemini-3.6-flash" };
+        return { result: candidate, provider: "fake", model: "gemini-3.7-flash" };
       }),
       reviewLessonCandidate: vi.fn(),
       correctLessonCandidate: vi.fn(),
@@ -469,9 +470,9 @@ describe("Phase B pedagogical section normalization", () => {
     };
     const provider: PedagogicalLessonProvider = {
       synthesizeEvidenceAndBlueprint: vi.fn(async () => ({ synthesis: proceduralSynthesis,
-        blueprint: proceduralBlueprint, provider: "fake", model: "gemini-3.6-flash" })),
+        blueprint: proceduralBlueprint, provider: "fake", model: "gemini-3.7-flash" })),
       generateLessonSections: vi.fn(async () => ({ result: proceduralCandidate,
-        provider: "fake", model: "gemini-3.6-flash" })),
+        provider: "fake", model: "gemini-3.7-flash" })),
       reviewLessonCandidate: vi.fn(), correctLessonCandidate: vi.fn(),
     };
     const result = await generatePedagogicalLessonSections(proceduralJob, 71, chunks, provider);
@@ -489,11 +490,11 @@ describe("Phase B pedagogical section normalization", () => {
     };
     const reviewedProceduralProvider: PedagogicalLessonProvider = {
       synthesizeEvidenceAndBlueprint: vi.fn(async () => ({ synthesis: proceduralSynthesis,
-        blueprint: proceduralBlueprint, provider: "fake", model: "gemini-3.6-flash" })),
+        blueprint: proceduralBlueprint, provider: "fake", model: "gemini-3.7-flash" })),
       generateLessonSections: vi.fn(async () => ({ result: proceduralCandidate,
-        provider: "fake", model: "gemini-3.6-flash" })),
+        provider: "fake", model: "gemini-3.7-flash" })),
       reviewLessonCandidate: vi.fn(async () => ({ result: proceduralPassReview, provider: "fake",
-        model: "gemini-3.6-flash" })),
+        model: "gemini-3.7-flash" })),
       correctLessonCandidate: vi.fn(),
     };
     await expect(generateReviewedPedagogicalLesson(proceduralJob, 71, chunks, reviewedProceduralProvider))
@@ -527,21 +528,21 @@ describe("Phase B pedagogical section normalization", () => {
     const provider: PedagogicalLessonProvider = {
       synthesizeEvidenceAndBlueprint: vi.fn(async () => {
         callOrder.push("synthesis_blueprint");
-        return { synthesis, blueprint, provider: "fake", model: "gemini-3.6-flash" };
+        return { synthesis, blueprint, provider: "fake", model: "gemini-3.7-flash" };
       }),
       generateLessonSections: vi.fn(async () => {
         callOrder.push("sections");
-        return { result: generatedCandidate, provider: "fake", model: "gemini-3.6-flash" };
+        return { result: generatedCandidate, provider: "fake", model: "gemini-3.7-flash" };
       }),
       reviewLessonCandidate: vi.fn(async () => {
         callOrder.push("review");
         const next = reviews.shift();
         if (!next) throw new Error("unexpected review");
-        return { result: next, provider: "fake", model: "gemini-3.6-flash" };
+        return { result: next, provider: "fake", model: "gemini-3.7-flash" };
       }),
       correctLessonCandidate: vi.fn(async () => {
         callOrder.push("correction");
-        return { result: correctionResult, provider: "fake", model: "gemini-3.6-flash" };
+        return { result: correctionResult, provider: "fake", model: "gemini-3.7-flash" };
       }),
     };
     return { provider, callOrder };
@@ -643,7 +644,7 @@ describe("Phase B pedagogical section normalization", () => {
     expect(mocks.persistCourseLessonContentForJob).not.toHaveBeenCalled();
   });
 
-  function providerResponse(content: unknown, model = "gemini-3.6-flash") {
+  function providerResponse(content: unknown, model = "gemini-3.7-flash") {
     return new Response(JSON.stringify({ model, choices: [{ message: { content: JSON.stringify(content) } }] }),
       { status: 200 });
   }
@@ -657,7 +658,11 @@ describe("Phase B pedagogical section normalization", () => {
     await expect(generateReviewedPedagogicalLesson(courseJob(), 71, chunks, provider)).resolves.toBeDefined();
     expect(fetchMock).toHaveBeenCalledTimes(3);
     expect(fetchMock.mock.calls.map((call) => JSON.parse(String(call[1]?.body)).model))
-      .toEqual(["gemini-3.6-flash", "gemini-3.6-flash", "gemini-3.6-flash"]);
+      .toEqual(["gemini-3.7-flash", "gemini-3.7-flash", "gemini-3.7-flash"]);
+    expect(fetchMock.mock.calls.map((call) => JSON.parse(String(call[1]?.body)).reasoning_effort))
+      .toEqual(["low", "low", "low"]);
+    expect(fetchMock.mock.calls.map((call) => JSON.parse(String(call[1]?.body))))
+      .not.toEqual(expect.arrayContaining([expect.objectContaining({ temperature: expect.anything() })]));
   });
 
   it("uses exactly five raw HTTP requests on the complete correction path", async () => {
@@ -671,7 +676,11 @@ describe("Phase B pedagogical section normalization", () => {
     const result = await generateReviewedPedagogicalLesson(courseJob(), 71, chunks, provider);
     expect(fetchMock).toHaveBeenCalledTimes(5);
     expect(fetchMock.mock.calls.map((call) => JSON.parse(String(call[1]?.body)).model))
-      .toEqual(Array.from({ length: 5 }, () => "gemini-3.6-flash"));
+      .toEqual(Array.from({ length: 5 }, () => "gemini-3.7-flash"));
+    expect(fetchMock.mock.calls.map((call) => JSON.parse(String(call[1]?.body)).reasoning_effort))
+      .toEqual(Array.from({ length: 5 }, () => "low"));
+    expect(fetchMock.mock.calls.map((call) => JSON.parse(String(call[1]?.body))))
+      .not.toEqual(expect.arrayContaining([expect.objectContaining({ temperature: expect.anything() })]));
     expect(result.candidate.sections[1]).toEqual(candidate.sections[1]);
     expect(mocks.persistCourseLessonContentForJob).not.toHaveBeenCalled();
   });
@@ -1529,7 +1538,7 @@ describe("two-stage Course imports", () => {
           })),
         },
         provider: "fake",
-        model: "gemini-3.6-flash",
+        model: "gemini-3.7-flash",
       })),
       generateLessonSections: vi.fn<PedagogicalLessonProvider["generateLessonSections"]>(async (
         request: Parameters<PedagogicalLessonProvider["generateLessonSections"]>[0]
@@ -1547,7 +1556,7 @@ describe("two-stage Course imports", () => {
           })),
         },
         provider: "fake",
-        model: "gemini-3.6-flash",
+        model: "gemini-3.7-flash",
       })),
       reviewLessonCandidate: vi.fn<PedagogicalLessonProvider["reviewLessonCandidate"]>(async (
         request: Parameters<PedagogicalLessonProvider["reviewLessonCandidate"]>[0]
@@ -1555,7 +1564,7 @@ describe("two-stage Course imports", () => {
         result: { verdict: "pass" as const, findings: [],
           reviewedSectionKeys: request.candidate.sections.map((section) => section.sectionKey) },
         provider: "fake",
-        model: "gemini-3.6-flash",
+        model: "gemini-3.7-flash",
       })),
       correctLessonCandidate: vi.fn(),
     };
@@ -1579,6 +1588,178 @@ describe("two-stage Course imports", () => {
     mocks.persistCourseOutline.mockResolvedValue({ jobId: 61, sourceDocumentId: 9, outlineRevision: 1, status: "outline_review" });
     mocks.updateSourceStatus.mockResolvedValue(undefined);
     mocks.failCourseImport.mockResolvedValue(undefined);
+  });
+
+  it("generates and persists only the requested missing Lesson", async () => {
+    const job = scheduledCourseJob(2);
+    const preparedJob = { ...job, status: "generating_content", approvedOutlineRevision: 1 };
+    const persistedJob = { ...preparedJob, lessons: preparedJob.lessons.map((lesson) => ({
+      ...lesson,
+      contentDraft: lesson.id === 71 ? { id: 181, revision: 1 } : null,
+    })) };
+    mocks.getCourseImport
+      .mockResolvedValueOnce(job)
+      .mockResolvedValueOnce(preparedJob)
+      .mockResolvedValueOnce(persistedJob);
+    mocks.getCourseImportChunks.mockResolvedValue(scheduledChunks(2));
+    const provider = coursePedagogicalProvider();
+
+    await expect(generateCourseLessonContent(61, 71, provider)).resolves.toEqual({
+      jobId: 61, outlineLessonId: 71, outcome: "generated", lessonContentDraftId: 181,
+      revision: 1, courseStatus: "generating_content",
+    });
+    expect(mocks.prepareCourseLessonGeneration).toHaveBeenCalledOnce();
+    expect(provider.synthesizeEvidenceAndBlueprint).toHaveBeenCalledOnce();
+    expect(provider.generateLessonSections).toHaveBeenCalledOnce();
+    expect(provider.reviewLessonCandidate).toHaveBeenCalledOnce();
+    expect(provider.correctLessonCandidate).not.toHaveBeenCalled();
+    expect(mocks.persistCourseLessonContentForJob).toHaveBeenCalledOnce();
+    expect(mocks.persistCourseLessonContentForJob).toHaveBeenCalledWith(expect.objectContaining({
+      jobId: 61, outlineLessonId: 71, model: "gemini-3.7-flash",
+    }));
+    expect(provider.synthesizeEvidenceAndBlueprint.mock.calls[0][0].lessonTitle).toBe("Lesson 1");
+  });
+
+  it("uses the bounded five-call correction path for exactly one requested Lesson", async () => {
+    const job = scheduledCourseJob(2);
+    const preparedJob = { ...job, status: "generating_content", approvedOutlineRevision: 1 };
+    const persistedJob = { ...preparedJob, lessons: preparedJob.lessons.map((lesson) => ({
+      ...lesson, contentDraft: lesson.id === 72 ? { id: 182, revision: 1 } : null,
+    })) };
+    mocks.getCourseImport
+      .mockResolvedValueOnce(job)
+      .mockResolvedValueOnce(preparedJob)
+      .mockResolvedValueOnce(persistedJob);
+    mocks.getCourseImportChunks.mockResolvedValue(scheduledChunks(2));
+    const provider = coursePedagogicalProvider();
+    const passReview = provider.reviewLessonCandidate.getMockImplementation()!;
+    provider.reviewLessonCandidate
+      .mockImplementationOnce(async (request) => ({
+        result: { verdict: "correctable" as const, findings: [{ findingKey: "shallow", code: "SECTION_TOO_SHALLOW" as const,
+          disposition: "correctable" as const, sectionKeys: [request.candidate.sections[0].sectionKey],
+          message: "Deepen the requested section.", evidenceRefs: [0] }],
+        reviewedSectionKeys: request.candidate.sections.map((section) => section.sectionKey) },
+        provider: "fake", model: "gemini-3.7-flash",
+      }))
+      .mockImplementationOnce(passReview);
+    provider.correctLessonCandidate.mockImplementationOnce(async (request) => ({
+      result: { addressedFindingKeys: ["shallow"], sections: [{
+        ...request.candidate.sections[0], bodyMarkdown: "Corrected and evidence-grounded Lesson section.",
+      }] },
+      provider: "fake", model: "gemini-3.7-flash",
+    }));
+
+    await expect(generateCourseLessonContent(61, 72, provider)).resolves.toMatchObject({
+      outcome: "generated", outlineLessonId: 72,
+    });
+    expect(provider.synthesizeEvidenceAndBlueprint).toHaveBeenCalledOnce();
+    expect(provider.generateLessonSections).toHaveBeenCalledOnce();
+    expect(provider.reviewLessonCandidate).toHaveBeenCalledTimes(2);
+    expect(provider.correctLessonCandidate).toHaveBeenCalledOnce();
+    expect(mocks.persistCourseLessonContentForJob).toHaveBeenCalledOnce();
+  });
+
+  it("returns an already-generated Lesson without provider, persistence, or revision work", async () => {
+    const baseJob = scheduledCourseJob(2);
+    const job = { ...baseJob, status: "generating_content", approvedOutlineRevision: 1,
+      lessons: baseJob.lessons.map((lesson) => ({
+        ...lesson, contentDraft: lesson.id === 71 ? { id: 181, revision: 4 } : null,
+      })) };
+    mocks.getCourseImport.mockResolvedValue(job);
+    const provider = coursePedagogicalProvider();
+
+    await expect(generateCourseLessonContent(61, 71, provider)).resolves.toEqual({
+      jobId: 61, outlineLessonId: 71, outcome: "already_generated", lessonContentDraftId: 181,
+      revision: 4, courseStatus: "generating_content",
+    });
+    expect(mocks.prepareCourseLessonGeneration).not.toHaveBeenCalled();
+    expect(mocks.getCourseImportChunks).not.toHaveBeenCalled();
+    expect(provider.synthesizeEvidenceAndBlueprint).not.toHaveBeenCalled();
+    expect(provider.generateLessonSections).not.toHaveBeenCalled();
+    expect(provider.reviewLessonCandidate).not.toHaveBeenCalled();
+    expect(provider.correctLessonCandidate).not.toHaveBeenCalled();
+    expect(mocks.persistCourseLessonContentForJob).not.toHaveBeenCalled();
+    expect(mocks.failCourseImport).not.toHaveBeenCalled();
+  });
+
+  it("returns content_review only when the requested Lesson completes the Course", async () => {
+    const baseJob = scheduledCourseJob(2);
+    const job = { ...baseJob, status: "generating_content", approvedOutlineRevision: 1,
+      lessons: baseJob.lessons.map((lesson) => ({
+        ...lesson, contentDraft: lesson.id === 71 ? { id: 181, revision: 1 } : null,
+      })) };
+    const completedJob = { ...job, status: "content_review", lessons: job.lessons.map((lesson) => ({
+      ...lesson, contentDraft: lesson.contentDraft ?? { id: 182, revision: 1 },
+    })) };
+    mocks.getCourseImport.mockResolvedValueOnce(job).mockResolvedValueOnce(completedJob);
+    mocks.getCourseImportChunks.mockResolvedValue(scheduledChunks(2));
+
+    await expect(generateCourseLessonContent(61, 72, coursePedagogicalProvider())).resolves.toMatchObject({
+      outcome: "generated", outlineLessonId: 72, courseStatus: "content_review",
+    });
+    expect(mocks.prepareCourseLessonGeneration).not.toHaveBeenCalled();
+    expect(mocks.persistCourseLessonContentForJob).toHaveBeenCalledOnce();
+  });
+
+  it.each([
+    ["wrong Lesson relationship", 999, { outlineStale: false, status: "generating_content", approvedOutlineRevision: 1 }, "NOT_FOUND"],
+    ["stale outline", 71, { outlineStale: true }, "STALE_OUTLINE"],
+    ["unapproved generating outline", 71, { outlineStale: false, status: "generating_content", approvedOutlineRevision: null }, "INVALID_STATE"],
+    ["ineligible Course state", 71, { outlineStale: false, status: "published", approvedOutlineRevision: 1 }, "INVALID_STATE"],
+  ] as const)("rejects %s before provider access", async (_name, lessonId, overrides, code) => {
+    const job = Object.assign(scheduledCourseJob(2), overrides);
+    mocks.getCourseImport.mockResolvedValue(job);
+    const provider = coursePedagogicalProvider();
+    await expect(generateCourseLessonContent(61, lessonId, provider)).rejects.toMatchObject({ code });
+    expect(provider.synthesizeEvidenceAndBlueprint).not.toHaveBeenCalled();
+    expect(mocks.persistCourseLessonContentForJob).not.toHaveBeenCalled();
+  });
+
+  it("validates positive identifiers and an existing Course job before provider access", async () => {
+    const provider = coursePedagogicalProvider();
+    await expect(generateCourseLessonContent("bad", 71, provider)).rejects.toMatchObject({ code: "VALIDATION_ERROR" });
+    expect(mocks.getCourseImport).not.toHaveBeenCalled();
+    await expect(generateCourseLessonContent(61, "bad", provider)).rejects.toMatchObject({ code: "VALIDATION_ERROR" });
+    expect(mocks.getCourseImport).not.toHaveBeenCalled();
+    mocks.getCourseImport.mockResolvedValueOnce(null);
+    await expect(generateCourseLessonContent(61, 71, provider)).rejects.toMatchObject({ code: "NOT_FOUND" });
+    expect(provider.synthesizeEvidenceAndBlueprint).not.toHaveBeenCalled();
+    expect(mocks.persistCourseLessonContentForJob).not.toHaveBeenCalled();
+  });
+
+  it("rejects a pedagogically failed requested Lesson with zero persistence", async () => {
+    const job = { ...scheduledCourseJob(1), status: "generating_content", approvedOutlineRevision: 1 };
+    mocks.getCourseImport.mockResolvedValue(job);
+    mocks.getCourseImportChunks.mockResolvedValue(scheduledChunks(1));
+    const provider = coursePedagogicalProvider();
+    provider.reviewLessonCandidate.mockImplementationOnce(async (request) => ({
+      result: { verdict: "reject" as const, findings: [{ findingKey: "scope", code: "OUTLINE_SCOPE_DRIFT" as const,
+        disposition: "reject" as const, sectionKeys: [], message: "Reject scope drift." }],
+        reviewedSectionKeys: request.candidate.sections.map((section) => section.sectionKey) },
+      provider: "fake", model: "gemini-3.7-flash",
+    }));
+
+    await expect(generateCourseLessonContent(61, 71, provider)).rejects.toMatchObject({ code: "AI_PROVIDER_ERROR" });
+    expect(mocks.persistCourseLessonContentForJob).not.toHaveBeenCalled();
+    expect(mocks.failCourseImport).toHaveBeenCalledWith(61, "LESSON_GENERATION_FAILED");
+  });
+
+  it("isolates a provider timeout to the requested Lesson and preserves prior content", async () => {
+    const baseJob = scheduledCourseJob(2);
+    const job = { ...baseJob, status: "generating_content", approvedOutlineRevision: 1,
+      lessons: baseJob.lessons.map((lesson) => ({
+        ...lesson, contentDraft: lesson.id === 71 ? { id: 181, revision: 1 } : null,
+      })) };
+    mocks.getCourseImport.mockResolvedValue(job);
+    mocks.getCourseImportChunks.mockResolvedValue(scheduledChunks(2));
+    const provider = coursePedagogicalProvider();
+    provider.synthesizeEvidenceAndBlueprint.mockRejectedValueOnce(new Error("AI_PROVIDER_TIMEOUT"));
+
+    await expect(generateCourseLessonContent(61, 72, provider)).rejects.toMatchObject({ code: "AI_PROVIDER_ERROR" });
+    expect(provider.synthesizeEvidenceAndBlueprint).toHaveBeenCalledOnce();
+    expect(provider.synthesizeEvidenceAndBlueprint.mock.calls[0][0].lessonTitle).toBe("Lesson 2");
+    expect(mocks.persistCourseLessonContentForJob).not.toHaveBeenCalled();
+    expect(job.lessons[0].contentDraft).toEqual({ id: 181, revision: 1 });
   });
 
   it("persists an outline without generating Lesson bodies", async () => {
@@ -1666,7 +1847,7 @@ describe("two-stage Course imports", () => {
             : [`Nền tảng kết nối`, `Mạng hoạt động ra sao`, `Tình huống Wi-Fi`][order],
           teachingObjective: request.learningObjectives[0], synthesisItemKeys: ["approved"],
           evidenceRefs: [0], expectedElements: procedural ? ["ordered action"] : ["conceptual connection"] })) },
-        provider: "fake", model: "gemini-3.6-flash",
+        provider: "fake", model: "gemini-3.7-flash",
       };
     });
 
@@ -1832,7 +2013,7 @@ describe("two-stage Course imports", () => {
       result: { verdict: "reject" as const, findings: [{ findingKey: "scope", code: "OUTLINE_SCOPE_DRIFT" as const,
         disposition: "reject" as const, sectionKeys: [], message: "Reject drift." }],
         reviewedSectionKeys: request.candidate.sections.map((section) => section.sectionKey) },
-      provider: "fake", model: "gemini-3.6-flash",
+      provider: "fake", model: "gemini-3.7-flash",
     }) as Awaited<ReturnType<PedagogicalLessonProvider["reviewLessonCandidate"]>>);
 
     await expect(generateCourseLessonContents(61, provider)).rejects.toMatchObject({ code: "AI_PROVIDER_ERROR" });

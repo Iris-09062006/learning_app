@@ -534,7 +534,7 @@ describe("pedagogical synthesis and blueprint", () => {
     },
   };
 
-  function responseFor(content: unknown, model = "gemini-3.6-flash") {
+  function responseFor(content: unknown, model = "gemini-3.7-flash") {
     return new Response(JSON.stringify({
       model,
       choices: [{ message: { content: typeof content === "string" ? content : JSON.stringify(content) } }],
@@ -628,7 +628,7 @@ describe("pedagogical synthesis and blueprint", () => {
       messages: Array<{ content: string }>;
       response_format: unknown;
     };
-    expect(request.model).toBe("gemini-3.6-flash");
+    expect(request.model).toBe("gemini-3.7-flash");
     expect(JSON.stringify(request.response_format)).not.toMatch(/minItems|maxItems|uniqueItems|minimum|maximum/);
     expect(request.messages[0].content).toContain("untrusted data");
     expect(request.messages[0].content).toContain("Do not write final Lesson prose");
@@ -648,7 +648,7 @@ describe("pedagogical synthesis and blueprint", () => {
     })).rejects.toThrow(errorCode);
     expect(fetchMock).toHaveBeenCalledTimes(1);
     const request = JSON.parse(String(fetchMock.mock.calls[0][1]?.body)) as { model: string };
-    expect(request.model).toBe("gemini-3.6-flash");
+    expect(request.model).toBe("gemini-3.7-flash");
   });
 
   it("times out without a hidden retry", async () => {
@@ -711,7 +711,7 @@ describe("purpose-aware Lesson section generation", () => {
     ],
   };
 
-  function responseFor(content: unknown, model = "gemini-3.6-flash") {
+  function responseFor(content: unknown, model = "gemini-3.7-flash") {
     return new Response(JSON.stringify({
       model,
       choices: [{ message: { content: typeof content === "string" ? content : JSON.stringify(content) } }],
@@ -783,7 +783,7 @@ describe("purpose-aware Lesson section generation", () => {
     const request = JSON.parse(String(fetchMock.mock.calls[0][1]?.body)) as {
       model: string; messages: Array<{ content: string }>; response_format: unknown;
     };
-    expect(request.model).toBe("gemini-3.6-flash");
+    expect(request.model).toBe("gemini-3.7-flash");
     expect(request.messages[0].content).toContain("CONCEPT: build intuition first");
     expect(request.messages[0].content).toContain("COMPARISON: explicitly compare A versus B");
     expect(request.messages[0].content).toContain("EXAMPLE: present a concrete scenario");
@@ -877,7 +877,7 @@ describe("purpose-aware Lesson section generation", () => {
     })).rejects.toThrow(errorCode);
     expect(fetchMock).toHaveBeenCalledTimes(1);
     const request = JSON.parse(String(fetchMock.mock.calls[0][1]?.body)) as { model: string };
-    expect(request.model).toBe("gemini-3.6-flash");
+    expect(request.model).toBe("gemini-3.7-flash");
   });
 
   it("times out with one outbound request and no fallback", async () => {
@@ -931,7 +931,7 @@ describe("independent pedagogical Quality Review", () => {
     ],
   };
 
-  function responseFor(content: unknown, model = "gemini-3.6-flash") {
+  function responseFor(content: unknown, model = "gemini-3.7-flash") {
     return new Response(JSON.stringify({ model, choices: [{ message: { content: JSON.stringify(content) } }] }),
       { status: 200 });
   }
@@ -1065,7 +1065,7 @@ describe("independent pedagogical Quality Review", () => {
     const requests = fetchMock.mock.calls.map((call) => JSON.parse(String(call[1]?.body)) as {
       model: string; messages: Array<{ content: string }>;
     });
-    expect(requests.map((request) => request.model)).toEqual(["gemini-3.6-flash", "gemini-3.6-flash"]);
+    expect(requests.map((request) => request.model)).toEqual(["gemini-3.7-flash", "gemini-3.7-flash"]);
     expect(requests[0].messages[0].content).toContain("semantic teaching-quality review");
     expect(requests[0].messages[0].content).toContain("Khái niệm/Vai trò/Tầm quan trọng");
     expect(requests[0].messages[0].content).toContain("UNSUPPORTED_CLAIM");

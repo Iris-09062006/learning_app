@@ -74,7 +74,7 @@ export interface PedagogicalLessonProvider {
   ): Promise<PedagogicalProviderResult<TargetedCorrection>>;
 }
 
-const PEDAGOGICAL_MODEL = "gemini-3.6-flash";
+const PEDAGOGICAL_MODEL = "gemini-3.7-flash";
 
 const SYNTHESIS_BLUEPRINT_SCHEMA = {
   name: "lesson_evidence_synthesis_blueprint",
@@ -1076,7 +1076,7 @@ export class NineRouterLessonDraftProvider implements LessonDraftProvider, Pedag
         signal: controller.signal,
         body: JSON.stringify({
           model: PEDAGOGICAL_MODEL,
-          temperature: 0.2,
+          reasoning_effort: "low",
           response_format: { type: "json_schema", json_schema: SYNTHESIS_BLUEPRINT_SCHEMA },
           messages: [
             {
@@ -1155,7 +1155,7 @@ export class NineRouterLessonDraftProvider implements LessonDraftProvider, Pedag
         signal: controller.signal,
         body: JSON.stringify({
           model: PEDAGOGICAL_MODEL,
-          temperature: 0.2,
+          reasoning_effort: "low",
           response_format: { type: "json_schema", json_schema: GENERATED_LESSON_CANDIDATE_SCHEMA },
           messages: [
             {
@@ -1234,7 +1234,7 @@ export class NineRouterLessonDraftProvider implements LessonDraftProvider, Pedag
         signal: controller.signal,
         body: JSON.stringify({
           model: PEDAGOGICAL_MODEL,
-          temperature: 0.1,
+          reasoning_effort: "low",
           response_format: { type: "json_schema", json_schema: LESSON_QUALITY_REVIEW_SCHEMA },
           messages: [
             {
@@ -1318,7 +1318,7 @@ export class NineRouterLessonDraftProvider implements LessonDraftProvider, Pedag
         signal: controller.signal,
         body: JSON.stringify({
           model: PEDAGOGICAL_MODEL,
-          temperature: 0.1,
+          reasoning_effort: "low",
           response_format: { type: "json_schema", json_schema: TARGETED_CORRECTION_SCHEMA },
           messages: [
             {

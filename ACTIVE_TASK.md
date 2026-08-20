@@ -1,6 +1,6 @@
 # Active Task Queue
 
-- **Active task:** `TASK-083` — Pedagogical Lesson Generation Phase D
+- **Active task:** `TASK-088` — Feature 005 Per-Lesson Generation Phase B
 - **Status:** `VERIFIED`
 - **Owner / Reviewer:** Codex
 - **Deferred design task:** `TASK-047` (`DRAFT`)
@@ -8,7 +8,7 @@
 
 ## Current objective
 
-TASK-083 implements and verifies only T026–T036 of feature `003-pedagogical-lesson-generation`: the verified pedagogical runner is active for Continue and Lesson-wide regeneration, Course generation uses bounded three-pipeline scheduling with a 240-second deadline and partial-success retry semantics, and persistence plus downstream compatibility pass without migrations or external contract changes.
+TASK-088 adds the backend-only one-POST/one-Lesson generation endpoint, updates the exact pedagogical model invariant to `gemini-3.7-flash`, and preserves the verified three/five-call runner, persistence, Course-wide scheduler, regeneration, and downstream contracts. The frontend and its 60-second Continue timeout remain unchanged for Phase C.
 
 ## Previous verified objective
 
