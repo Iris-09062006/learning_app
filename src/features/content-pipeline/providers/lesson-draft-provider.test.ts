@@ -13,6 +13,18 @@ import {
 
 import { AiProviderRequestError, NineRouterLessonDraftProvider } from "./lesson-draft-provider";
 
+function expectNonStreamingJsonRequest(call: Parameters<typeof fetch>, expectedModel: string) {
+  const init = call[1];
+  expect(init?.headers).toMatchObject({
+    Accept: "application/json",
+    Authorization: "Bearer secret",
+  });
+  expect(JSON.parse(String(init?.body))).toMatchObject({
+    model: expectedModel,
+    stream: false,
+  });
+}
+
 describe("NineRouterLessonDraftProvider", () => {
   afterEach(() => {
     vi.useRealTimers();
@@ -20,7 +32,7 @@ describe("NineRouterLessonDraftProvider", () => {
   });
 
   it("accepts strict output with valid citations", async () => {
-    vi.spyOn(globalThis, "fetch").mockResolvedValue(new Response(JSON.stringify({
+    const fetchMock = vi.spyOn(globalThis, "fetch").mockResolvedValue(new Response(JSON.stringify({
       model: "test-model",
       choices: [{ message: { content: JSON.stringify({
         title: "Biến Python",
@@ -39,6 +51,7 @@ describe("NineRouterLessonDraftProvider", () => {
       lessonTitle: "Biến",
       chunks: [{ chunkIndex: 0, content: "Biến lưu dữ liệu." }],
     });
+    expectNonStreamingJsonRequest(fetchMock.mock.calls[0], "test-model");
     expect(result.provider).toBe("9router");
     expect(result.draft.sections[0].citationChunkIndexes).toEqual([0]);
   });
@@ -131,6 +144,7 @@ describe("NineRouterLessonDraftProvider", () => {
     });
 
     expect(result.draft.lessons).toHaveLength(2);
+    expectNonStreamingJsonRequest(fetchMock.mock.calls[0], "test-model");
     const request = JSON.parse(String(fetchMock.mock.calls[0][1]?.body)) as { messages: Array<{ content: string }> };
     expect(request.messages[0].content).toContain("Do not create");
     expect(request.messages[0].content).toContain("exercises");
@@ -184,9 +198,11 @@ describe("NineRouterLessonDraftProvider", () => {
     };
     expect(fetchMock.mock.calls[0][0]).toBe("https://router.test/v1/chat/completions");
     expect(fetchMock.mock.calls[0][1]?.headers).toMatchObject({
+      Accept: "application/json",
       Authorization: "Bearer secret",
       "X-9Router-Token-Saver": "off",
     });
+    expectNonStreamingJsonRequest(fetchMock.mock.calls[0], "gemini/gemini-3.7-flash");
     expect(request.model).toBe("gemini/gemini-3.7-flash");
     expect(result).toMatchObject({ provider: "9router", model: "gemini/gemini-3.7-flash" });
     expect(request.messages[0].content).toContain("only a Vietnamese Course outline");
@@ -642,6 +658,7 @@ describe("pedagogical synthesis and blueprint", () => {
       ],
     });
     expect(fetchMock).toHaveBeenCalledTimes(1);
+    expectNonStreamingJsonRequest(fetchMock.mock.calls[0], "gpt-fallback");
     const request = JSON.parse(String(fetchMock.mock.calls[0][1]?.body)) as {
       model: string;
       messages: Array<{ content: string }>;
@@ -864,6 +881,7 @@ describe("purpose-aware Lesson section generation", () => {
         learningObjectives: ["Giải thích mạng", "Phân biệt LAN và Internet"],
         evidenceRefMap, synthesis, blueprint: conceptualBlueprint,
       });
+    expectNonStreamingJsonRequest(fetchMock.mock.calls[0], "fallback");
     const request = JSON.parse(String(fetchMock.mock.calls[0][1]?.body)) as {
       model: string; messages: Array<{ content: string }>; response_format: unknown;
     };
@@ -1145,6 +1163,8 @@ describe("independent pedagogical Quality Review", () => {
     await provider.correctLessonCandidate({ lessonTitle: candidate.title, learningObjectives: ["Explain networks"],
       evidenceRefMap, synthesis, blueprint, candidate, review: correctableReview });
     expect(fetchMock).toHaveBeenCalledTimes(2);
+    expectNonStreamingJsonRequest(fetchMock.mock.calls[0], "gpt-fallback");
+    expectNonStreamingJsonRequest(fetchMock.mock.calls[1], "gpt-fallback");
     const requests = fetchMock.mock.calls.map((call) => JSON.parse(String(call[1]?.body)) as {
       model: string; messages: Array<{ content: string }>;
     });

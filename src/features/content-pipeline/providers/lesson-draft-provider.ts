@@ -1107,6 +1107,7 @@ export class NineRouterLessonDraftProvider implements LessonDraftProvider, Pedag
       const response = await fetch(this.endpoint, {
         method: "POST",
         headers: {
+          Accept: "application/json",
           "Content-Type": "application/json",
           Authorization: `Bearer ${this.apiKey}`,
           "X-9Router-Token-Saver": "off",
@@ -1114,6 +1115,7 @@ export class NineRouterLessonDraftProvider implements LessonDraftProvider, Pedag
         signal: controller.signal,
         body: JSON.stringify({
           model: this.model,
+          stream: false,
           reasoning_effort: "low",
           response_format: { type: "json_schema", json_schema: SYNTHESIS_BLUEPRINT_SCHEMA },
           messages: [
@@ -1186,6 +1188,7 @@ export class NineRouterLessonDraftProvider implements LessonDraftProvider, Pedag
       const response = await fetch(this.endpoint, {
         method: "POST",
         headers: {
+          Accept: "application/json",
           "Content-Type": "application/json",
           Authorization: `Bearer ${this.apiKey}`,
           "X-9Router-Token-Saver": "off",
@@ -1193,6 +1196,7 @@ export class NineRouterLessonDraftProvider implements LessonDraftProvider, Pedag
         signal: controller.signal,
         body: JSON.stringify({
           model: this.model,
+          stream: false,
           reasoning_effort: "low",
           response_format: { type: "json_schema", json_schema: GENERATED_LESSON_CANDIDATE_SCHEMA },
           messages: [
@@ -1264,6 +1268,7 @@ export class NineRouterLessonDraftProvider implements LessonDraftProvider, Pedag
       const response = await fetch(this.endpoint, {
         method: "POST",
         headers: {
+          Accept: "application/json",
           "Content-Type": "application/json",
           Authorization: `Bearer ${this.apiKey}`,
           "X-9Router-Token-Saver": "off",
@@ -1271,6 +1276,7 @@ export class NineRouterLessonDraftProvider implements LessonDraftProvider, Pedag
         signal: controller.signal,
         body: JSON.stringify({
           model: this.model,
+          stream: false,
           reasoning_effort: "low",
           response_format: { type: "json_schema", json_schema: LESSON_QUALITY_REVIEW_SCHEMA },
           messages: [
@@ -1347,6 +1353,7 @@ export class NineRouterLessonDraftProvider implements LessonDraftProvider, Pedag
       const response = await fetch(this.endpoint, {
         method: "POST",
         headers: {
+          Accept: "application/json",
           "Content-Type": "application/json",
           Authorization: `Bearer ${this.apiKey}`,
           "X-9Router-Token-Saver": "off",
@@ -1354,6 +1361,7 @@ export class NineRouterLessonDraftProvider implements LessonDraftProvider, Pedag
         signal: controller.signal,
         body: JSON.stringify({
           model: this.model,
+          stream: false,
           reasoning_effort: "low",
           response_format: { type: "json_schema", json_schema: TARGETED_CORRECTION_SCHEMA },
           messages: [
@@ -1423,6 +1431,7 @@ export class NineRouterLessonDraftProvider implements LessonDraftProvider, Pedag
       const response = await fetch(this.endpoint, {
         method: "POST",
         headers: {
+          Accept: "application/json",
           "Content-Type": "application/json",
           Authorization: `Bearer ${this.apiKey}`,
           "X-9Router-Token-Saver": "off",
@@ -1430,6 +1439,7 @@ export class NineRouterLessonDraftProvider implements LessonDraftProvider, Pedag
         signal: controller.signal,
         body: JSON.stringify({
           model: this.model,
+          stream: false,
           temperature: 0.2,
           response_format: { type: "json_schema", json_schema: sourceQualified
             ? SOURCE_QUALIFIED_LESSON_DRAFT_SCHEMA : LESSON_DRAFT_SCHEMA },
@@ -1474,6 +1484,7 @@ export class NineRouterLessonDraftProvider implements LessonDraftProvider, Pedag
       const response = await fetch(this.endpoint, {
         method: "POST",
         headers: {
+          Accept: "application/json",
           "Content-Type": "application/json",
           Authorization: `Bearer ${this.apiKey}`,
           "X-9Router-Token-Saver": "off",
@@ -1481,6 +1492,7 @@ export class NineRouterLessonDraftProvider implements LessonDraftProvider, Pedag
         signal: controller.signal,
         body: JSON.stringify({
           model: this.model,
+          stream: false,
           temperature: 0.2,
           response_format: { type: "json_schema", json_schema: COURSE_DRAFT_SCHEMA },
           messages: [
@@ -1548,6 +1560,7 @@ export class NineRouterLessonDraftProvider implements LessonDraftProvider, Pedag
       const response = await fetch(this.endpoint, {
         method: "POST",
         headers: {
+          Accept: "application/json",
           "Content-Type": "application/json",
           Authorization: `Bearer ${this.apiKey}`,
           "X-9Router-Token-Saver": "off",
@@ -1555,6 +1568,7 @@ export class NineRouterLessonDraftProvider implements LessonDraftProvider, Pedag
         signal: controller.signal,
         body: JSON.stringify({
           model: this.model,
+          stream: false,
           temperature: 0.2,
           response_format: { type: "json_schema", json_schema: sourceQualified
             ? SOURCE_QUALIFIED_COURSE_OUTLINE_SCHEMA : COURSE_OUTLINE_SCHEMA },
