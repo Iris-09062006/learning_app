@@ -11,7 +11,7 @@ import {
   type LessonQualityReview,
 } from "@/features/content-pipeline/types";
 
-import { NineRouterLessonDraftProvider } from "./lesson-draft-provider";
+import { NineRouterLessonDraftProvider, ProviderHttpError } from "./lesson-draft-provider";
 
 describe("NineRouterLessonDraftProvider", () => {
   afterEach(() => {
@@ -457,6 +457,10 @@ describe("NineRouterLessonDraftProvider", () => {
 });
 
 describe("pedagogical synthesis and blueprint", () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
   const evidenceRefMap: EvidenceRefMap = [
     {
       sourceRef: 0,
@@ -550,6 +554,119 @@ describe("pedagogical synthesis and blueprint", () => {
       evidenceRefMap: refs,
     });
   }
+
+  async function captureSynthesisFailure(response: Response) {
+    const info = vi.spyOn(console, "info").mockImplementation(() => undefined);
+    const fetchMock = vi.spyOn(globalThis, "fetch").mockResolvedValue(response);
+    const provider = new NineRouterLessonDraftProvider(
+      "api-key-must-never-appear",
+      "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions?private=never-log",
+      "fallback-model",
+    );
+    let caught: unknown;
+    try {
+      await provider.synthesizeEvidenceAndBlueprint({
+        lessonTitle: "prompt-must-never-appear",
+        learningObjectives: ["objective-must-never-appear"],
+        evidenceRefMap: [{ ...evidenceRefMap[0], content: "source-must-never-appear" }],
+      });
+    } catch (error) {
+      caught = error;
+    }
+    expect(caught).toBeInstanceOf(ProviderHttpError);
+    return { error: caught as ProviderHttpError, info, fetchMock };
+  }
+
+  it("retains only allowlisted metadata from an HTTP 503 object body", async () => {
+    const rawBodySecret = "raw-object-body-must-never-appear";
+    const { error, info, fetchMock } = await captureSynthesisFailure(new Response(JSON.stringify({
+      error: { code: 503, type: "UNAVAILABLE", message: rawBodySecret },
+      category: "service_unavailable",
+    }), {
+      status: 503,
+      headers: {
+        "Content-Type": "application/json; charset=utf-8",
+        "Retry-After": "30",
+        "X-Goog-Request-Id": "google-request-123",
+        "X-Untrusted-Secret": "arbitrary-header-must-never-appear",
+        Authorization: "Bearer response-secret-must-never-appear",
+      },
+    }));
+
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(error.message).toBe("AI_PROVIDER_REQUEST_FAILED");
+    expect(error.metadata).toMatchObject({
+      stage: "synthesis",
+      upstreamStatus: 503,
+      providerHost: "generativelanguage.googleapis.com",
+      contentType: "application/json",
+      retryAfterPresent: true,
+      retryAfter: "30",
+      providerRequestIdHeader: "x-goog-request-id",
+      providerRequestId: "google-request-123",
+      providerErrorCode: "503",
+      providerErrorType: "UNAVAILABLE",
+      providerErrorCategory: "service_unavailable",
+    });
+    expect(error.metadata.durationMs).toBeGreaterThanOrEqual(0);
+    expect(info).toHaveBeenCalledWith("[content-pipeline] operational", expect.objectContaining({
+      event: "provider_request",
+      outcome: "failure",
+      code: "AI_PROVIDER_REQUEST_FAILED",
+      upstreamStatus: 503,
+    }));
+    const serialized = JSON.stringify({ error, telemetry: info.mock.calls });
+    for (const forbidden of [
+      rawBodySecret,
+      "arbitrary-header-must-never-appear",
+      "response-secret-must-never-appear",
+      "api-key-must-never-appear",
+      "private=never-log",
+      "prompt-must-never-appear",
+      "objective-must-never-appear",
+      "source-must-never-appear",
+    ]) expect(serialized).not.toContain(forbidden);
+  });
+
+  it("handles an HTTP 503 array body without retaining or logging the raw array", async () => {
+    const rawArraySecret = "raw-array-must-never-appear";
+    const { error, info } = await captureSynthesisFailure(new Response(JSON.stringify([
+      { error: { code: rawArraySecret } },
+    ]), { status: 503, headers: { "Content-Type": "application/json" } }));
+
+    expect(error.metadata).toMatchObject({
+      upstreamStatus: 503,
+      providerErrorCode: null,
+      providerErrorType: null,
+      providerErrorCategory: "unknown",
+    });
+    expect(JSON.stringify({ error, telemetry: info.mock.calls })).not.toContain(rawArraySecret);
+  });
+
+  it("handles an HTTP 503 text body without retaining or logging raw text", async () => {
+    const rawTextSecret = "raw-text-must-never-appear";
+    const { error, info } = await captureSynthesisFailure(new Response(rawTextSecret, {
+      status: 503,
+      headers: { "Content-Type": "text/plain; charset=utf-8" },
+    }));
+
+    expect(error.metadata).toMatchObject({
+      upstreamStatus: 503,
+      contentType: "text/plain",
+      providerErrorCategory: "unknown",
+    });
+    expect(JSON.stringify({ error, telemetry: info.mock.calls })).not.toContain(rawTextSecret);
+  });
+
+  it("handles an HTTP 503 empty body while retaining the status", async () => {
+    const { error } = await captureSynthesisFailure(new Response(null, { status: 503 }));
+    expect(error.metadata).toMatchObject({
+      upstreamStatus: 503,
+      providerErrorCode: null,
+      providerErrorType: null,
+      providerErrorCategory: "unknown",
+    });
+  });
 
   it("locks the complete section-purpose taxonomy to exactly 13 values", () => {
     expect(SECTION_PURPOSES).toEqual([

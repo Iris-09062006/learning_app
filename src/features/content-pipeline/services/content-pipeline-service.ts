@@ -7,6 +7,7 @@ import {
   type LessonDraftProvider,
   type PedagogicalLessonProvider,
 } from "@/features/content-pipeline/providers/lesson-draft-provider";
+import { emitContentPipelineSignal } from "@/features/content-pipeline/content-pipeline-telemetry";
 import { TavilyWebSearchProvider } from "@/features/content-pipeline/providers/tavily-web-search-provider";
 import { WebSearchProviderError, type WebSearchProvider } from "@/features/content-pipeline/providers/web-search-provider";
 import {
@@ -118,26 +119,10 @@ export type ContentPipelineErrorCode =
   | "WEB_EXTRACTION_UNAVAILABLE"
   | "DATABASE_ERROR";
 
-export interface ContentPipelineOperationalSignal {
-  event: "research" | "fetch" | "source_mutation" | "source_reference" | "outline_generation"
-    | "stale_outline" | "lesson_generation" | "publication";
-  outcome: "success" | "failure" | "retry" | "rejected";
-  stage: string;
-  code: string;
-  actorId?: string;
-  jobId?: number;
-  sourceDocumentId?: number;
-  durationMs?: number;
-  byteCount?: number;
-  redirectCount?: number;
-  sourceCount?: number;
-}
-
-export function emitContentPipelineSignal(signal: ContentPipelineOperationalSignal): void {
-  // The closed signal type is the privacy boundary: source/provider bodies, URLs, prompts,
-  // credentials, tokens, private addresses, and storage paths cannot be passed to this logger.
-  console.info("[content-pipeline] operational", signal);
-}
+export {
+  emitContentPipelineSignal,
+  type ContentPipelineOperationalSignal,
+} from "@/features/content-pipeline/content-pipeline-telemetry";
 
 export class ContentPipelineError extends Error {
   constructor(
