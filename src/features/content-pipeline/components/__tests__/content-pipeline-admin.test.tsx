@@ -6,6 +6,7 @@ import {
   ContentPipelineAdmin,
   decodePipelineCheckpoint,
   mergeResearchCandidates,
+  PER_LESSON_GENERATION_REQUEST_TIMEOUT_MS,
   requestPipelineApi,
 } from "../content-pipeline-admin";
 
@@ -111,6 +112,20 @@ function multiImportItem(status: CourseImportDraft["status"] = "outline_review")
       } : null,
     })),
   };
+}
+
+function sequentialImport(completedIds: number[], status: CourseImportDraft["status"] = "generating_content") {
+  const base = importItem("outline_review");
+  const lessons = [
+    { id: 73, lessonOrder: 3, title: "Lesson 3" },
+    { id: 71, lessonOrder: 1, title: "Lesson 1" },
+    { id: 74, lessonOrder: 4, title: "Lesson 4" },
+    { id: 72, lessonOrder: 2, title: "Lesson 2" },
+  ].map(({ id, lessonOrder, title }) => ({
+    ...base.lessons[0], id, clientKey: `lesson-${id}`, lessonOrder, title,
+    contentDraft: completedIds.includes(id) ? { ...contentDraft, id: id + 100, outlineLessonId: id, title } : null,
+  }));
+  return { ...base, status, approvedOutlineRevision: 1, lessons };
 }
 
 function json(data: unknown, status = 200) {
@@ -388,42 +403,69 @@ describe("content pipeline Admin", () => {
     expect(initializedBody).toMatchObject({ sources: [{ sourceDocumentId: 21 }] });
   });
 
-  it("generates Lesson contents only after Continue", async () => {
-    let continued = false;
-    vi.spyOn(globalThis, "fetch").mockImplementation(async (input) => {
-      const url = String(input);
-      if (url === "/api/admin/course-drafts") return json({ success: true, data: { items: [importItem(continued ? "content_review" : "outline_review")] } });
-      if (url === "/api/admin/content-targets") return json({ success: true, data: { items: [] } });
-      if (url === "/api/admin/course-drafts/61/lessons/generate") { continued = true; return json({ success: true, data: { status: "content_review" } }, 201); }
-      throw new Error(`Unexpected request: ${url}`);
-    });
-    render(<ContentPipelineAdmin />);
-    fireEvent.click(await screen.findByRole("button", { name: "Continue: sinh Lesson contents" }));
-    expect(await screen.findByText("Nội dung Lesson đã sẵn sàng để review.")).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Publish Course" })).toBeInTheDocument();
-  });
-
-  it("refreshes a failed Lesson-generation job and retries the failed step", async () => {
-    let generationAttempts = 0;
-    const failedImport = {
-      ...importItem("failed"),
-      errorCode: "LESSON_GENERATION_FAILED",
-      approvedOutlineRevision: 1,
-      lessons: importItem("outline_review").lessons,
-    };
+  it("generates missing Lessons in server order with one request in flight and persisted progress", async () => {
+    const completed = new Set<number>([71]);
+    const posts: number[] = [];
+    const events: string[] = [];
+    let inFlight = 0;
+    let maxInFlight = 0;
     vi.spyOn(globalThis, "fetch").mockImplementation(async (input) => {
       const url = String(input);
       if (url === "/api/admin/course-drafts") {
-        const item = generationAttempts === 0
-          ? importItem("outline_review")
-          : generationAttempts === 1 ? failedImport : importItem("content_review");
-        return json({ success: true, data: { items: [item] } });
+        events.push("GET");
+        const status = completed.size === 4 ? "content_review" : "generating_content";
+        return json({ success: true, data: { items: [sequentialImport([...completed], status)] } });
       }
-      if (url === "/api/admin/course-drafts/61/lessons/generate") {
-        generationAttempts += 1;
-        return generationAttempts === 1
-          ? json({ success: false, error: { message: "Unable to generate all Lesson contents." } }, 502)
-          : json({ success: true, data: { status: "content_review" } }, 201);
+      const match = url.match(/^\/api\/admin\/course-drafts\/61\/lessons\/(\d+)\/generate$/u);
+      if (match) {
+        const lessonId = Number(match[1]);
+        events.push(`POST:${lessonId}`); posts.push(lessonId);
+        inFlight += 1; maxInFlight = Math.max(maxInFlight, inFlight);
+        await Promise.resolve();
+        completed.add(lessonId); inFlight -= 1;
+        return json({ success: true, data: { outcome: "generated", outlineLessonId: lessonId } }, 201);
+      }
+      throw new Error(`Unexpected request: ${url}`);
+    });
+
+    render(<ContentPipelineAdmin />);
+    expect(await screen.findByText("Tiến độ tạo bài học: 1/4")).toBeInTheDocument();
+    expect(posts).toEqual([]);
+    events.length = 0;
+    fireEvent.click(screen.getByRole("button", { name: "Tiếp tục tạo Lesson contents" }));
+
+    expect(await screen.findByText("Nội dung Lesson đã sẵn sàng để review.")).toBeInTheDocument();
+    expect(posts).toEqual([72, 73, 74]);
+    expect(maxInFlight).toBe(1);
+    expect(events).toEqual(["GET", "POST:72", "GET", "POST:73", "GET", "POST:74", "GET", "GET"]);
+    expect(screen.getByText("Tiến độ tạo bài học: 4/4")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Publish Course" })).toBeInTheDocument();
+    expect(events.some((event) => event === "POST:generate")).toBe(false);
+  });
+
+  it("stops on failure, preserves server progress, and retries from the first missing Lesson", async () => {
+    const completed = new Set<number>();
+    const posts: number[] = [];
+    const events: string[] = [];
+    let failedOnce = false;
+    vi.spyOn(globalThis, "fetch").mockImplementation(async (input) => {
+      const url = String(input);
+      if (url === "/api/admin/course-drafts") {
+        events.push("GET");
+        const status = failedOnce && completed.size < 4 ? "failed" : completed.size === 4 ? "content_review" : "outline_review";
+        return json({ success: true, data: { items: [{ ...sequentialImport([...completed], status),
+          approvedOutlineRevision: 1, errorCode: status === "failed" ? "LESSON_GENERATION_FAILED" : null }] } });
+      }
+      const match = url.match(/^\/api\/admin\/course-drafts\/61\/lessons\/(\d+)\/generate$/u);
+      if (match) {
+        const lessonId = Number(match[1]);
+        events.push(`POST:${lessonId}`); posts.push(lessonId);
+        if (lessonId === 73 && !failedOnce) {
+          failedOnce = true;
+          return json({ success: false, error: { message: "Provider temporarily unavailable." } }, 502);
+        }
+        completed.add(lessonId);
+        return json({ success: true, data: { outcome: "generated", outlineLessonId: lessonId } }, 201);
       }
       throw new Error(`Unexpected request: ${url}`);
     });
@@ -431,11 +473,62 @@ describe("content pipeline Admin", () => {
     render(<ContentPipelineAdmin />);
     fireEvent.click(await screen.findByRole("button", { name: "Continue: sinh Lesson contents" }));
     expect(await screen.findByRole("button", { name: "Thử lại bước bị lỗi" })).toBeInTheDocument();
+    expect(posts).toEqual([71, 72, 73]);
+    expect(screen.getByText("Tiến độ tạo bài học: 2/4")).toBeInTheDocument();
     expect(screen.getByRole("alert")).toHaveTextContent("Dịch vụ tạm thời quá tải hoặc hết thời gian chờ");
 
+    events.length = 0;
     fireEvent.click(screen.getByRole("button", { name: "Thử lại bước bị lỗi" }));
     expect(await screen.findByText("Nội dung Lesson đã sẵn sàng để review.")).toBeInTheDocument();
-    expect(generationAttempts).toBe(2);
+    expect(posts).toEqual([71, 72, 73, 73, 74]);
+    expect(events).toEqual(["GET", "POST:73", "GET", "POST:74", "GET", "GET"]);
+    expect(screen.getByText("Tiến độ tạo bài học: 4/4")).toBeInTheDocument();
+  });
+
+  it("guards duplicate clicks and applies 300 seconds only to one-Lesson generation", async () => {
+    expect(PER_LESSON_GENERATION_REQUEST_TIMEOUT_MS).toBe(300_000);
+    let resolveGeneration: ((response: Response) => void) | undefined;
+    const generation = new Promise<Response>((resolve) => { resolveGeneration = resolve; });
+    let completed = false;
+    let postCalls = 0;
+    vi.spyOn(globalThis, "fetch").mockImplementation(async (input, init) => {
+      const url = String(input);
+      if (url === "/api/admin/course-drafts") {
+        expect(init?.signal).toBeUndefined();
+        const item = sequentialImport(completed ? [71] : [], completed ? "content_review" : "outline_review");
+        return json({ success: true, data: { items: [{ ...item, lessons: item.lessons.filter((lesson) => lesson.id === 71) }] } });
+      }
+      if (url === "/api/admin/course-drafts/61/lessons/71/generate") {
+        postCalls += 1;
+        expect(init?.signal).toBeInstanceOf(AbortSignal);
+        return generation;
+      }
+      throw new Error(`Unexpected request: ${url}`);
+    });
+
+    render(<ContentPipelineAdmin />);
+    const button = await screen.findByRole("button", { name: "Continue: sinh Lesson contents" });
+    fireEvent.click(button); fireEvent.click(button);
+    await waitFor(() => expect(postCalls).toBe(1));
+    completed = true;
+    resolveGeneration?.(json({ success: true, data: { outcome: "generated" } }, 201));
+    expect(await screen.findByText("Nội dung Lesson đã sẵn sàng để review.")).toBeInTheDocument();
+  });
+
+  it("does not auto-start after reload and performs zero POSTs when server truth is complete", async () => {
+    let posts = 0;
+    vi.spyOn(globalThis, "fetch").mockImplementation(async (input) => {
+      const url = String(input);
+      if (url === "/api/admin/course-drafts") {
+        return json({ success: true, data: { items: [sequentialImport([71, 72, 73, 74], "content_review")] } });
+      }
+      if (url.includes("/lessons/")) { posts += 1; throw new Error("Generation must not start."); }
+      throw new Error(`Unexpected request: ${url}`);
+    });
+    render(<ContentPipelineAdmin />);
+    expect(await screen.findByText("Tiến độ tạo bài học: 4/4")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Publish Course" })).toBeInTheDocument();
+    expect(posts).toBe(0);
   });
 
   it("starts a new local workflow without removing persisted Course imports", async () => {

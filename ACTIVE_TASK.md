@@ -1,6 +1,6 @@
 # Active Task Queue
 
-- **Active task:** `TASK-083` — Pedagogical Lesson Generation Phase D
+- **Active task:** `TASK-090` — Gemini 3.7 Provider Response Boundary
 - **Status:** `VERIFIED`
 - **Owner / Reviewer:** Codex
 - **Deferred design task:** `TASK-047` (`DRAFT`)
@@ -8,7 +8,15 @@
 
 ## Current objective
 
-TASK-083 implements and verifies only T026–T036 of feature `003-pedagogical-lesson-generation`: the verified pedagogical runner is active for Continue and Lesson-wide regeneration, Course generation uses bounded three-pipeline scheduling with a 240-second deadline and partial-success retry semantics, and persistence plus downstream compatibility pass without migrations or external contract changes.
+TASK-090 traces and, only if deterministically proven, minimally repairs the HTTP-200 Gemini 3.7
+stage-one synthesis response boundary without changing Feature 005 orchestration, timeouts,
+model-call budgets, persistence, citations, regeneration, publication, Exercises, learner progress,
+or database contracts. The one-based order boundary mismatch is proven, normalized to the unchanged
+zero-based internal contract, and all required local gates pass without a live provider request.
+
+## Previous verified objective
+
+TASK-089 replaces the Admin generate-all Continue request with explicit sequential one-Lesson POSTs driven by refreshed persisted drafts, adds an isolated 300-second client timeout and accessible server-truth progress, and preserves all Phase B/backend, scheduler, database, and downstream contracts. Phase D is untouched.
 
 ## Previous verified objective
 

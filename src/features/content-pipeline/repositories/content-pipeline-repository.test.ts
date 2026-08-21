@@ -49,7 +49,7 @@ describe("pedagogical Lesson persistence compatibility", () => {
       },
       citations: [{ sectionIndex: 0, documentChunkId: 101 }],
       provider: "9router",
-      model: "gemini-3.6-flash",
+      model: "gemini-3.7-flash",
     });
 
     expect(rpc).toHaveBeenCalledOnce();
@@ -63,7 +63,7 @@ describe("pedagogical Lesson persistence compatibility", () => {
         citationChunkIndexes: [0], citationSourceRefs: [{ sourceDocumentId: 9, chunkIndex: 0 }] }],
       p_citations: [{ sectionIndex: 0, documentChunkId: 101 }],
       p_provider: "9router",
-      p_model: "gemini-3.6-flash",
+      p_model: "gemini-3.7-flash",
     });
     expect(JSON.stringify(rpc.mock.calls[0][1])).not.toMatch(/synthesis|blueprint|purpose|finding|correction/);
   });

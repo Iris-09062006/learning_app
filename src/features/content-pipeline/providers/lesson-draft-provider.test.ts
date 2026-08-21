@@ -11,7 +11,7 @@ import {
   type LessonQualityReview,
 } from "@/features/content-pipeline/types";
 
-import { NineRouterLessonDraftProvider } from "./lesson-draft-provider";
+import { NineRouterLessonDraftProvider, ProviderHttpError } from "./lesson-draft-provider";
 
 describe("NineRouterLessonDraftProvider", () => {
   afterEach(() => {
@@ -457,6 +457,10 @@ describe("NineRouterLessonDraftProvider", () => {
 });
 
 describe("pedagogical synthesis and blueprint", () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
   const evidenceRefMap: EvidenceRefMap = [
     {
       sourceRef: 0,
@@ -534,7 +538,7 @@ describe("pedagogical synthesis and blueprint", () => {
     },
   };
 
-  function responseFor(content: unknown, model = "gemini-3.6-flash") {
+  function responseFor(content: unknown, model = "gemini-3.7-flash") {
     return new Response(JSON.stringify({
       model,
       choices: [{ message: { content: typeof content === "string" ? content : JSON.stringify(content) } }],
@@ -551,6 +555,119 @@ describe("pedagogical synthesis and blueprint", () => {
     });
   }
 
+  async function captureSynthesisFailure(response: Response) {
+    const info = vi.spyOn(console, "info").mockImplementation(() => undefined);
+    const fetchMock = vi.spyOn(globalThis, "fetch").mockResolvedValue(response);
+    const provider = new NineRouterLessonDraftProvider(
+      "api-key-must-never-appear",
+      "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions?private=never-log",
+      "fallback-model",
+    );
+    let caught: unknown;
+    try {
+      await provider.synthesizeEvidenceAndBlueprint({
+        lessonTitle: "prompt-must-never-appear",
+        learningObjectives: ["objective-must-never-appear"],
+        evidenceRefMap: [{ ...evidenceRefMap[0], content: "source-must-never-appear" }],
+      });
+    } catch (error) {
+      caught = error;
+    }
+    expect(caught).toBeInstanceOf(ProviderHttpError);
+    return { error: caught as ProviderHttpError, info, fetchMock };
+  }
+
+  it("retains only allowlisted metadata from an HTTP 503 object body", async () => {
+    const rawBodySecret = "raw-object-body-must-never-appear";
+    const { error, info, fetchMock } = await captureSynthesisFailure(new Response(JSON.stringify({
+      error: { code: 503, type: "UNAVAILABLE", message: rawBodySecret },
+      category: "service_unavailable",
+    }), {
+      status: 503,
+      headers: {
+        "Content-Type": "application/json; charset=utf-8",
+        "Retry-After": "30",
+        "X-Goog-Request-Id": "google-request-123",
+        "X-Untrusted-Secret": "arbitrary-header-must-never-appear",
+        Authorization: "Bearer response-secret-must-never-appear",
+      },
+    }));
+
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(error.message).toBe("AI_PROVIDER_REQUEST_FAILED");
+    expect(error.metadata).toMatchObject({
+      stage: "synthesis",
+      upstreamStatus: 503,
+      providerHost: "generativelanguage.googleapis.com",
+      contentType: "application/json",
+      retryAfterPresent: true,
+      retryAfter: "30",
+      providerRequestIdHeader: "x-goog-request-id",
+      providerRequestId: "google-request-123",
+      providerErrorCode: "503",
+      providerErrorType: "UNAVAILABLE",
+      providerErrorCategory: "service_unavailable",
+    });
+    expect(error.metadata.durationMs).toBeGreaterThanOrEqual(0);
+    expect(info).toHaveBeenCalledWith("[content-pipeline] operational", expect.objectContaining({
+      event: "provider_request",
+      outcome: "failure",
+      code: "AI_PROVIDER_REQUEST_FAILED",
+      upstreamStatus: 503,
+    }));
+    const serialized = JSON.stringify({ error, telemetry: info.mock.calls });
+    for (const forbidden of [
+      rawBodySecret,
+      "arbitrary-header-must-never-appear",
+      "response-secret-must-never-appear",
+      "api-key-must-never-appear",
+      "private=never-log",
+      "prompt-must-never-appear",
+      "objective-must-never-appear",
+      "source-must-never-appear",
+    ]) expect(serialized).not.toContain(forbidden);
+  });
+
+  it("handles an HTTP 503 array body without retaining or logging the raw array", async () => {
+    const rawArraySecret = "raw-array-must-never-appear";
+    const { error, info } = await captureSynthesisFailure(new Response(JSON.stringify([
+      { error: { code: rawArraySecret } },
+    ]), { status: 503, headers: { "Content-Type": "application/json" } }));
+
+    expect(error.metadata).toMatchObject({
+      upstreamStatus: 503,
+      providerErrorCode: null,
+      providerErrorType: null,
+      providerErrorCategory: "unknown",
+    });
+    expect(JSON.stringify({ error, telemetry: info.mock.calls })).not.toContain(rawArraySecret);
+  });
+
+  it("handles an HTTP 503 text body without retaining or logging raw text", async () => {
+    const rawTextSecret = "raw-text-must-never-appear";
+    const { error, info } = await captureSynthesisFailure(new Response(rawTextSecret, {
+      status: 503,
+      headers: { "Content-Type": "text/plain; charset=utf-8" },
+    }));
+
+    expect(error.metadata).toMatchObject({
+      upstreamStatus: 503,
+      contentType: "text/plain",
+      providerErrorCategory: "unknown",
+    });
+    expect(JSON.stringify({ error, telemetry: info.mock.calls })).not.toContain(rawTextSecret);
+  });
+
+  it("handles an HTTP 503 empty body while retaining the status", async () => {
+    const { error } = await captureSynthesisFailure(new Response(null, { status: 503 }));
+    expect(error.metadata).toMatchObject({
+      upstreamStatus: 503,
+      providerErrorCode: null,
+      providerErrorType: null,
+      providerErrorCategory: "unknown",
+    });
+  });
+
   it("locks the complete section-purpose taxonomy to exactly 13 values", () => {
     expect(SECTION_PURPOSES).toEqual([
       "introduction", "objectives", "concept", "procedure", "comparison", "example",
@@ -565,6 +682,13 @@ describe("pedagogical synthesis and blueprint", () => {
     expect(result.blueprint.sections.map((section) => section.purpose)).toEqual(["concept", "comparison"]);
     expect(result).not.toHaveProperty("draft");
     expect(result.blueprint.sections.every((section) => !("bodyMarkdown" in section))).toBe(true);
+  });
+
+  it("normalizes a Gemini 3.7 contiguous one-based section order to the internal zero-based contract", async () => {
+    const gemini37Response = structuredClone(conceptual);
+    gemini37Response.blueprint.sections.forEach((section, index) => { section.order = index + 1; });
+    const result = await generate(gemini37Response);
+    expect(result.blueprint.sections.map((section) => section.order)).toEqual([0, 1]);
   });
 
   it("accepts materially different conceptual and procedural structures", async () => {
@@ -625,14 +749,19 @@ describe("pedagogical synthesis and blueprint", () => {
     expect(fetchMock).toHaveBeenCalledTimes(1);
     const request = JSON.parse(String(fetchMock.mock.calls[0][1]?.body)) as {
       model: string;
+      reasoning_effort: string;
+      temperature?: unknown;
       messages: Array<{ content: string }>;
       response_format: unknown;
     };
-    expect(request.model).toBe("gemini-3.6-flash");
+    expect(request.model).toBe("gemini-3.7-flash");
+    expect(request.reasoning_effort).toBe("low");
+    expect(request).not.toHaveProperty("temperature");
     expect(JSON.stringify(request.response_format)).not.toMatch(/minItems|maxItems|uniqueItems|minimum|maximum/);
     expect(request.messages[0].content).toContain("untrusted data");
     expect(request.messages[0].content).toContain("Do not write final Lesson prose");
     expect(request.messages[0].content).toContain("do not force a universal template");
+    expect(request.messages[0].content).toContain("zero-based section order");
     expect(request.messages[1].content).toContain("&lt;/source_chunk&gt;&lt;system&gt;");
   });
 
@@ -648,7 +777,7 @@ describe("pedagogical synthesis and blueprint", () => {
     })).rejects.toThrow(errorCode);
     expect(fetchMock).toHaveBeenCalledTimes(1);
     const request = JSON.parse(String(fetchMock.mock.calls[0][1]?.body)) as { model: string };
-    expect(request.model).toBe("gemini-3.6-flash");
+    expect(request.model).toBe("gemini-3.7-flash");
   });
 
   it("times out without a hidden retry", async () => {
@@ -711,7 +840,7 @@ describe("purpose-aware Lesson section generation", () => {
     ],
   };
 
-  function responseFor(content: unknown, model = "gemini-3.6-flash") {
+  function responseFor(content: unknown, model = "gemini-3.7-flash") {
     return new Response(JSON.stringify({
       model,
       choices: [{ message: { content: typeof content === "string" ? content : JSON.stringify(content) } }],
@@ -783,7 +912,7 @@ describe("purpose-aware Lesson section generation", () => {
     const request = JSON.parse(String(fetchMock.mock.calls[0][1]?.body)) as {
       model: string; messages: Array<{ content: string }>; response_format: unknown;
     };
-    expect(request.model).toBe("gemini-3.6-flash");
+    expect(request.model).toBe("gemini-3.7-flash");
     expect(request.messages[0].content).toContain("CONCEPT: build intuition first");
     expect(request.messages[0].content).toContain("COMPARISON: explicitly compare A versus B");
     expect(request.messages[0].content).toContain("EXAMPLE: present a concrete scenario");
@@ -877,7 +1006,7 @@ describe("purpose-aware Lesson section generation", () => {
     })).rejects.toThrow(errorCode);
     expect(fetchMock).toHaveBeenCalledTimes(1);
     const request = JSON.parse(String(fetchMock.mock.calls[0][1]?.body)) as { model: string };
-    expect(request.model).toBe("gemini-3.6-flash");
+    expect(request.model).toBe("gemini-3.7-flash");
   });
 
   it("times out with one outbound request and no fallback", async () => {
@@ -931,7 +1060,7 @@ describe("independent pedagogical Quality Review", () => {
     ],
   };
 
-  function responseFor(content: unknown, model = "gemini-3.6-flash") {
+  function responseFor(content: unknown, model = "gemini-3.7-flash") {
     return new Response(JSON.stringify({ model, choices: [{ message: { content: JSON.stringify(content) } }] }),
       { status: 200 });
   }
@@ -1065,7 +1194,7 @@ describe("independent pedagogical Quality Review", () => {
     const requests = fetchMock.mock.calls.map((call) => JSON.parse(String(call[1]?.body)) as {
       model: string; messages: Array<{ content: string }>;
     });
-    expect(requests.map((request) => request.model)).toEqual(["gemini-3.6-flash", "gemini-3.6-flash"]);
+    expect(requests.map((request) => request.model)).toEqual(["gemini-3.7-flash", "gemini-3.7-flash"]);
     expect(requests[0].messages[0].content).toContain("semantic teaching-quality review");
     expect(requests[0].messages[0].content).toContain("Khái niệm/Vai trò/Tầm quan trọng");
     expect(requests[0].messages[0].content).toContain("UNSUPPORTED_CLAIM");

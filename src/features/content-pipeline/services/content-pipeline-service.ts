@@ -7,6 +7,7 @@ import {
   type LessonDraftProvider,
   type PedagogicalLessonProvider,
 } from "@/features/content-pipeline/providers/lesson-draft-provider";
+import { emitContentPipelineSignal } from "@/features/content-pipeline/content-pipeline-telemetry";
 import { TavilyWebSearchProvider } from "@/features/content-pipeline/providers/tavily-web-search-provider";
 import { WebSearchProviderError, type WebSearchProvider } from "@/features/content-pipeline/providers/web-search-provider";
 import {
@@ -85,7 +86,7 @@ import { checkRateLimit } from "@/lib/rate-limiter";
 
 const MAX_FILE_BYTES = 10 * 1024 * 1024;
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
-const PEDAGOGICAL_MODEL = "gemini-3.6-flash";
+const PEDAGOGICAL_MODEL = "gemini-3.7-flash";
 const MAX_CONCURRENT_LESSON_PIPELINES = 3;
 const COURSE_LESSON_SCHEDULING_DEADLINE_MS = 240_000;
 
@@ -118,26 +119,10 @@ export type ContentPipelineErrorCode =
   | "WEB_EXTRACTION_UNAVAILABLE"
   | "DATABASE_ERROR";
 
-export interface ContentPipelineOperationalSignal {
-  event: "research" | "fetch" | "source_mutation" | "source_reference" | "outline_generation"
-    | "stale_outline" | "lesson_generation" | "publication";
-  outcome: "success" | "failure" | "retry" | "rejected";
-  stage: string;
-  code: string;
-  actorId?: string;
-  jobId?: number;
-  sourceDocumentId?: number;
-  durationMs?: number;
-  byteCount?: number;
-  redirectCount?: number;
-  sourceCount?: number;
-}
-
-export function emitContentPipelineSignal(signal: ContentPipelineOperationalSignal): void {
-  // The closed signal type is the privacy boundary: source/provider bodies, URLs, prompts,
-  // credentials, tokens, private addresses, and storage paths cannot be passed to this logger.
-  console.info("[content-pipeline] operational", signal);
-}
+export {
+  emitContentPipelineSignal,
+  type ContentPipelineOperationalSignal,
+} from "@/features/content-pipeline/content-pipeline-telemetry";
 
 export class ContentPipelineError extends Error {
   constructor(
@@ -1448,6 +1433,68 @@ async function generateOneCourseLesson(
     provider: generated.provider,
     model: generated.model,
   });
+}
+
+function courseLessonGenerationResult(
+  job: CourseImportDraft,
+  outlineLessonId: number,
+  outcome: "generated" | "already_generated"
+) {
+  const contentDraft = job.lessons.find((lesson) => lesson.id === outlineLessonId)?.contentDraft;
+  if (!contentDraft) {
+    throw new ContentPipelineError("DATABASE_ERROR", "Generated Lesson content is unavailable.");
+  }
+  return {
+    jobId: job.jobId,
+    outlineLessonId,
+    outcome,
+    lessonContentDraftId: contentDraft.id,
+    revision: contentDraft.revision,
+    courseStatus: job.status,
+  } as const;
+}
+
+export async function generateCourseLessonContent(
+  jobIdValue: unknown,
+  outlineLessonIdValue: unknown,
+  provider: PedagogicalLessonProvider = new NineRouterLessonDraftProvider()
+) {
+  const adminId = await requireAdmin();
+  const jobId = asPositiveId(jobIdValue, "jobId");
+  const outlineLessonId = asPositiveId(outlineLessonIdValue, "outlineLessonId");
+  let job = await getCourseImport(jobId);
+  if (!job) throw new ContentPipelineError("NOT_FOUND", "Course import job not found.");
+  if (job.outlineStale) {
+    throw new ContentPipelineError("STALE_OUTLINE", "The evidence set changed; generate and approve a replacement outline.");
+  }
+  let lesson = job.lessons.find((item) => item.id === outlineLessonId);
+  if (!lesson) throw new ContentPipelineError("NOT_FOUND", "Outline Lesson not found for this Course import.");
+  if (lesson.contentDraft) return courseLessonGenerationResult(job, outlineLessonId, "already_generated");
+  if (!["outline_review", "generating_content", "content_review", "ready_to_publish", "failed"].includes(job.status)) {
+    throw new ContentPipelineError("INVALID_STATE", "Lesson content cannot be generated in the current Course state.");
+  }
+
+  if (job.status !== "generating_content") {
+    await prepareCourseLessonGeneration(jobId);
+    job = await getCourseImport(jobId);
+  }
+  if (!job || job.outlineStale || job.approvedOutlineRevision !== job.outlineRevision) {
+    throw new ContentPipelineError("INVALID_STATE", "Approved outline revision is unavailable.");
+  }
+  lesson = job.lessons.find((item) => item.id === outlineLessonId);
+  if (!lesson) throw new ContentPipelineError("NOT_FOUND", "Outline Lesson not found for this Course import.");
+  if (lesson.contentDraft) return courseLessonGenerationResult(job, outlineLessonId, "already_generated");
+
+  try {
+    await generateOneCourseLesson(job, outlineLessonId, await getCourseImportChunks(jobId), provider, adminId);
+    const persistedJob = await getCourseImport(jobId);
+    if (!persistedJob) throw new ContentPipelineError("DATABASE_ERROR", "Generated Course import is unavailable.");
+    return courseLessonGenerationResult(persistedJob, outlineLessonId, "generated");
+  } catch (error) {
+    await failCourseImport(jobId, "LESSON_GENERATION_FAILED").catch(() => undefined);
+    if (error instanceof ContentPipelineError) throw error;
+    throw new ContentPipelineError("AI_PROVIDER_ERROR", "Unable to generate Lesson content.");
+  }
 }
 
 export async function generateCourseLessonContents(

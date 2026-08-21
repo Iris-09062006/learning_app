@@ -49,9 +49,16 @@ interface PipelineCheckpointV2 {
   jobId: number | null;
   pendingAction: "ingestion" | "initialization" | "outline" | null;
 }
+interface LessonGenerationProgress {
+  jobId: number;
+  total: number;
+  completed: number;
+  currentLessonTitle: string | null;
+  active: boolean;
+}
 
 const CHECKPOINT_KEY = "learningapp.course-outline-generation";
-export const LESSON_GENERATION_REQUEST_TIMEOUT_MS = 60_000;
+export const PER_LESSON_GENERATION_REQUEST_TIMEOUT_MS = 300_000;
 
 export async function requestPipelineApi<T>(url: string, init?: RequestInit, timeoutMs?: number): Promise<T> {
   const controller = timeoutMs ? new AbortController() : null;
@@ -163,6 +170,8 @@ export function ContentPipelineAdmin() {
   const [published, setPublished] = useState<ReviewCourseDraftBatchResult | null>(null);
   const [reviewComment, setReviewComment] = useState("");
   const [busy, setBusy] = useState(false);
+  const lessonGenerationRunning = useRef(false);
+  const [lessonGenerationProgress, setLessonGenerationProgress] = useState<LessonGenerationProgress | null>(null);
   const [message, setMessage] = useState("Đang tải dữ liệu...");
   const [error, setError] = useState<string | null>(null);
 
@@ -201,6 +210,7 @@ export function ContentPipelineAdmin() {
       setCheckpointLoaded(true);
     }
     setMessage(importData.items.length ? "Đã tải hàng chờ Course import." : "Không có Course import đang chờ xử lý.");
+    return importData.items;
   }, []);
 
   useEffect(() => {
@@ -581,18 +591,60 @@ export function ContentPipelineAdmin() {
   }
 
   async function continueToLessons() {
-    if (!selectedImport) return;
+    if (!selectedImport || lessonGenerationRunning.current) return;
+    lessonGenerationRunning.current = true;
     setBusy(true); setError(null); setMessage("Đang sinh nội dung riêng cho từng Lesson...");
+    const jobId = selectedImport.jobId;
     try {
-      await requestPipelineApi(`/api/admin/course-drafts/${selectedImport.jobId}/lessons/generate`, { method: "POST" }, LESSON_GENERATION_REQUEST_TIMEOUT_MS);
-      await refresh(); setMessage("Nội dung Lesson đã sẵn sàng để review.");
+      let currentImport = (await refresh()).find((item) => item.jobId === jobId);
+      if (!currentImport) throw new Error("Không thể tải trạng thái Course import hiện tại.");
+      const orderedLessons = [...currentImport.lessons].sort((left, right) =>
+        left.lessonOrder - right.lessonOrder || left.id - right.id);
+      const missingLessons = orderedLessons.filter((lesson) => !lesson.contentDraft);
+      let completed = orderedLessons.length - missingLessons.length;
+      setLessonGenerationProgress({ jobId, total: orderedLessons.length, completed,
+        currentLessonTitle: null, active: missingLessons.length > 0 });
+
+      for (const lesson of missingLessons) {
+        setLessonGenerationProgress({ jobId, total: orderedLessons.length, completed,
+          currentLessonTitle: lesson.title, active: true });
+        setMessage(`Đang tạo bài học ${completed + 1}/${orderedLessons.length}: ${lesson.title}...`);
+        await requestPipelineApi(
+          `/api/admin/course-drafts/${jobId}/lessons/${lesson.id}/generate`,
+          { method: "POST" },
+          PER_LESSON_GENERATION_REQUEST_TIMEOUT_MS
+        );
+        currentImport = (await refresh()).find((item) => item.jobId === jobId);
+        if (!currentImport) throw new Error("Không thể tải trạng thái Course import hiện tại.");
+        const persistedLesson = currentImport.lessons.find((item) => item.id === lesson.id);
+        if (!persistedLesson?.contentDraft) {
+          throw new Error("Lesson chưa được lưu thành công. Quy trình đã dừng để tránh bỏ qua dữ liệu.");
+        }
+        completed = currentImport.lessons.filter((item) => item.contentDraft).length;
+        setLessonGenerationProgress({ jobId, total: currentImport.lessons.length, completed,
+          currentLessonTitle: null, active: true });
+      }
+
+      currentImport = (await refresh()).find((item) => item.jobId === jobId);
+      if (!currentImport) throw new Error("Không thể xác nhận trạng thái Course import sau khi tạo Lesson.");
+      completed = currentImport.lessons.filter((lesson) => lesson.contentDraft).length;
+      setLessonGenerationProgress({ jobId, total: currentImport.lessons.length, completed,
+        currentLessonTitle: null, active: false });
+      setMessage(completed === currentImport.lessons.length
+        ? "Nội dung Lesson đã sẵn sàng để review."
+        : `Đã tạo ${completed}/${currentImport.lessons.length} bài học.`);
     } catch (cause) {
       const failureMessage = cause instanceof Error ? cause.message : "Không thể sinh nội dung Lesson.";
-      try { await refresh(); }
+      try {
+        const currentImport = (await refresh()).find((item) => item.jobId === jobId);
+        if (currentImport) setLessonGenerationProgress({ jobId, total: currentImport.lessons.length,
+          completed: currentImport.lessons.filter((lesson) => lesson.contentDraft).length,
+          currentLessonTitle: null, active: false });
+      }
       catch { setMessage("Không thể đồng bộ trạng thái Course import. Hãy làm mới trang trước khi thử lại."); }
       setError(failureMessage);
     }
-    finally { setBusy(false); }
+    finally { lessonGenerationRunning.current = false; setBusy(false); }
   }
 
   async function saveContent(content: CourseImportLessonDraft) {
@@ -744,7 +796,7 @@ export function ContentPipelineAdmin() {
           <Button variant="outline" type="button" className={`h-auto min-w-0 w-full flex-col items-start py-2 ${selectedJobId === item.jobId ? "border-primary bg-primary-soft text-text-primary" : "border-border bg-surface text-text-primary"}`}
             onClick={() => { setSelectedJobId(item.jobId); setSourceReviewJobId(item.jobId); setSelectedOutlineLessonId(null); }}>
             <span className="block max-w-full break-words font-semibold">{item.title}</span>
-            <span className="block text-text-muted">{item.status} · {item.lessons.length} Lessons</span>
+            <span className={`block ${selectedJobId === item.jobId ? "text-text-primary" : "text-text-muted"}`}>{item.status} · {item.lessons.length} Lessons</span>
           </Button>
         </li>)}</ul>}
       </div>
@@ -752,6 +804,12 @@ export function ContentPipelineAdmin() {
       <div className="min-w-0 rounded-xl border border-border bg-surface p-6 shadow-sm">
         {!selectedImport ? <StatePanel variant="empty" className="p-5 shadow-none">Chọn một Course import.</StatePanel> : <div className="space-y-5">
           <Badge className="bg-primary-soft text-primary">{selectedImport.status} · outline r{selectedImport.outlineRevision}</Badge>
+          <div role="status" aria-live="polite" className="rounded-lg border border-border bg-surface-subtle p-3 text-sm text-text-secondary">
+            <span className="font-semibold text-text-primary">Tiến độ tạo bài học: {selectedImport.lessons.filter((lesson) => lesson.contentDraft).length}/{selectedImport.lessons.length}</span>
+            {lessonGenerationProgress?.jobId === selectedImport.jobId && lessonGenerationProgress.active
+              ? <span className="block mt-1">Đang tạo bài học {lessonGenerationProgress.completed + 1}/{lessonGenerationProgress.total}{lessonGenerationProgress.currentLessonTitle ? `: ${lessonGenerationProgress.currentLessonTitle}` : ""}...</span>
+              : null}
+          </div>
           <div className="rounded-lg border border-border bg-surface-subtle p-3 text-sm">
             <p className="font-semibold text-text-primary">Nguồn evidence ({selectedImport.sources.length})</p>
             <ul className="mt-2 space-y-1">{selectedImport.sources.map((source) => <li key={source.sourceDocumentId}>
@@ -813,8 +871,11 @@ export function ContentPipelineAdmin() {
             <Button type="button" onClick={continueToLessons} disabled={busy || selectedImport.outlineStale}>Continue: sinh Lesson contents</Button>
           </div> : null}
           {selectedImport.status === "failed" ? <Button type="button" onClick={selectedImport.approvedOutlineRevision ? continueToLessons : regenerateOutline} disabled={busy}>Thử lại bước bị lỗi</Button> : null}
-          {selectedImport.status === "generating_content" ? <Button variant="outline" type="button"
-            onClick={() => { setError(null); refresh().catch((cause: unknown) => setError(cause instanceof Error ? cause.message : "Không thể làm mới trạng thái.")); }} disabled={busy}>Làm mới trạng thái</Button> : null}
+          {selectedImport.status === "generating_content" ? <div className="flex flex-wrap gap-3">
+            <Button type="button" onClick={continueToLessons} disabled={busy}>Tiếp tục tạo Lesson contents</Button>
+            <Button variant="outline" type="button"
+              onClick={() => { setError(null); refresh().catch((cause: unknown) => setError(cause instanceof Error ? cause.message : "Không thể làm mới trạng thái.")); }} disabled={busy}>Làm mới trạng thái</Button>
+          </div> : null}
           {canReviewContent ? <div className="space-y-3">
             <Textarea label="Ghi chú review" value={reviewComment} onChange={(event) => setReviewComment(event.target.value)} />
             <div className="flex flex-wrap gap-3">
