@@ -12,7 +12,7 @@ Dự án **LearningApp** sử dụng bộ công nghệ hiện đại, tối ưu 
                    │
          ┌─────────┴─────────┐
          ▼                   ▼
-[Supabase PostgreSQL]   [AI Integration: Google Gemini]
+[Supabase PostgreSQL]   [AI Integration: 9Router]
 ```
 
 ---
@@ -26,7 +26,7 @@ Dự án **LearningApp** sử dụng bộ công nghệ hiện đại, tối ưu 
 | **Database & Auth** | Supabase | PostgreSQL + Auth | Có sẵn Auth, RLS bảo mật mạnh mẽ, Postgres chuẩn, dễ phát triển local. |
 | **Styling** | Vanilla CSS / Tailwind CSS | Tailwind 3.x / 4.x | Styling nhanh, nhất quán, dễ làm giao diện responsive. |
 | **Validation** | Zod | 3.x | Validate dữ liệu ở ranh giới API, Form và AI response. |
-| **AI Provider** | Google Gemini API | `@google/genai` hoặc HTTP | Phù hợp cho việc tạo bài tập và giải thích ngữ cảnh, chi phí hợp lý. |
+| **AI Provider** | 9Router OpenAI-compatible API | Server-side HTTP | Một endpoint cấu hình cho outline, Lesson, bài tập và giải thích; upstream model được chọn bằng route `provider/model` hoặc alias. |
 | **Unit/Integration Test** | Vitest | 1.x / 2.x | Nhanh, hỗ trợ TypeScript tốt, dễ mock dịch vụ AI. |
 | **E2E Test** | Playwright | 1.x | Kiểm thử luồng người dùng thực tế trên browser tự động. |
 | **Icons** | Lucide React | Latest | Bộ icon thống nhất, nhẹ, chuẩn accessibility. |

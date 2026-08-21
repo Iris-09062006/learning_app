@@ -654,11 +654,11 @@ describe("Phase B pedagogical section normalization", () => {
       .mockResolvedValueOnce(providerResponse({ synthesis, blueprint }))
       .mockResolvedValueOnce(providerResponse(candidate))
       .mockResolvedValueOnce(providerResponse(passReview));
-    const provider = new NineRouterLessonDraftProvider("secret", "https://router.test", "alternate-model");
+    const provider = new NineRouterLessonDraftProvider("secret", "https://router.test", "smart");
     await expect(generateReviewedPedagogicalLesson(courseJob(), 71, chunks, provider)).resolves.toBeDefined();
     expect(fetchMock).toHaveBeenCalledTimes(3);
     expect(fetchMock.mock.calls.map((call) => JSON.parse(String(call[1]?.body)).model))
-      .toEqual(["gemini-3.7-flash", "gemini-3.7-flash", "gemini-3.7-flash"]);
+      .toEqual(["smart", "smart", "smart"]);
     expect(fetchMock.mock.calls.map((call) => JSON.parse(String(call[1]?.body)).reasoning_effort))
       .toEqual(["low", "low", "low"]);
     expect(fetchMock.mock.calls.map((call) => JSON.parse(String(call[1]?.body))))
@@ -672,11 +672,11 @@ describe("Phase B pedagogical section normalization", () => {
       .mockResolvedValueOnce(providerResponse(correctableReview))
       .mockResolvedValueOnce(providerResponse(correction))
       .mockResolvedValueOnce(providerResponse(passReview));
-    const provider = new NineRouterLessonDraftProvider("secret", "https://router.test", "deepseek-fallback");
+    const provider = new NineRouterLessonDraftProvider("secret", "https://router.test", "smart");
     const result = await generateReviewedPedagogicalLesson(courseJob(), 71, chunks, provider);
     expect(fetchMock).toHaveBeenCalledTimes(5);
     expect(fetchMock.mock.calls.map((call) => JSON.parse(String(call[1]?.body)).model))
-      .toEqual(Array.from({ length: 5 }, () => "gemini-3.7-flash"));
+      .toEqual(Array.from({ length: 5 }, () => "smart"));
     expect(fetchMock.mock.calls.map((call) => JSON.parse(String(call[1]?.body)).reasoning_effort))
       .toEqual(Array.from({ length: 5 }, () => "low"));
     expect(fetchMock.mock.calls.map((call) => JSON.parse(String(call[1]?.body))))
@@ -685,7 +685,7 @@ describe("Phase B pedagogical section normalization", () => {
     expect(mocks.persistCourseLessonContentForJob).not.toHaveBeenCalled();
   });
 
-  it("rejects a substituted re-review model after five raw requests with no sixth call", async () => {
+  it("accepts the upstream model reported by 9Router after five raw requests", async () => {
     const fetchMock = vi.spyOn(globalThis, "fetch")
       .mockResolvedValueOnce(providerResponse({ synthesis, blueprint }))
       .mockResolvedValueOnce(providerResponse(candidate))
@@ -694,7 +694,7 @@ describe("Phase B pedagogical section normalization", () => {
       .mockResolvedValueOnce(providerResponse(passReview, "gpt-fallback"));
     const provider = new NineRouterLessonDraftProvider("secret", "https://router.test", "fallback");
     await expect(generateReviewedPedagogicalLesson(courseJob(), 71, chunks, provider))
-      .rejects.toMatchObject({ code: "LESSON_GENERATION_FAILED" });
+      .resolves.toMatchObject({ model: "gpt-fallback" });
     expect(fetchMock).toHaveBeenCalledTimes(5);
     expect(mocks.persistCourseLessonContentForJob).not.toHaveBeenCalled();
   });

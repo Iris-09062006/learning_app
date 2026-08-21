@@ -81,7 +81,6 @@ export class AiProviderRequestError extends Error {
   }
 }
 
-const PEDAGOGICAL_MODEL = "gemini-3.7-flash";
 const PEDAGOGICAL_REQUEST_INTERVAL_MS = 12_500;
 
 const SYNTHESIS_BLUEPRINT_SCHEMA = {
@@ -1090,7 +1089,7 @@ export class NineRouterLessonDraftProvider implements LessonDraftProvider, Pedag
   async synthesizeEvidenceAndBlueprint(
     request: SynthesisBlueprintGenerationRequest
   ): Promise<SynthesisBlueprintGenerationResponse> {
-    if (!this.apiKey || !this.endpoint) throw new Error("AI_PROVIDER_NOT_CONFIGURED");
+    if (!this.apiKey || !this.endpoint || !this.model) throw new Error("AI_PROVIDER_NOT_CONFIGURED");
     if (!nonEmptyString(request.lessonTitle, 150) || request.learningObjectives.length < 1 ||
       !request.learningObjectives.every((objective) => nonEmptyString(objective))) {
       throw new Error("AI_RESPONSE_INVALID");
@@ -1114,7 +1113,7 @@ export class NineRouterLessonDraftProvider implements LessonDraftProvider, Pedag
         },
         signal: controller.signal,
         body: JSON.stringify({
-          model: PEDAGOGICAL_MODEL,
+          model: this.model,
           reasoning_effort: "low",
           response_format: { type: "json_schema", json_schema: SYNTHESIS_BLUEPRINT_SCHEMA },
           messages: [
@@ -1144,9 +1143,6 @@ export class NineRouterLessonDraftProvider implements LessonDraftProvider, Pedag
       });
       if (!response.ok) throw new AiProviderRequestError(response.status);
       const payload = await parseProviderResponse(response);
-      if (payload.model !== undefined && payload.model !== PEDAGOGICAL_MODEL) {
-        throw new Error("AI_PROVIDER_RESPONSE_INVALID");
-      }
       const content = payload.choices?.[0]?.message?.content;
       if (!content) throw new Error("AI_RESPONSE_INVALID");
       const parsed = parseSynthesisBlueprint(
@@ -1154,7 +1150,7 @@ export class NineRouterLessonDraftProvider implements LessonDraftProvider, Pedag
         request.evidenceRefMap,
         request.learningObjectives.length
       );
-      return { ...parsed, provider: "9router", model: PEDAGOGICAL_MODEL };
+      return { ...parsed, provider: "9router", model: payload.model ?? this.model };
     } finally {
       clearTimeout(timeout);
       releaseRequestSlot();
@@ -1164,7 +1160,7 @@ export class NineRouterLessonDraftProvider implements LessonDraftProvider, Pedag
   async generateLessonSections(
     request: GenerateLessonSectionsRequest
   ): Promise<PedagogicalProviderResult<GeneratedLessonCandidate>> {
-    if (!this.apiKey || !this.endpoint) throw new Error("AI_PROVIDER_NOT_CONFIGURED");
+    if (!this.apiKey || !this.endpoint || !this.model) throw new Error("AI_PROVIDER_NOT_CONFIGURED");
     if (!nonEmptyString(request.lessonTitle, 150) || request.learningObjectives.length < 1 ||
       !request.learningObjectives.every((objective) => nonEmptyString(objective))) {
       throw new Error("AI_RESPONSE_INVALID");
@@ -1196,7 +1192,7 @@ export class NineRouterLessonDraftProvider implements LessonDraftProvider, Pedag
         },
         signal: controller.signal,
         body: JSON.stringify({
-          model: PEDAGOGICAL_MODEL,
+          model: this.model,
           reasoning_effort: "low",
           response_format: { type: "json_schema", json_schema: GENERATED_LESSON_CANDIDATE_SCHEMA },
           messages: [
@@ -1231,15 +1227,12 @@ export class NineRouterLessonDraftProvider implements LessonDraftProvider, Pedag
       });
       if (!response.ok) throw new AiProviderRequestError(response.status);
       const payload = await parseProviderResponse(response);
-      if (payload.model !== undefined && payload.model !== PEDAGOGICAL_MODEL) {
-        throw new Error("AI_PROVIDER_RESPONSE_INVALID");
-      }
       const content = payload.choices?.[0]?.message?.content;
       if (!content) throw new Error("AI_RESPONSE_INVALID");
       return {
         result: parseGeneratedLessonCandidate(content, request.blueprint, request.evidenceRefMap),
         provider: "9router",
-        model: PEDAGOGICAL_MODEL,
+        model: payload.model ?? this.model,
       };
     } finally {
       clearTimeout(timeout);
@@ -1250,7 +1243,7 @@ export class NineRouterLessonDraftProvider implements LessonDraftProvider, Pedag
   async reviewLessonCandidate(
     request: ReviewLessonCandidateRequest
   ): Promise<PedagogicalProviderResult<LessonQualityReview>> {
-    if (!this.apiKey || !this.endpoint) throw new Error("AI_PROVIDER_NOT_CONFIGURED");
+    if (!this.apiKey || !this.endpoint || !this.model) throw new Error("AI_PROVIDER_NOT_CONFIGURED");
     parseSynthesisBlueprint(
       JSON.stringify({ synthesis: request.synthesis, blueprint: request.blueprint }),
       request.evidenceRefMap,
@@ -1277,7 +1270,7 @@ export class NineRouterLessonDraftProvider implements LessonDraftProvider, Pedag
         },
         signal: controller.signal,
         body: JSON.stringify({
-          model: PEDAGOGICAL_MODEL,
+          model: this.model,
           reasoning_effort: "low",
           response_format: { type: "json_schema", json_schema: LESSON_QUALITY_REVIEW_SCHEMA },
           messages: [
@@ -1314,15 +1307,12 @@ export class NineRouterLessonDraftProvider implements LessonDraftProvider, Pedag
       });
       if (!response.ok) throw new AiProviderRequestError(response.status);
       const payload = await parseProviderResponse(response);
-      if (payload.model !== undefined && payload.model !== PEDAGOGICAL_MODEL) {
-        throw new Error("AI_PROVIDER_RESPONSE_INVALID");
-      }
       const content = payload.choices?.[0]?.message?.content;
       if (!content) throw new Error("AI_RESPONSE_INVALID");
       return {
         result: parseLessonQualityReview(content, request.candidate, request.evidenceRefMap),
         provider: "9router",
-        model: PEDAGOGICAL_MODEL,
+        model: payload.model ?? this.model,
       };
     } finally {
       clearTimeout(timeout);
@@ -1333,7 +1323,7 @@ export class NineRouterLessonDraftProvider implements LessonDraftProvider, Pedag
   async correctLessonCandidate(
     request: CorrectLessonCandidateRequest
   ): Promise<PedagogicalProviderResult<TargetedCorrection>> {
-    if (!this.apiKey || !this.endpoint) throw new Error("AI_PROVIDER_NOT_CONFIGURED");
+    if (!this.apiKey || !this.endpoint || !this.model) throw new Error("AI_PROVIDER_NOT_CONFIGURED");
     parseSynthesisBlueprint(
       JSON.stringify({ synthesis: request.synthesis, blueprint: request.blueprint }),
       request.evidenceRefMap,
@@ -1363,7 +1353,7 @@ export class NineRouterLessonDraftProvider implements LessonDraftProvider, Pedag
         },
         signal: controller.signal,
         body: JSON.stringify({
-          model: PEDAGOGICAL_MODEL,
+          model: this.model,
           reasoning_effort: "low",
           response_format: { type: "json_schema", json_schema: TARGETED_CORRECTION_SCHEMA },
           messages: [
@@ -1397,15 +1387,12 @@ export class NineRouterLessonDraftProvider implements LessonDraftProvider, Pedag
       });
       if (!response.ok) throw new AiProviderRequestError(response.status);
       const payload = await parseProviderResponse(response);
-      if (payload.model !== undefined && payload.model !== PEDAGOGICAL_MODEL) {
-        throw new Error("AI_PROVIDER_RESPONSE_INVALID");
-      }
       const content = payload.choices?.[0]?.message?.content;
       if (!content) throw new Error("AI_RESPONSE_INVALID");
       return {
         result: parseTargetedCorrection(content, request),
         provider: "9router",
-        model: PEDAGOGICAL_MODEL,
+        model: payload.model ?? this.model,
       };
     } finally {
       clearTimeout(timeout);

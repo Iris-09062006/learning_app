@@ -1,12 +1,18 @@
 # Active Task Queue
 
-- **Active task:** `TASK-087` — Stabilize Gemini 3.7 Lesson Generation Latency
+- **Active task:** `TASK-088` — Route Course Outline and Lessons through 9Router Configuration
 - **Status:** `VERIFIED`
 - **Owner / Reviewer:** Codex
 - **Deferred design task:** `TASK-047` (`DRAFT`)
 - **Previous blocked task:** `TASK-044` — external Supabase Redirect URL verification
 
 ## Current objective
+
+TASK-088 removes the hard-coded pedagogical Gemini model and routes Course outline plus Lesson
+generation through the server-only 9Router configuration. Provider schemas, call budgets, pacing,
+citations, persistence, and public APIs remain unchanged. All local quality gates pass.
+
+## Previous verified objective
 
 TASK-087 addresses the observed job 24 failure at 59.914 seconds after the Gemini 3.7 migration:
 remove unsupported sampling parameters, use documented low reasoning effort, prevent queued Lesson

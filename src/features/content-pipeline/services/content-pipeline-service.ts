@@ -86,7 +86,6 @@ import { checkRateLimit } from "@/lib/rate-limiter";
 
 const MAX_FILE_BYTES = 10 * 1024 * 1024;
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
-const PEDAGOGICAL_MODEL = "gemini-3.7-flash";
 const MAX_CONCURRENT_LESSON_PIPELINES = 1;
 const COURSE_LESSON_SCHEDULING_DEADLINE_MS = 240_000;
 
@@ -1052,9 +1051,6 @@ export async function generatePedagogicalLessonSections(
     learningObjectives: evidence.learningObjectives,
     evidenceRefMap,
   });
-  if (planned.model !== PEDAGOGICAL_MODEL) {
-    throw new PedagogicalLessonGenerationError(new Error("PEDAGOGICAL_MODEL_MISMATCH"));
-  }
   if (!shouldStartStage()) throw new PedagogicalLessonGenerationError(new Error("LESSON_PIPELINE_STOPPED"));
   const generated = await provider.generateLessonSections({
     lessonTitle: evidence.lessonTitle,
@@ -1063,9 +1059,6 @@ export async function generatePedagogicalLessonSections(
     synthesis: planned.synthesis,
     blueprint: planned.blueprint,
   });
-  if (generated.model !== PEDAGOGICAL_MODEL) {
-    throw new PedagogicalLessonGenerationError(new Error("PEDAGOGICAL_MODEL_MISMATCH"));
-  }
   const normalized = normalizePedagogicalLessonCandidate(
     generated.result,
     planned.blueprint,
@@ -1203,7 +1196,6 @@ export async function generateReviewedPedagogicalLesson(
     };
     if (!shouldStartStage()) throw new PedagogicalLessonGenerationError(new Error("LESSON_PIPELINE_STOPPED"));
     const initialReview = await provider.reviewLessonCandidate(reviewRequest);
-    if (initialReview.model !== PEDAGOGICAL_MODEL) throw new Error("PEDAGOGICAL_MODEL_MISMATCH");
     validateLessonQualityReview(initialReview.result, phaseB.candidate, phaseB.evidenceRefMap);
     if (initialReview.result.verdict === "pass") return phaseB;
     if (initialReview.result.verdict === "reject") throw new PedagogicalLessonGenerationError();
@@ -1213,7 +1205,6 @@ export async function generateReviewedPedagogicalLesson(
       ...reviewRequest,
       review: initialReview.result,
     });
-    if (corrected.model !== PEDAGOGICAL_MODEL) throw new Error("PEDAGOGICAL_MODEL_MISMATCH");
     const merged = mergeTargetedLessonCorrection(
       phaseB.candidate,
       corrected.result,
@@ -1227,7 +1218,6 @@ export async function generateReviewedPedagogicalLesson(
       ...reviewRequest,
       candidate: merged.candidate,
     });
-    if (finalReview.model !== PEDAGOGICAL_MODEL) throw new Error("PEDAGOGICAL_MODEL_MISMATCH");
     validateLessonQualityReview(finalReview.result, merged.candidate, phaseB.evidenceRefMap);
     if (finalReview.result.verdict !== "pass") throw new PedagogicalLessonGenerationError();
     return {

@@ -159,11 +159,11 @@ test("Learner completes exercise and unlocks next lesson", async ({ page }) => {
 
 ## 7. Strategy Testing cho AI Integration
 
-Do việc gọi AI bên ngoài (Google Gemini API) tốn chi phí và có độ trễ cao, chiến lược test AI quy định:
+Do việc gọi AI bên ngoài qua 9Router tốn chi phí và có độ trễ cao, chiến lược test AI quy định:
 
 1. **Mặc định trong tất cả Test Suite**: **Bắt buộc dùng Fake/Mock AI Provider** (`FakeAIProvider`).
 2. **Mock AI Provider** trả về phản hồi chuẩn dạng JSON đã được chuẩn bị trước.
-3. **Provider Contract Test (Chạy riêng thủ công)**: Chỉ chạy khi cần kiểm tra tích hợp thật với Gemini SDK xem API Key và format prompt có bị nhà cung cấp thay đổi không.
+3. **Provider Contract Test (Chạy riêng thủ công)**: Chỉ chạy khi cần kiểm tra tích hợp thật với endpoint 9Router, API key, route model và định dạng OpenAI-compatible.
 
 ---
 

@@ -11,6 +11,10 @@
 
 ## Active Task
 
+`TASK-088` is verified: the hard-coded pedagogical Gemini model is removed, and Course outline plus
+Lesson generation use the configured server-only 9Router endpoint and route model. Router-selected
+upstream model reporting, focused/full tests, lint, typecheck, and build pass.
+
 `TASK-087` is verified: stabilize Gemini 3.7 Lesson generation after job 24 failed at 59.914 seconds
 by removing unsupported sampling parameters, lowering documented reasoning effort, eliminating
 redundant queued Lesson workers, and aligning the Admin timeout with the server scheduling window.

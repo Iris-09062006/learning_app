@@ -155,9 +155,9 @@ describe("NineRouterLessonDraftProvider", () => {
     })).rejects.toThrow("AI_RESPONSE_INVALID");
   });
 
-  it("generates outline-only output with stable Lesson keys and source references", async () => {
+  it("routes outline-only generation through the configured 9Router endpoint and model", async () => {
     const fetchMock = vi.spyOn(globalThis, "fetch").mockResolvedValue(new Response(JSON.stringify({
-      model: "test-model",
+      model: "gemini/gemini-3.7-flash",
       choices: [{ message: { content: JSON.stringify({
         title: "Python", description: "Nhập môn", learningObjectives: ["Hiểu Python"],
         lessons: [
@@ -166,7 +166,11 @@ describe("NineRouterLessonDraftProvider", () => {
         ],
       }) } }],
     }), { status: 200 }));
-    const provider = new NineRouterLessonDraftProvider("secret", "https://router.test", "model");
+    const provider = new NineRouterLessonDraftProvider(
+      "secret",
+      "https://router.test/v1/chat/completions",
+      "gemini/gemini-3.7-flash"
+    );
     const result = await provider.generateCourseOutline({
       documentTitle: "python.pdf",
       chunks: [{ chunkIndex: 0, content: "Biến" }, { chunkIndex: 1, content: "Hàm" }],
@@ -174,9 +178,17 @@ describe("NineRouterLessonDraftProvider", () => {
     expect(result.outline.lessons.map((lesson) => lesson.clientKey)).toEqual(["variables", "functions"]);
     expect(result.outline).not.toHaveProperty("sections");
     const request = JSON.parse(String(fetchMock.mock.calls[0][1]?.body)) as {
+      model: string;
       messages: Array<{ content: string }>;
       response_format: unknown;
     };
+    expect(fetchMock.mock.calls[0][0]).toBe("https://router.test/v1/chat/completions");
+    expect(fetchMock.mock.calls[0][1]?.headers).toMatchObject({
+      Authorization: "Bearer secret",
+      "X-9Router-Token-Saver": "off",
+    });
+    expect(request.model).toBe("gemini/gemini-3.7-flash");
+    expect(result).toMatchObject({ provider: "9router", model: "gemini/gemini-3.7-flash" });
     expect(request.messages[0].content).toContain("only a Vietnamese Course outline");
     expect(request.messages[0].content).toContain("Do not include Lesson body content");
     expect(fetchMock).toHaveBeenCalledTimes(1);
@@ -618,7 +630,7 @@ describe("pedagogical synthesis and blueprint", () => {
     await expect(generate(invalid)).rejects.toThrow("AI_RESPONSE_INVALID");
   });
 
-  it("uses the locked model, one request, strict schema, and an untrusted evidence wrapper", async () => {
+  it("uses the configured 9Router route, one request, strict schema, and an untrusted evidence wrapper", async () => {
     const fetchMock = vi.spyOn(globalThis, "fetch").mockResolvedValue(responseFor(conceptual));
     const provider = new NineRouterLessonDraftProvider("secret", "https://router.test", "gpt-fallback");
     await provider.synthesizeEvidenceAndBlueprint({
@@ -635,7 +647,7 @@ describe("pedagogical synthesis and blueprint", () => {
       messages: Array<{ content: string }>;
       response_format: unknown;
     };
-    expect(request.model).toBe("gemini-3.7-flash");
+    expect(request.model).toBe("gpt-fallback");
     expect(JSON.stringify(request.response_format)).not.toMatch(/minItems|maxItems|uniqueItems|minimum|maximum/);
     expect(request.messages[0].content).toContain("untrusted data");
     expect(request.messages[0].content).toContain("Do not write final Lesson prose");
@@ -691,7 +703,6 @@ describe("pedagogical synthesis and blueprint", () => {
   it.each([
     ["malformed response", () => Promise.resolve(responseFor("not-json")), "AI_RESPONSE_INVALID"],
     ["provider error", () => Promise.resolve(new Response("failed", { status: 503 })), "AI_PROVIDER_REQUEST_FAILED"],
-    ["model substitution", () => Promise.resolve(responseFor(conceptual, "gpt-fallback")), "AI_PROVIDER_RESPONSE_INVALID"],
   ])("does not retry or fall back after %s", async (_name, implementation, errorCode) => {
     const fetchMock = vi.spyOn(globalThis, "fetch").mockImplementation(implementation);
     const provider = new NineRouterLessonDraftProvider("secret", "https://router.test", "gpt-fallback");
@@ -700,7 +711,28 @@ describe("pedagogical synthesis and blueprint", () => {
     })).rejects.toThrow(errorCode);
     expect(fetchMock).toHaveBeenCalledTimes(1);
     const request = JSON.parse(String(fetchMock.mock.calls[0][1]?.body)) as { model: string };
-    expect(request.model).toBe("gemini-3.7-flash");
+    expect(request.model).toBe("gpt-fallback");
+  });
+
+  it("accepts and reports the upstream model selected by 9Router", async () => {
+    const fetchMock = vi.spyOn(globalThis, "fetch")
+      .mockResolvedValue(responseFor(conceptual, "gemini/gemini-3.7-flash"));
+    const provider = new NineRouterLessonDraftProvider("secret", "https://router.test", "smart");
+    const result = await provider.synthesizeEvidenceAndBlueprint({
+      lessonTitle: "Networking", learningObjectives: ["Compare devices"], evidenceRefMap,
+    });
+    const request = JSON.parse(String(fetchMock.mock.calls[0][1]?.body)) as { model: string };
+    expect(request.model).toBe("smart");
+    expect(result.model).toBe("gemini/gemini-3.7-flash");
+  });
+
+  it("requires a configured 9Router model before pedagogical dispatch", async () => {
+    const fetchMock = vi.spyOn(globalThis, "fetch");
+    const provider = new NineRouterLessonDraftProvider("secret", "https://router.test", "");
+    await expect(provider.synthesizeEvidenceAndBlueprint({
+      lessonTitle: "Networking", learningObjectives: ["Compare devices"], evidenceRefMap,
+    })).rejects.toThrow("AI_PROVIDER_NOT_CONFIGURED");
+    expect(fetchMock).not.toHaveBeenCalled();
   });
 
   it("times out without a hidden retry", async () => {
@@ -835,7 +867,7 @@ describe("purpose-aware Lesson section generation", () => {
     const request = JSON.parse(String(fetchMock.mock.calls[0][1]?.body)) as {
       model: string; messages: Array<{ content: string }>; response_format: unknown;
     };
-    expect(request.model).toBe("gemini-3.7-flash");
+    expect(request.model).toBe("fallback");
     expect(request.messages[0].content).toContain("CONCEPT: build intuition first");
     expect(request.messages[0].content).toContain("COMPARISON: explicitly compare A versus B");
     expect(request.messages[0].content).toContain("EXAMPLE: present a concrete scenario");
@@ -919,7 +951,6 @@ describe("purpose-aware Lesson section generation", () => {
   it.each([
     ["malformed response", () => Promise.resolve(responseFor("not-json")), "AI_RESPONSE_INVALID"],
     ["provider error", () => Promise.resolve(new Response("failed", { status: 503 })), "AI_PROVIDER_REQUEST_FAILED"],
-    ["model substitution", () => Promise.resolve(responseFor(conceptualCandidate, "gpt-fallback")), "AI_PROVIDER_RESPONSE_INVALID"],
   ])("makes no hidden retry or fallback after %s", async (_name, implementation, errorCode) => {
     const fetchMock = vi.spyOn(globalThis, "fetch").mockImplementation(implementation);
     const provider = new NineRouterLessonDraftProvider("secret", "https://router.test", "fallback");
@@ -929,7 +960,7 @@ describe("purpose-aware Lesson section generation", () => {
     })).rejects.toThrow(errorCode);
     expect(fetchMock).toHaveBeenCalledTimes(1);
     const request = JSON.parse(String(fetchMock.mock.calls[0][1]?.body)) as { model: string };
-    expect(request.model).toBe("gemini-3.7-flash");
+    expect(request.model).toBe("fallback");
   });
 
   it("times out with one outbound request and no fallback", async () => {
@@ -1102,7 +1133,7 @@ describe("independent pedagogical Quality Review", () => {
     await expect(correct(payload)).rejects.toThrow("AI_RESPONSE_INVALID");
   });
 
-  it("locks review and correction requests to one raw request on the exact model", async () => {
+  it("routes review and correction requests through the configured model", async () => {
     const fetchMock = vi.spyOn(globalThis, "fetch")
       .mockResolvedValueOnce(responseFor({ verdict: "pass", findings: [],
         reviewedSectionKeys: ["concept", "summary"] }))
@@ -1117,7 +1148,7 @@ describe("independent pedagogical Quality Review", () => {
     const requests = fetchMock.mock.calls.map((call) => JSON.parse(String(call[1]?.body)) as {
       model: string; messages: Array<{ content: string }>;
     });
-    expect(requests.map((request) => request.model)).toEqual(["gemini-3.7-flash", "gemini-3.7-flash"]);
+    expect(requests.map((request) => request.model)).toEqual(["gpt-fallback", "gpt-fallback"]);
     expect(requests[0].messages[0].content).toContain("semantic teaching-quality review");
     expect(requests[0].messages[0].content).toContain("Khái niệm/Vai trò/Tầm quan trọng");
     expect(requests[0].messages[0].content).toContain("UNSUPPORTED_CLAIM");
@@ -1130,15 +1161,10 @@ describe("independent pedagogical Quality Review", () => {
     ["review malformed response", "review", () => Promise.resolve(responseFor("not-json")), "AI_RESPONSE_INVALID"],
     ["review provider error", "review", () => Promise.resolve(new Response("failed", { status: 503 })),
       "AI_PROVIDER_REQUEST_FAILED"],
-    ["review model substitution", "review", () => Promise.resolve(responseFor({ verdict: "pass", findings: [],
-      reviewedSectionKeys: ["concept", "summary"] }, "gpt-fallback")), "AI_PROVIDER_RESPONSE_INVALID"],
     ["correction malformed response", "correction", () => Promise.resolve(responseFor("not-json")),
       "AI_RESPONSE_INVALID"],
     ["correction provider error", "correction", () => Promise.resolve(new Response("failed", { status: 503 })),
       "AI_PROVIDER_REQUEST_FAILED"],
-    ["correction model substitution", "correction", () => Promise.resolve(responseFor({
-      addressedFindingKeys: ["unsupported-claim"], sections: [correctedSection],
-    }, "deepseek-fallback")), "AI_PROVIDER_RESPONSE_INVALID"],
   ])("does not retry after %s", async (_name, stage, implementation, errorCode) => {
     const fetchMock = vi.spyOn(globalThis, "fetch").mockImplementation(implementation);
     const provider = new NineRouterLessonDraftProvider("secret", "https://router.test", "fallback");
