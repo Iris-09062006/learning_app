@@ -9,7 +9,8 @@
   becoming canonical provenance.
 - Tavily Markdown and its result URL remain untrusted transient input. Raw provider JSON,
   `request_id`, `usage`, Authorization headers, Markdown bodies, and snapshot bodies are neither
-  persisted nor logged. Only the application-owned immutable snapshot/chunks reach Gemini.
+  persisted nor logged. Only the application-owned immutable snapshot/chunks reach 9Router and its
+  selected upstream model.
 - Missing/auth/quota/timeout/upstream Tavily failures affect only new web acquisition and remain
   recoverable. Stored evidence and file/PDF flows continue; direct fetch/Readability is never an
   automatic fallback.
@@ -278,10 +279,10 @@ create policy "Learners can view own AI explanations"
 
 ### 7.1 Gọi AI Server-Side
 
-Mọi lời gọi tới LLM Provider (Gemini API) phải thực hiện ở Server:
+Mọi lời gọi tới LLM Provider (9Router và upstream model do router chọn) phải thực hiện ở Server:
 
 ```text
-Browser -> POST /api/ai/explanations -> Server (Validate -> Build Prompt -> Call Gemini -> Validate Response) -> Browser
+Browser -> POST /api/ai/explanations -> Server (Validate -> Build Prompt -> Call 9Router -> Validate Response) -> Browser
 ```
 
 ### 7.2 Không nhận System Prompt từ Client
