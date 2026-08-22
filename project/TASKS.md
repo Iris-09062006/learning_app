@@ -11,6 +11,44 @@
 
 ## Active Task
 
+`TASK-091` is verified locally: one bounded semantic repair retry handles HTTP-successful but
+application-invalid responses from synthesis/blueprint, sections, and initial quality review while
+preserving schemas, prior-stage results, provider/network behavior, correction/re-review, and
+TASK-090 checkpointing. Required focused tests, lint, typecheck, build, diff check, and review pass;
+no commit is authorized before this report.
+
+`TASK-090` is verified locally: persisted ready Lesson drafts are durable retry checkpoints, the
+the approved outline and completed Lessons across a failed job, resume generation at the first
+missing Lesson in outline order, and make all-complete retries perform zero model calls. Focused
+tests, lint, typecheck, diff check, and review pass. The function-only migration is not applied;
+the existing uncommitted TASK-089 changes are preserved and no commit is authorized.
+
+`TASK-089` is in progress: active AI provider response abort timers are raised from 45 seconds to
+180 seconds, with metadata-only Course-outline response/parse diagnostics and temporary safe
+diagnostics for all five pedagogical Lesson stages. Focused tests, focused lint, and typecheck pass
+with provider calls mocked; the change remains uncommitted by user request.
+
+`TASK-088` is verified: the hard-coded pedagogical Gemini model is removed, and Course outline plus
+Lesson generation use the configured server-only 9Router endpoint and route model. Router-selected
+upstream model reporting, focused/full tests, lint, typecheck, and build pass.
+
+`TASK-087` is verified: stabilize Gemini 3.7 Lesson generation after job 24 failed at 59.914 seconds
+by removing unsupported sampling parameters, lowering documented reasoning effort, eliminating
+redundant queued Lesson workers, and aligning the Admin timeout with the server scheduling window.
+Full local gates pass.
+
+`TASK-086` is verified: the complete pedagogical Lesson model lock migrated from
+`gemini-3.6-flash` to the official GA `gemini-3.7-flash` identifier without changing endpoint,
+call budgets, pacing, persistence, citations, or public API behavior. Full local gates pass.
+
+`TASK-085` is verified: pedagogical provider requests are serialized to prevent Gemini quota bursts,
+and confirmed upstream HTTP 429 responses map to the recoverable rate-limit API contract. Full local
+gates pass without database mutation, push, or deployment.
+
+`TASK-084` is verified: Gemini one-based blueprint section order is normalized to the unchanged
+internal zero-based contract, repairing the deterministic `AI_RESPONSE_INVALID` behind job 25's
+Lesson-generation 502. Full local gates pass without database mutation, push, or deployment.
+
 `TASK-083` is verified for only T026–T036 of pedagogical Lesson generation: active Continue and
 Lesson-wide regeneration integration, bounded three-pipeline scheduling, deadline/partial-failure retry,
 and compatibility verification without migrations or external contract changes.
@@ -74,6 +112,10 @@ Supabase Auth Redirect URLs wildcard and a fresh confirmation email.
 
 | Task ID | Title | Status | Phase | Evidence |
 |---|---|---|---|---|
+| `TASK-087` | Stabilize Gemini 3.7 Lesson Generation Latency | VERIFIED | Content operations hotfix | `reports/TASK-087-implementation.md`, `reports/TASK-087-review.md`, `reports/TASK-087-test.md` |
+| `TASK-086` | Migrate Pedagogical Lessons to Gemini 3.7 Flash | VERIFIED | Content operations hotfix | `reports/TASK-086-implementation.md`, `reports/TASK-086-review.md`, `reports/TASK-086-test.md` |
+| `TASK-085` | Handle Gemini Lesson Generation Quota | VERIFIED | Content operations hotfix | `reports/TASK-085-implementation.md`, `reports/TASK-085-review.md`, `reports/TASK-085-test.md` |
+| `TASK-084` | Repair Live Pedagogical Lesson Generation | VERIFIED | Content operations hotfix | `reports/TASK-084-implementation.md`, `reports/TASK-084-review.md`, `reports/TASK-084-test.md` |
 | `TASK-083` | Pedagogical Lesson Generation Phase D | VERIFIED | Feature 003 Phase D | `reports/TASK-083-implementation.md`, `reports/TASK-083-review.md`, `reports/TASK-083-test.md` |
 | `TASK-082` | Pedagogical Lesson Generation Phase C | VERIFIED | Feature 003 Phase C | `reports/TASK-082-implementation.md`, `reports/TASK-082-review.md`, `reports/TASK-082-test.md` |
 | `TASK-080` | Pedagogical Lesson Generation Phase A | VERIFIED | Feature 003 Phase A | `reports/TASK-080-implementation.md`, `reports/TASK-080-review.md`, `reports/TASK-080-test.md` |
