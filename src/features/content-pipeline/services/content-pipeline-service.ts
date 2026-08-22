@@ -3,6 +3,7 @@ import "server-only";
 import { createHash, randomUUID } from "node:crypto";
 
 import {
+  AiProviderRequestError,
   NineRouterLessonDraftProvider,
   type LessonDraftProvider,
   type PedagogicalLessonProvider,
@@ -28,6 +29,7 @@ import {
   downloadSourceObject,
   getCourseGenerationContext,
   getCourseImport,
+  getCourseImportOutlineState,
   getCourseImportGenerationContext,
   getCourseImportChunks,
   getGenerationContext,
@@ -49,6 +51,7 @@ import {
   prepareCourseLessonGeneration,
   publishCourseImport,
   publishLessonDraft,
+  reconcileCourseLessonGeneration,
   removeSourceObject,
   replaceDocumentChunks,
   reviewLessonDraft,
@@ -85,8 +88,6 @@ import { checkRateLimit } from "@/lib/rate-limiter";
 
 const MAX_FILE_BYTES = 10 * 1024 * 1024;
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
-const PEDAGOGICAL_MODEL = "gemini-3.6-flash";
-const MAX_CONCURRENT_LESSON_PIPELINES = 3;
 const COURSE_LESSON_SCHEDULING_DEADLINE_MS = 240_000;
 
 export type ContentPipelineErrorCode =
@@ -150,6 +151,48 @@ export class ContentPipelineError extends Error {
   }
 }
 
+type OutlinePipelineDiagnosticStage =
+  | "outline_provider_complete"
+  | "outline_mapping"
+  | "outline_resolution"
+  | "outline_persistence";
+
+type OutlinePipelineBoundary = "provider" | "mapping" | "resolution" | "persistence";
+
+function outlineDiagnosticError(error: unknown, fallbackCode: string) {
+  const errorCode = error instanceof ContentPipelineError
+    ? error.code
+    : error && typeof error === "object" && "code" in error &&
+        typeof (error as { code?: unknown }).code === "string"
+      ? (error as { code: string }).code
+      : fallbackCode;
+  return {
+    errorClass: error instanceof Error ? error.constructor.name : typeof error,
+    errorCode,
+    errorMessage: error instanceof Error ? error.message.slice(0, 300) : "Unknown error",
+  };
+}
+
+function emitOutlinePipelineDiagnostic(
+  stage: OutlinePipelineDiagnosticStage,
+  metadata: Record<string, string | number | boolean | null>
+) {
+  console.info("[outline-pipeline-diagnostic]", { stage, ...metadata });
+}
+
+function emitOutlinePipelineFailure(
+  stage: OutlinePipelineDiagnosticStage,
+  metadata: Record<string, string | number | boolean | null>,
+  error: unknown,
+  fallbackCode: string
+) {
+  console.warn("[outline-pipeline-diagnostic]", {
+    stage,
+    ...metadata,
+    ...outlineDiagnosticError(error, fallbackCode),
+  });
+}
+
 export class PedagogicalLessonGenerationError extends Error {
   readonly code = "LESSON_GENERATION_FAILED";
 
@@ -157,6 +200,14 @@ export class PedagogicalLessonGenerationError extends Error {
     super("Unable to produce a Lesson candidate that passes pedagogical Quality Review.");
     this.name = "PedagogicalLessonGenerationError";
   }
+}
+
+function pedagogicalProviderHttpStatus(error: unknown): number | null {
+  if (error instanceof AiProviderRequestError) return error.status;
+  if (error instanceof PedagogicalLessonGenerationError) {
+    return pedagogicalProviderHttpStatus(error.cause);
+  }
+  return null;
 }
 
 async function requireAdmin(): Promise<string> {
@@ -1043,9 +1094,6 @@ export async function generatePedagogicalLessonSections(
     learningObjectives: evidence.learningObjectives,
     evidenceRefMap,
   });
-  if (planned.model !== PEDAGOGICAL_MODEL) {
-    throw new PedagogicalLessonGenerationError(new Error("PEDAGOGICAL_MODEL_MISMATCH"));
-  }
   if (!shouldStartStage()) throw new PedagogicalLessonGenerationError(new Error("LESSON_PIPELINE_STOPPED"));
   const generated = await provider.generateLessonSections({
     lessonTitle: evidence.lessonTitle,
@@ -1054,9 +1102,6 @@ export async function generatePedagogicalLessonSections(
     synthesis: planned.synthesis,
     blueprint: planned.blueprint,
   });
-  if (generated.model !== PEDAGOGICAL_MODEL) {
-    throw new PedagogicalLessonGenerationError(new Error("PEDAGOGICAL_MODEL_MISMATCH"));
-  }
   const normalized = normalizePedagogicalLessonCandidate(
     generated.result,
     planned.blueprint,
@@ -1194,7 +1239,6 @@ export async function generateReviewedPedagogicalLesson(
     };
     if (!shouldStartStage()) throw new PedagogicalLessonGenerationError(new Error("LESSON_PIPELINE_STOPPED"));
     const initialReview = await provider.reviewLessonCandidate(reviewRequest);
-    if (initialReview.model !== PEDAGOGICAL_MODEL) throw new Error("PEDAGOGICAL_MODEL_MISMATCH");
     validateLessonQualityReview(initialReview.result, phaseB.candidate, phaseB.evidenceRefMap);
     if (initialReview.result.verdict === "pass") return phaseB;
     if (initialReview.result.verdict === "reject") throw new PedagogicalLessonGenerationError();
@@ -1204,7 +1248,6 @@ export async function generateReviewedPedagogicalLesson(
       ...reviewRequest,
       review: initialReview.result,
     });
-    if (corrected.model !== PEDAGOGICAL_MODEL) throw new Error("PEDAGOGICAL_MODEL_MISMATCH");
     const merged = mergeTargetedLessonCorrection(
       phaseB.candidate,
       corrected.result,
@@ -1217,8 +1260,7 @@ export async function generateReviewedPedagogicalLesson(
     const finalReview = await provider.reviewLessonCandidate({
       ...reviewRequest,
       candidate: merged.candidate,
-    });
-    if (finalReview.model !== PEDAGOGICAL_MODEL) throw new Error("PEDAGOGICAL_MODEL_MISMATCH");
+    }, "re_review");
     validateLessonQualityReview(finalReview.result, merged.candidate, phaseB.evidenceRefMap);
     if (finalReview.result.verdict !== "pass") throw new PedagogicalLessonGenerationError();
     return {
@@ -1329,8 +1371,12 @@ export async function generateCourseOutlineForJob(
 ) {
   const adminId = await requireAdmin();
   const startedAt = Date.now();
-  await requireAiCapacity("ai:course-outline", adminId);
   const jobId = asPositiveId(jobIdValue, "jobId");
+  const outlineState = await getCourseImportOutlineState(jobId);
+  if (typeof outlineState?.approvedOutlineRevision === "number") {
+    throw new ContentPipelineError("INVALID_STATE", "An approved Course outline cannot be regenerated.");
+  }
+  await requireAiCapacity("ai:course-outline", adminId);
   const context = await getCourseImportGenerationContext(jobId);
   if (!context) throw new ContentPipelineError("NOT_FOUND", "Course import job not found.");
   if (!context.sources.length || context.sources.some((source) =>
@@ -1342,6 +1388,12 @@ export async function generateCourseOutlineForJob(
     throw new ContentPipelineError("INVALID_STATE", "Every attached source must contribute provider context.");
   }
   const providerMap = new Map(chunks.map((chunk, sourceRef) => [sourceRef, chunk]));
+  let boundary: OutlinePipelineBoundary = "provider";
+  let providerName: string | null = null;
+  let providerModel: string | null = null;
+  let providerLessonCount = 0;
+  let mappedLessonCount = 0;
+  let resolvedLessonCount = 0;
   try {
     if (!provider.generateCourseOutline) throw new Error("AI_PROVIDER_UNSUPPORTED");
     const generated = await provider.generateCourseOutline({
@@ -1352,30 +1404,108 @@ export async function generateCourseOutlineForJob(
         content: chunk.content,
       })),
     }, () => requireAiCapacity("ai:course-outline", adminId));
+    providerName = typeof generated.provider === "string" ? generated.provider : null;
+    providerModel = typeof generated.model === "string" ? generated.model : null;
+    providerLessonCount = Array.isArray(generated.outline.lessons) ? generated.outline.lessons.length : 0;
+    emitOutlinePipelineDiagnostic("outline_provider_complete", {
+      jobId,
+      lessonCount: providerLessonCount,
+      provider: providerName,
+      model: providerModel,
+    });
+
+    boundary = "mapping";
     if (!generated.outline.lessons.every((lesson) => "sourceRefs" in lesson)) {
       throw new ContentPipelineError("VALIDATION_ERROR", "Provider returned ambiguous multi-source references.");
     }
+    const mappedOutline = mapProviderOutline(
+      generated.outline as ProviderStructuredCourseOutline,
+      providerMap
+    );
+    mappedLessonCount = mappedOutline.lessons.length;
+    emitOutlinePipelineDiagnostic("outline_mapping", {
+      jobId,
+      lessonCount: providerLessonCount,
+      provider: providerName,
+      model: providerModel,
+      mappedLessonCount,
+    });
+
+    boundary = "resolution";
+    const resolvedOutline = resolveJobOutline(mappedOutline, context);
+    resolvedLessonCount = resolvedOutline.lessons.length;
+    emitOutlinePipelineDiagnostic("outline_resolution", {
+      jobId,
+      lessonCount: providerLessonCount,
+      provider: providerName,
+      model: providerModel,
+      mappedLessonCount,
+      resolvedLessonCount,
+    });
+
+    boundary = "persistence";
+    emitOutlinePipelineDiagnostic("outline_persistence", {
+      jobId,
+      lessonCount: providerLessonCount,
+      provider: providerName,
+      model: providerModel,
+      mappedLessonCount,
+      resolvedLessonCount,
+      persistenceStatus: "started",
+    });
     const result = await persistCourseOutlineForJob({
       jobId,
-      outline: resolveJobOutline(
-        mapProviderOutline(generated.outline as ProviderStructuredCourseOutline, providerMap),
-        context
-      ),
+      outline: resolvedOutline,
       provider: generated.provider,
       model: generated.model,
+    });
+    emitOutlinePipelineDiagnostic("outline_persistence", {
+      jobId,
+      lessonCount: providerLessonCount,
+      provider: providerName,
+      model: providerModel,
+      mappedLessonCount,
+      resolvedLessonCount,
+      persistenceSuccess: true,
     });
     emitContentPipelineSignal({ event: "outline_generation", outcome: "success", stage: "persist_outline",
       code: "OK", actorId: adminId, jobId, sourceCount: context.sources.length,
       durationMs: Date.now() - startedAt });
     return result;
   } catch (error) {
+    const stage: OutlinePipelineDiagnosticStage = boundary === "provider" ? "outline_provider_complete"
+      : boundary === "mapping" ? "outline_mapping"
+        : boundary === "resolution" ? "outline_resolution"
+          : "outline_persistence";
+    const fallbackCode = boundary === "provider" ? "AI_PROVIDER_ERROR"
+      : boundary === "mapping" ? "OUTLINE_MAPPING_FAILED"
+        : boundary === "resolution" ? "OUTLINE_RESOLUTION_FAILED"
+          : "OUTLINE_PERSISTENCE_FAILED";
+    const classifiedCode: ContentPipelineErrorCode = error instanceof ContentPipelineError
+      ? error.code
+      : boundary === "provider" ? "AI_PROVIDER_ERROR"
+        : boundary === "persistence" ? "DATABASE_ERROR"
+          : "GENERATION_FAILED";
+    emitOutlinePipelineFailure(stage, {
+      jobId,
+      lessonCount: providerLessonCount,
+      provider: providerName,
+      model: providerModel,
+      mappedLessonCount,
+      resolvedLessonCount,
+      ...(boundary === "persistence" ? { persistenceSuccess: false } : {}),
+    }, error, fallbackCode);
     await failCourseImport(jobId, "OUTLINE_GENERATION_FAILED").catch(() => undefined);
-    const code = error instanceof ContentPipelineError ? error.code : "AI_PROVIDER_ERROR";
     emitContentPipelineSignal({ event: error instanceof ContentPipelineError && error.code === "INVALID_SOURCE_REFERENCE"
       ? "source_reference" : "outline_generation", outcome: "failure", stage: "generate_outline",
-      code, actorId: adminId, jobId, sourceCount: context.sources.length, durationMs: Date.now() - startedAt });
+      code: classifiedCode, actorId: adminId, jobId, sourceCount: context.sources.length,
+      durationMs: Date.now() - startedAt });
     if (error instanceof ContentPipelineError) throw error;
-    throw new ContentPipelineError("AI_PROVIDER_ERROR", "Unable to generate a valid Course outline.");
+    const message = boundary === "provider" ? "Unable to generate a valid Course outline."
+      : boundary === "mapping" ? "Unable to map the generated Course outline."
+        : boundary === "resolution" ? "Unable to resolve the generated Course outline."
+          : "Unable to persist the generated Course outline.";
+    throw new ContentPipelineError(classifiedCode, message);
   }
 }
 
@@ -1409,6 +1539,9 @@ export async function regenerateCourseOutline(jobIdValue: unknown, provider?: Le
   await requireAdmin();
   const current = await getCourseImport(asPositiveId(jobIdValue, "jobId"));
   if (!current) throw new ContentPipelineError("NOT_FOUND", "Course import job not found.");
+  if (typeof current.approvedOutlineRevision === "number") {
+    throw new ContentPipelineError("INVALID_STATE", "An approved Course outline cannot be regenerated.");
+  }
   if (current.status !== "outline_review" && current.status !== "failed") {
     throw new ContentPipelineError("INVALID_STATE", "Course outline cannot be regenerated in its current state.");
   }
@@ -1450,6 +1583,10 @@ async function generateOneCourseLesson(
   });
 }
 
+function hasReadyCourseLessonCheckpoint(lesson: CourseImportDraft["lessons"][number]): boolean {
+  return lesson.contentDraft?.status === "ready";
+}
+
 export async function generateCourseLessonContents(
   jobIdValue: unknown,
   provider: PedagogicalLessonProvider = new NineRouterLessonDraftProvider()
@@ -1465,58 +1602,67 @@ export async function generateCourseLessonContents(
       durationMs: Date.now() - startedAt });
     throw new ContentPipelineError("STALE_OUTLINE", "The evidence set changed; generate and approve a replacement outline.");
   }
-  if (job.status === "content_review" && job.lessons.length > 0 && job.lessons.every((lesson) => lesson.contentDraft)) {
+  if (job.status === "content_review" && job.lessons.length > 0
+    && job.lessons.every(hasReadyCourseLessonCheckpoint)) {
     return { jobId, status: "content_review" as const };
   }
-  await prepareCourseLessonGeneration(jobId);
+  const preparation = await prepareCourseLessonGeneration(jobId);
   const approvedJob = await getCourseImport(jobId);
-  if (!approvedJob || approvedJob.approvedOutlineRevision !== approvedJob.outlineRevision) {
+  if (!approvedJob || approvedJob.approvedOutlineRevision !== approvedJob.outlineRevision
+    || preparation.outlineRevision !== approvedJob.approvedOutlineRevision) {
     throw new ContentPipelineError("INVALID_STATE", "Approved outline revision is unavailable.");
   }
-  const chunks = await getCourseImportChunks(jobId);
   try {
-    const missingLessons = approvedJob.lessons.filter((lesson) => !lesson.contentDraft);
-    const deadlineAt = startedAt + COURSE_LESSON_SCHEDULING_DEADLINE_MS;
-    let nextLessonIndex = 0;
-    let stopped = false;
-    let firstFailure: unknown;
-    const shouldStartStage = () => !stopped && Date.now() < deadlineAt;
-    const worker = async () => {
-      while (!stopped) {
-        if (Date.now() >= deadlineAt) {
-          stopped = true;
-          firstFailure ??= new PedagogicalLessonGenerationError(new Error("LESSON_SCHEDULING_DEADLINE"));
-          return;
-        }
-        const lesson = missingLessons[nextLessonIndex++];
-        if (!lesson) return;
-        try {
-          await generateOneCourseLesson(
-            approvedJob, lesson.id, chunks, provider, adminId, shouldStartStage
-          );
-        } catch (error) {
-          firstFailure ??= error;
-          stopped = true;
-          return;
-        }
+    const missingLessons = approvedJob.lessons.filter((lesson) => !hasReadyCourseLessonCheckpoint(lesson));
+    if (!missingLessons.length) {
+      if (preparation.status !== "generating_content" || approvedJob.status !== "generating_content") {
+        throw new ContentPipelineError("INVALID_STATE", "Completed Lesson generation is not prepared for reconciliation.");
       }
-    };
-    await Promise.all(Array.from(
-      { length: Math.min(MAX_CONCURRENT_LESSON_PIPELINES, missingLessons.length) },
-      () => worker()
-    ));
-    if (firstFailure !== undefined) throw firstFailure;
+      const reconciled = await reconcileCourseLessonGeneration(jobId);
+      if (reconciled.outlineRevision !== approvedJob.approvedOutlineRevision) {
+        throw new ContentPipelineError("INVALID_STATE", "Completed Lesson generation was not reconciled.");
+      }
+      return { jobId, status: "content_review" as const };
+    }
+    if (preparation.status !== "generating_content") {
+      throw new ContentPipelineError("INVALID_STATE", "Missing Lesson generation is not prepared.");
+    }
+    const chunks = await getCourseImportChunks(jobId);
+    const deadlineAt = startedAt + COURSE_LESSON_SCHEDULING_DEADLINE_MS;
+    let stopped = false;
+    const shouldStartStage = () => !stopped && Date.now() < deadlineAt;
+    for (const lesson of missingLessons) {
+      if (Date.now() >= deadlineAt) {
+        stopped = true;
+        throw new PedagogicalLessonGenerationError(new Error("LESSON_SCHEDULING_DEADLINE"));
+      }
+      try {
+        await generateOneCourseLesson(
+          approvedJob, lesson.id, chunks, provider, adminId, shouldStartStage
+        );
+      } catch (error) {
+        stopped = true;
+        throw error;
+      }
+    }
     emitContentPipelineSignal({ event: "lesson_generation", outcome: "success", stage: "generate_lessons",
       code: "OK", actorId: adminId, jobId, sourceCount: approvedJob.sources.length,
       durationMs: Date.now() - startedAt });
     return { jobId, status: "content_review" as const };
   } catch (error) {
     await failCourseImport(jobId, "LESSON_GENERATION_FAILED").catch(() => undefined);
-    const code = error instanceof ContentPipelineError ? error.code : "AI_PROVIDER_ERROR";
+    const providerStatus = pedagogicalProviderHttpStatus(error);
+    const code = error instanceof ContentPipelineError ? error.code
+      : providerStatus === 429 ? "RATE_LIMITED" : "AI_PROVIDER_ERROR";
     emitContentPipelineSignal({ event: code === "INVALID_SOURCE_REFERENCE" ? "source_reference" : "lesson_generation",
       outcome: "failure", stage: "generate_lessons", code, actorId: adminId, jobId,
       sourceCount: approvedJob.sources.length, durationMs: Date.now() - startedAt });
     if (error instanceof ContentPipelineError) throw error;
+    if (providerStatus === 429) {
+      throw new ContentPipelineError("RATE_LIMITED", "AI provider rate limit exceeded. Retry later.", {
+        retryAfterSeconds: 60,
+      });
+    }
     throw new ContentPipelineError("AI_PROVIDER_ERROR", "Unable to generate all Lesson contents.");
   }
 }
@@ -1542,6 +1688,11 @@ export async function regenerateCourseLessonContent(
   } catch (error) {
     await failCourseImport(jobId, "LESSON_GENERATION_FAILED").catch(() => undefined);
     if (error instanceof ContentPipelineError) throw error;
+    if (pedagogicalProviderHttpStatus(error) === 429) {
+      throw new ContentPipelineError("RATE_LIMITED", "AI provider rate limit exceeded. Retry later.", {
+        retryAfterSeconds: 60,
+      });
+    }
     throw new ContentPipelineError("AI_PROVIDER_ERROR", "Unable to regenerate Lesson content.");
   }
 }

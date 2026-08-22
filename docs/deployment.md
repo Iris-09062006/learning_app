@@ -138,9 +138,9 @@ Danh sách biến môi trường bắt buộc:
 | `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Public | Anon key; quyền thực tế vẫn bị giới hạn bởi RLS | Local, Preview, Production |
 | `NEXT_PUBLIC_SITE_URL` | Public | Origin tuyệt đối, không có path; dùng cho auth redirect allowlist | Local, Preview, Production |
 | `SUPABASE_SERVICE_ROLE_KEY` | Secret | Service-role key, chỉ được đọc trong server runtime | Local, Preview, Production |
-| `AI_API_KEY` | Secret | API key cho provider OpenAI-compatible | Local, Preview, Production khi bật AI |
-| `AI_PROVIDER_URL` | Server config | HTTPS endpoint của provider; không dùng localhost trên Vercel | Local, Preview, Production khi bật document pipeline |
-| `AI_PROVIDER_MODEL` | Server config | Model/route identifier được provider hỗ trợ | Local, Preview, Production khi bật document pipeline |
+| `AI_API_KEY` | Secret | API key truy cập 9Router OpenAI-compatible | Local, Preview, Production khi bật AI |
+| `AI_PROVIDER_URL` | Server config | Endpoint `/v1/chat/completions` của 9Router; phải là HTTPS và không dùng localhost trên Vercel | Local, Preview, Production khi bật document pipeline |
+| `AI_PROVIDER_MODEL` | Server config | Route do 9Router hỗ trợ, ưu tiên dạng `provider/model` hoặc alias đã cấu hình | Local, Preview, Production khi bật document pipeline |
 | `TAVILY_API_KEY` | Optional-at-build server secret | Dùng chung cho Tavily Search và Basic Markdown Extract; bắt buộc khi bật Research hoặc nhận URL web mới. Nếu thiếu, hai action này lỗi recoverable; file/PDF và stored evidence vẫn hoạt động | Local, Preview, Production khi bật web research/ingestion |
 
 `NODE_ENV` và `CI` do runtime/CI thiết lập, không lưu thủ công trong Vercel. `PLAYWRIGHT_BROWSER_EXECUTABLE_PATH` chỉ là override local/CI tùy chọn và không phải runtime variable của ứng dụng.

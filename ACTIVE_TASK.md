@@ -1,12 +1,69 @@
 # Active Task Queue
 
-- **Active task:** `TASK-083` — Pedagogical Lesson Generation Phase D
-- **Status:** `VERIFIED`
+- **Active task:** `TASK-091` — Add Bounded Semantic Repair Retry for Primary Lesson Stages
+- **Status:** `VERIFIED` (uncommitted by user request)
 - **Owner / Reviewer:** Codex
 - **Deferred design task:** `TASK-047` (`DRAFT`)
 - **Previous blocked task:** `TASK-044` — external Supabase Redirect URL verification
 
 ## Current objective
+
+TASK-091 adds exactly one application-validation repair retry inside each of the three primary
+Lesson stages (`synthesis_blueprint`, `sections`, and `quality_review`). It preserves original stage
+inputs/schema, completed prior-stage results, provider/network behavior, correction/re-review, and
+TASK-090 checkpointing. No real provider call, migration, commit, push, or deployment is authorized.
+
+## Previous verified objective
+
+TASK-090 makes every persisted ready Lesson draft a durable server-side retry checkpoint. Retry
+must preserve and reload the approved outline, skip ready Lessons with zero model calls, resume at
+the first missing Lesson in outline order, and reconcile an all-complete retry without regeneration.
+Focused service/repository/migration tests, lint, typecheck, diff check, and final review pass. The
+overlapping uncommitted TASK-089 work remains preserved; no commit is authorized and the new
+migration has not been applied.
+
+## Previous in-progress objective
+
+TASK-089 raises active AI provider response abort timers from 45 seconds to 180 seconds for
+pedagogical Lesson and Exercise generation, adds metadata-only Course-outline response/parse
+diagnostics, and adds temporary safe diagnostics to every multi-call pedagogical Lesson stage.
+Focused tests, focused lint, and typecheck pass with mocked provider responses; no build, live AI
+request, commit, push, deployment, or database/frontend change was performed.
+
+## Previous verified objective
+
+TASK-088 removes the hard-coded pedagogical Gemini model and routes Course outline plus Lesson
+generation through the server-only 9Router configuration. Provider schemas, call budgets, pacing,
+citations, persistence, and public APIs remain unchanged. All local quality gates pass.
+
+## Previous verified objective
+
+TASK-087 addresses the observed job 24 failure at 59.914 seconds after the Gemini 3.7 migration:
+remove unsupported sampling parameters, use documented low reasoning effort, prevent queued Lesson
+workers from continuing after a failure, and align the Admin request timeout with the server
+scheduling window. All local quality gates pass.
+
+## Previous verified objective
+
+TASK-086 migrates the complete pedagogical Lesson model lock from `gemini-3.6-flash` to the GA
+`gemini-3.7-flash` identifier requested by the user. Endpoint, structured schemas, exact stage call
+budget, pacing, timeout, persistence, citations, and public API behavior remain unchanged. All local
+quality gates pass without a live AI request, database mutation, push, or deployment.
+
+## Previous verified objective
+
+TASK-085 handles the confirmed Gemini HTTP 429 behind local Course Lesson generation: pedagogical
+provider requests are serialized to prevent quota bursts, and upstream quota exhaustion maps to the
+existing recoverable `RATE_LIMITED` contract instead of a misleading 502. All local gates pass.
+
+## Previous verified objective
+
+TASK-084 repairs the live `502 AI_PROVIDER_ERROR` from
+`POST /api/admin/course-drafts/25/lessons/generate`: Gemini's one-based blueprint section order is
+now normalized to the unchanged internal zero-based contract. All local quality gates pass; the
+retryable job was not mutated, and no public/database contract, push, or deployment occurred.
+
+## Previous verified objective
 
 TASK-083 implements and verifies only T026–T036 of feature `003-pedagogical-lesson-generation`: the verified pedagogical runner is active for Continue and Lesson-wide regeneration, Course generation uses bounded three-pipeline scheduling with a 240-second deadline and partial-success retry semantics, and persistence plus downstream compatibility pass without migrations or external contract changes.
 

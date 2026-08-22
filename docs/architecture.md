@@ -7,8 +7,9 @@ not acquire evidence. After explicit Admin confirmation, both discovered and man
 the same server-only Tavily Extract adapter with one Basic full-page Markdown request per URL.
 Application code validates and normalizes that untrusted Markdown, creates the deterministic
 private snapshot, and only then reuses Supabase source metadata, chunks, ownership, revisions, and
-publication state. Gemini remains the sole Course outline/Lesson generator. File/PDF ingestion is
-unchanged. The legacy direct network fetch and Readability extractor remain inactive/test-only and
+publication state. 9Router is the sole Course outline/Lesson API boundary and selects the configured
+upstream model route. File/PDF ingestion is unchanged. The legacy direct network fetch and
+Readability extractor remain inactive/test-only and
 are not an outage fallback. Feature 002 adds no schema or migration.
 
 ## Topic-based multi-source Course creation — implemented architecture
