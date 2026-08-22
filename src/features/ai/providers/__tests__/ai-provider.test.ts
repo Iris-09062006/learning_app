@@ -195,7 +195,7 @@ describe("ai provider", () => {
         topicHint: null,
       })).rejects.toThrow("aborted");
 
-      await vi.advanceTimersByTimeAsync(45_000);
+      await vi.advanceTimersByTimeAsync(180_000);
       await pending;
       vi.useRealTimers();
     });

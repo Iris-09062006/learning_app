@@ -18,6 +18,8 @@ import {
   detachCourseImportSource,
   getCourseImportCompatibilityDiagnostics,
   getCourseImportGenerationContext,
+  getCourseImport,
+  getCourseImportOutlineState,
   getGenerationContext,
   initializeCourseImportFromSources,
   listContentChapters,
@@ -26,10 +28,69 @@ import {
   listCourseDraftBatches,
   listCourseImportSources,
   materializeCourseImportSource,
+  prepareCourseLessonGeneration,
+  reconcileCourseLessonGeneration,
+  persistCourseOutlineForJob,
   persistCourseLessonContentForJob,
   removeStagedCourseImportSource,
   uploadSourceObject,
 } from "./content-pipeline-repository";
+
+describe("Course outline persistence diagnostics", () => {
+  beforeEach(() => vi.clearAllMocks());
+
+  it("surfaces only safe PostgREST metadata while preserving DATABASE_ERROR behavior", async () => {
+    const rpc = vi.fn().mockResolvedValue({
+      data: null,
+      error: {
+        code: "P0004",
+        message: "JOB_STATE_INVALID",
+        details: null,
+        hint: null,
+      },
+    });
+    const warningMock = vi.spyOn(console, "warn").mockImplementation(() => undefined);
+    mocks.createServerSupabaseClient.mockResolvedValue({ rpc });
+    const outline = {
+      title: "Private outline title",
+      description: "Private outline description",
+      learningObjectives: ["Private objective"],
+      lessons: [
+        {
+          clientKey: "lesson-1",
+          title: "Private lesson title",
+          summary: "Private lesson summary",
+          learningObjectives: ["Private lesson objective"],
+          sourceRefs: [{ sourceDocumentId: 9, chunkIndex: 0 }],
+          sourceChunkIds: [101],
+        },
+      ],
+    };
+
+    await expect(persistCourseOutlineForJob({
+      jobId: 37,
+      outline,
+      provider: "9router",
+      model: "gemini-3.7-flash-tiered",
+    })).rejects.toThrow("DATABASE_ERROR");
+
+    expect(warningMock).toHaveBeenCalledWith("[outline-persistence-diagnostic]", {
+      stage: "outline_persistence",
+      jobId: 37,
+      rpcFunction: "create_course_outline_for_job",
+      postgresCode: "P0004",
+      message: "JOB_STATE_INVALID",
+      details: null,
+      hint: null,
+    });
+    const logged = JSON.stringify(warningMock.mock.calls);
+    expect(logged).not.toContain("Private outline");
+    expect(logged).not.toContain("Private lesson");
+    expect(logged).not.toContain("9router");
+    expect(logged).not.toContain("gemini-3.7-flash-tiered");
+    warningMock.mockRestore();
+  });
+});
 
 describe("pedagogical Lesson persistence compatibility", () => {
   beforeEach(() => vi.clearAllMocks());
@@ -67,6 +128,46 @@ describe("pedagogical Lesson persistence compatibility", () => {
     });
     expect(JSON.stringify(rpc.mock.calls[0][1])).not.toMatch(/synthesis|blueprint|purpose|finding|correction/);
   });
+
+  it("returns the approved generation state from retry preparation", async () => {
+    const rpc = vi.fn().mockResolvedValue({
+      data: { jobId: 61, status: "generating_content", outlineRevision: 4 },
+      error: null,
+    });
+    mocks.createServerSupabaseClient.mockResolvedValue({ rpc });
+
+    await expect(prepareCourseLessonGeneration(61)).resolves.toEqual({
+      jobId: 61,
+      status: "generating_content",
+      outlineRevision: 4,
+    });
+    expect(rpc).toHaveBeenCalledWith("prepare_course_lesson_generation", { p_job_id: 61 });
+  });
+
+  it("rejects a malformed retry-preparation result", async () => {
+    const rpc = vi.fn().mockResolvedValue({
+      data: { jobId: 61, status: "generating_content", outlineRevision: 0 },
+      error: null,
+    });
+    mocks.createServerSupabaseClient.mockResolvedValue({ rpc });
+
+    await expect(prepareCourseLessonGeneration(61)).rejects.toThrow("DATABASE_ERROR");
+  });
+
+  it("reconciles an all-complete retry without writing another Lesson draft", async () => {
+    const rpc = vi.fn().mockResolvedValue({
+      data: { jobId: 61, status: "content_review", outlineRevision: 4 },
+      error: null,
+    });
+    mocks.createServerSupabaseClient.mockResolvedValue({ rpc });
+
+    await expect(reconcileCourseLessonGeneration(61)).resolves.toEqual({
+      jobId: 61,
+      status: "content_review",
+      outlineRevision: 4,
+    });
+    expect(rpc).toHaveBeenCalledWith("reconcile_course_lesson_generation", { p_job_id: 61 });
+  });
 });
 
 describe("source object upload", () => {
@@ -101,6 +202,111 @@ function orderedQuery(data: unknown[]) {
     order: vi.fn().mockResolvedValue({ data, error: null }),
   };
 }
+
+function chainableQuery(data: unknown) {
+  const result = { data, error: null };
+  const query = {
+    select: vi.fn(), eq: vi.fn(), in: vi.fn(), is: vi.fn(), order: vi.fn(),
+    maybeSingle: vi.fn().mockResolvedValue(result),
+    then: (resolve: (value: typeof result) => unknown) => Promise.resolve(result).then(resolve),
+  };
+  query.select.mockReturnValue(query);
+  query.eq.mockReturnValue(query);
+  query.in.mockReturnValue(query);
+  query.is.mockReturnValue(query);
+  query.order.mockReturnValue(query);
+  return query;
+}
+
+describe("Course outline generation state", () => {
+  beforeEach(() => vi.clearAllMocks());
+
+  it("reads the approved revision directly without loading outline content", async () => {
+    const query = maybeSingleQuery({
+      status: "failed",
+      error_code: "LESSON_GENERATION_FAILED",
+      current_outline_revision: 2,
+      approved_outline_revision: 2,
+    });
+    const from = vi.fn().mockReturnValue(query);
+    mocks.createAdminSupabaseClient.mockReturnValue({ from });
+
+    await expect(getCourseImportOutlineState(37)).resolves.toEqual({
+      status: "failed",
+      errorCode: "LESSON_GENERATION_FAILED",
+      currentOutlineRevision: 2,
+      approvedOutlineRevision: 2,
+    });
+    expect(from).toHaveBeenCalledWith("course_import_jobs");
+    expect(query.eq).toHaveBeenCalledWith("id", 37);
+    expect(mocks.createServerSupabaseClient).not.toHaveBeenCalled();
+  });
+
+  it("loads the approved revision and latest ready Lesson checkpoint", async () => {
+    const rows: Record<string, unknown[]> = {
+      course_import_jobs: [{
+        id: 37, source_document_id: 9, status: "failed", error_code: "LESSON_GENERATION_FAILED",
+        current_outline_revision: 2, approved_outline_revision: 1, published_course_id: null,
+        created_at: "2026-08-21T00:00:00Z", updated_at: "2026-08-21T00:00:01Z",
+      }],
+      course_drafts: [
+        { id: 101, job_id: 37, revision: 1, title: "Approved outline", description: "Approved" },
+        { id: 102, job_id: 37, revision: 2, title: "Unapproved current outline", description: "Current" },
+      ],
+      course_import_job_sources: [
+        { job_id: 37, source_document_id: 9, source_order: 0, relevance_score: null },
+      ],
+      source_documents: [{ id: 9, original_filename: "source.md", status: "ready_for_review", error_code: null }],
+      source_document_metadata: [{
+        source_document_id: 9, source_type: "file", ingestion_method: "uploaded", title: "source.md",
+        source_url: null, canonical_url: null, domain: null, authority_score: null,
+      }],
+      document_chunks: [{ id: 501, source_document_id: 9 }],
+      course_draft_objectives: [
+        { course_draft_id: 101, objective_order: 0, objective: "Approved objective" },
+      ],
+      course_outline_lessons: [
+        { id: 201, course_draft_id: 101, client_key: "approved-1", lesson_order: 0,
+          title: "Approved Lesson 1", summary: "Approved summary" },
+        { id: 202, course_draft_id: 102, client_key: "current-1", lesson_order: 0,
+          title: "Unapproved Lesson 1", summary: "Current summary" },
+      ],
+      course_outline_lesson_objectives: [
+        { outline_lesson_id: 201, objective_order: 0, objective: "Approved Lesson objective" },
+      ],
+      course_outline_lesson_sources: [{
+        outline_lesson_id: 201, source_order: 0, document_chunk_id: 501,
+        document_chunks: { id: 501, source_document_id: 9, chunk_index: 0 },
+      }],
+      lesson_content_drafts: [
+        { id: 302, outline_lesson_id: 201, revision: 2, title: "Failed revision", summary: "Failed",
+          estimated_minutes: 10, sections: [], status: "failed", provider: "fake", model: "model" },
+        { id: 301, outline_lesson_id: 201, revision: 1, title: "Ready checkpoint", summary: "Ready",
+          estimated_minutes: 10, sections: [{ heading: "Ready", bodyMarkdown: "Ready",
+            citationChunkIndexes: [0] }], status: "ready", provider: "fake", model: "model" },
+      ],
+      lesson_content_draft_citations: [{
+        lesson_content_draft_id: 301, section_index: 0, document_chunk_id: 501, quote: "Evidence",
+        document_chunks: { id: 501, source_document_id: 9, chunk_index: 0 },
+      }],
+    };
+    const from = vi.fn((table: string) => chainableQuery(rows[table] ?? []));
+    mocks.createAdminSupabaseClient.mockReturnValue({ from });
+
+    await expect(getCourseImport(37)).resolves.toMatchObject({
+      jobId: 37,
+      status: "failed",
+      outlineRevision: 1,
+      approvedOutlineRevision: 1,
+      title: "Approved outline",
+      lessons: [{
+        id: 201,
+        title: "Approved Lesson 1",
+        contentDraft: { id: 301, revision: 1, status: "ready", title: "Ready checkpoint" },
+      }],
+    });
+  });
+});
 
 describe("getGenerationContext", () => {
   beforeEach(() => {

@@ -771,7 +771,7 @@ Chỉ dùng AI recommendation khi có yêu cầu rõ ràng sau.
 - Generated content phải qua review.
 - Provider response sai schema bị từ chối.
 - Draft có 2–6 option text duy nhất; `correctAnswer` phải khớp chính xác một option.
-- Provider có timeout 45 giây; timeout/response lỗi không được persist draft.
+- Provider có timeout 180 giây; timeout/response lỗi không được persist draft.
 - Client không được INSERT/UPDATE trực tiếp generated draft; mọi transition đi qua RPC.
 
 ---

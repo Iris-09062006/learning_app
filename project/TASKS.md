@@ -11,6 +11,23 @@
 
 ## Active Task
 
+`TASK-091` is verified locally: one bounded semantic repair retry handles HTTP-successful but
+application-invalid responses from synthesis/blueprint, sections, and initial quality review while
+preserving schemas, prior-stage results, provider/network behavior, correction/re-review, and
+TASK-090 checkpointing. Required focused tests, lint, typecheck, build, diff check, and review pass;
+no commit is authorized before this report.
+
+`TASK-090` is verified locally: persisted ready Lesson drafts are durable retry checkpoints, the
+the approved outline and completed Lessons across a failed job, resume generation at the first
+missing Lesson in outline order, and make all-complete retries perform zero model calls. Focused
+tests, lint, typecheck, diff check, and review pass. The function-only migration is not applied;
+the existing uncommitted TASK-089 changes are preserved and no commit is authorized.
+
+`TASK-089` is in progress: active AI provider response abort timers are raised from 45 seconds to
+180 seconds, with metadata-only Course-outline response/parse diagnostics and temporary safe
+diagnostics for all five pedagogical Lesson stages. Focused tests, focused lint, and typecheck pass
+with provider calls mocked; the change remains uncommitted by user request.
+
 `TASK-088` is verified: the hard-coded pedagogical Gemini model is removed, and Course outline plus
 Lesson generation use the configured server-only 9Router endpoint and route model. Router-selected
 upstream model reporting, focused/full tests, lint, typecheck, and build pass.

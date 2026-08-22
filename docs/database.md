@@ -58,7 +58,9 @@ source_documents
 - `course_outline_lessons` giữ Lesson identity/order/title/summary/source references để
   add/remove/reorder độc lập trước khi sinh content.
 - `lesson_content_drafts` giữ content/revision/provider state riêng cho từng outline
-  Lesson; regenerate một Lesson không ghi đè Lesson khác.
+  Lesson; một revision `status = 'ready'` là checkpoint hoàn tất authoritative cho Lesson đó,
+  và job-level failure không xóa hoặc invalidate checkpoint này. Regenerate một Lesson không ghi
+  đè Lesson khác.
 - Objective, Lesson order và source relation cần edit/query độc lập phải là row/column có
   constraint; không nhét toàn bộ Course outline vào một JSON blob.
 

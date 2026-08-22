@@ -175,16 +175,17 @@ reorder Lessons; save; or regenerate the entire outline.
   `POST /api/admin/course-drafts/:jobId/lessons/generate`.
 
 There is no separate outline-approval API or outline-review row. The Continue action calls
-`prepare_course_lesson_generation`, which sets
-`approved_outline_revision = current_outline_revision` and changes the job to
-`generating_content`. That persisted transition is the current outline-approval checkpoint.
+`prepare_course_lesson_generation`, which sets `approved_outline_revision` from the current
+revision on first approval, preserves that approved revision on retry, and changes the job to
+`generating_content`. That persisted transition is the outline-approval checkpoint.
 
 ### 6. Lesson-content generation and persistence
 
-`generateCourseLessonContents()` loads the approved Course import and all chunks, calls
-`prepare_course_lesson_generation()`, and generates every outline Lesson that does not
-already have a content draft. The missing Lessons are generated concurrently with
-`Promise.all()`.
+`generateCourseLessonContents()` calls `prepare_course_lesson_generation()`, then reloads the
+approved Course revision and per-Lesson state from the database. A Lesson is complete only when
+that approved outline Lesson has a persisted `lesson_content_drafts.status = 'ready'` revision.
+Ready Lessons are skipped with zero provider calls; missing Lessons are generated one at a time in
+outline order.
 
 For each Lesson, `generateOneCourseLesson()`:
 
@@ -195,7 +196,8 @@ For each Lesson, `generateOneCourseLesson()`:
 - validates a structured result containing title, summary, estimated minutes, sections,
   Markdown bodies, and at least one citation chunk index per section.
 
-`persistCourseLessonContent()` calls `persist_lesson_content_draft`. The RPC inserts a new
+After the full pedagogical pipeline and final review pass, the service awaits
+`persistCourseLessonContentForJob()` before starting the next Lesson. The RPC inserts a new
 `lesson_content_drafts` revision. For every section/chunk reference it also inserts
 `lesson_content_draft_citations`, but only when the chunk is among that outline Lesson's
 allowed `course_outline_lesson_sources`. The citation `quote` is currently the first 500
@@ -203,7 +205,9 @@ characters of the referenced chunk, not a provider-selected exact quotation.
 
 When every outline Lesson in the approved revision has a ready content draft, the RPC moves
 the job to `content_review`. A generation failure moves the job to `failed` with
-`LESSON_GENERATION_FAILED`.
+`LESSON_GENERATION_FAILED` without deleting or invalidating ready Lesson drafts. An all-complete
+retry uses `reconcile_course_lesson_generation` to restore `content_review` with zero provider
+calls and without creating another Lesson revision.
 
 At this stage the Lesson structure is in `course_outline_lessons` and the Lesson bodies are
 in `lesson_content_drafts`. Nothing has yet been inserted into the official `lessons` table.

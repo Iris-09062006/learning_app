@@ -1,12 +1,36 @@
 # Active Task Queue
 
-- **Active task:** `TASK-088` — Route Course Outline and Lessons through 9Router Configuration
-- **Status:** `VERIFIED`
+- **Active task:** `TASK-091` — Add Bounded Semantic Repair Retry for Primary Lesson Stages
+- **Status:** `VERIFIED` (uncommitted by user request)
 - **Owner / Reviewer:** Codex
 - **Deferred design task:** `TASK-047` (`DRAFT`)
 - **Previous blocked task:** `TASK-044` — external Supabase Redirect URL verification
 
 ## Current objective
+
+TASK-091 adds exactly one application-validation repair retry inside each of the three primary
+Lesson stages (`synthesis_blueprint`, `sections`, and `quality_review`). It preserves original stage
+inputs/schema, completed prior-stage results, provider/network behavior, correction/re-review, and
+TASK-090 checkpointing. No real provider call, migration, commit, push, or deployment is authorized.
+
+## Previous verified objective
+
+TASK-090 makes every persisted ready Lesson draft a durable server-side retry checkpoint. Retry
+must preserve and reload the approved outline, skip ready Lessons with zero model calls, resume at
+the first missing Lesson in outline order, and reconcile an all-complete retry without regeneration.
+Focused service/repository/migration tests, lint, typecheck, diff check, and final review pass. The
+overlapping uncommitted TASK-089 work remains preserved; no commit is authorized and the new
+migration has not been applied.
+
+## Previous in-progress objective
+
+TASK-089 raises active AI provider response abort timers from 45 seconds to 180 seconds for
+pedagogical Lesson and Exercise generation, adds metadata-only Course-outline response/parse
+diagnostics, and adds temporary safe diagnostics to every multi-call pedagogical Lesson stage.
+Focused tests, focused lint, and typecheck pass with mocked provider responses; no build, live AI
+request, commit, push, deployment, or database/frontend change was performed.
+
+## Previous verified objective
 
 TASK-088 removes the hard-coded pedagogical Gemini model and routes Course outline plus Lesson
 generation through the server-only 9Router configuration. Provider schemas, call budgets, pacing,
