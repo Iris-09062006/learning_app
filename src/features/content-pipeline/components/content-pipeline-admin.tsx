@@ -51,7 +51,7 @@ interface PipelineCheckpointV2 {
 }
 
 const CHECKPOINT_KEY = "learningapp.course-outline-generation";
-export const LESSON_GENERATION_REQUEST_TIMEOUT_MS = 60_000;
+export const LESSON_GENERATION_REQUEST_TIMEOUT_MS = 300_000;
 
 export async function requestPipelineApi<T>(url: string, init?: RequestInit, timeoutMs?: number): Promise<T> {
   const controller = timeoutMs ? new AbortController() : null;

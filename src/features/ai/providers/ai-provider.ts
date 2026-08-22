@@ -242,7 +242,7 @@ Loại bài tập bắt buộc: ${request.exerciseType}
 Độ khó bắt buộc: ${request.difficulty}`;
 
     const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 45_000);
+    const timeout = setTimeout(() => controller.abort(), 180_000);
     try {
       const response = await fetch(this.endpoint, {
         method: "POST",

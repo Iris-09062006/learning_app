@@ -6,7 +6,7 @@ import { describe, expect, it } from "vitest";
 const sql = readFileSync(
   resolve(process.cwd(), "supabase/migrations/020_separate_content_target_flows.sql"),
   "utf8",
-).toLowerCase();
+).replaceAll("\r\n", "\n").toLowerCase();
 
 describe("content destination migration", () => {
   it("creates course/chapter/lesson atomically for new content", () => {
