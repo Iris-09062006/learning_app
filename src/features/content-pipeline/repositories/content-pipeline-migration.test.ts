@@ -5,7 +5,7 @@ import { describe, expect, it } from "vitest";
 const sql = readFileSync(
   resolve(process.cwd(), "supabase/migrations/015_document_to_lesson.sql"),
   "utf8"
-);
+).replaceAll("\r\n", "\n");
 
 describe("document-to-lesson migration", () => {
   it("creates a private, bounded source bucket and protected pipeline tables", () => {

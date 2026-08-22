@@ -6,6 +6,10 @@ import { describe, expect, it } from "vitest";
 const sql = readFileSync(join(process.cwd(), "supabase/migrations/025_pdf_to_course_pipeline.sql"), "utf8");
 const publishHotfixSql = readFileSync(join(process.cwd(), "supabase/migrations/027_fix_course_publish_markdown_json_precedence.sql"), "utf8");
 const multiSourceSql = readFileSync(join(process.cwd(), "supabase/migrations/030_topic_course_multi_source.sql"), "utf8");
+const checkpointSql = readFileSync(join(
+  process.cwd(),
+  "supabase/migrations/031_lesson_generation_retry_checkpointing.sql"
+), "utf8");
 
 describe("PDF-to-Course migration", () => {
   it("creates normalized import, outline, Lesson content, review, and publication records", () => {
@@ -232,5 +236,48 @@ describe("topic Course multi-source compatibility migration", () => {
     expect(multiSourceSql).not.toMatch(/alter\s+table\s+public\.(course_drafts|course_outline_lessons|lesson_content_drafts|lesson_content_draft_citations|courses|chapters|lessons)/i);
     expect(multiSourceSql).not.toContain("create or replace function public.prepare_course_lesson_generation");
     expect(multiSourceSql).not.toMatch(/\b(embeddings?|pgvector|research_sessions)\b/i);
+  });
+});
+
+describe("Lesson generation retry checkpoint migration", () => {
+  it("reuses the approved outline and derives completion from ready per-Lesson drafts", () => {
+    expect(checkpointSql).toContain(
+      "coalesce(v_job.approved_outline_revision, v_job.current_outline_revision)"
+    );
+    expect(checkpointSql).toContain("d.revision = v_outline_revision");
+    expect(checkpointSql).toContain("draft.revision = v_job.approved_outline_revision");
+    expect(checkpointSql).toContain("content.status = 'ready'");
+    expect(checkpointSql).toContain("set status = 'generating_content'");
+    expect(checkpointSql).toContain("create or replace function public.reconcile_course_lesson_generation");
+    expect(checkpointSql).toContain("set status = 'content_review', error_code = null");
+    expect(checkpointSql).toContain("approved_outline_revision = v_outline_revision");
+  });
+
+  it("preserves completed Lesson checkpoints when preparing or failing a retry", () => {
+    expect(checkpointSql).not.toMatch(/(?:delete\s+from|truncate)\s+public\.lesson_content_drafts/i);
+    expect(checkpointSql).not.toMatch(/update\s+public\.lesson_content_drafts/i);
+    const failBody = sql.slice(
+      sql.indexOf("create or replace function public.fail_course_import_job"),
+      sql.indexOf("create or replace function public.revise_lesson_content_draft")
+    );
+    expect(failBody).toContain("update public.course_import_jobs set status = 'failed'");
+    expect(failBody).not.toContain("lesson_content_drafts");
+  });
+
+  it("keeps retry preparation restricted to authenticated active Admins", () => {
+    expect(checkpointSql).toContain("p.is_active and p.role = 'admin'");
+    expect(checkpointSql).toContain("security definer set search_path = ''");
+    expect(checkpointSql).toContain(
+      "revoke all on function public.prepare_course_lesson_generation(bigint) from public, anon"
+    );
+    expect(checkpointSql).toContain(
+      "grant execute on function public.prepare_course_lesson_generation(bigint) to authenticated"
+    );
+    expect(checkpointSql).toContain(
+      "revoke all on function public.reconcile_course_lesson_generation(bigint) from public, anon"
+    );
+    expect(checkpointSql).toContain(
+      "grant execute on function public.reconcile_course_lesson_generation(bigint) to authenticated"
+    );
   });
 });

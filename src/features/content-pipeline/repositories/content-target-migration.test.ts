@@ -5,7 +5,7 @@ import { describe, expect, it } from "vitest";
 const sql = readFileSync(
   resolve(process.cwd(), "supabase/migrations/018_create_lesson_content_target.sql"),
   "utf8",
-);
+).replaceAll("\r\n", "\n");
 
 describe("lesson content target migration", () => {
   it("creates a concurrency-safe unpublished lesson for an active admin", () => {
