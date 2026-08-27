@@ -1,5 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { validateGeneratedExerciseContent, validateGeneratedExerciseDraft } from "./exercise-draft";
+import {
+  ExerciseValidationError,
+  validateGeneratedExerciseContent,
+  validateGeneratedExerciseDraft,
+} from "./exercise-draft";
 
 const content = {
   title: "Dự đoán kết quả",
@@ -19,6 +23,24 @@ describe("generated Exercise draft validation", () => {
     expect(() => validateGeneratedExerciseContent({ ...content, leakedSolution: true })).toThrow("EXERCISE_DRAFT_INVALID");
     expect(() => validateGeneratedExerciseContent({ ...content, options: ["1", "1"] })).toThrow("EXERCISE_DRAFT_INVALID");
     expect(() => validateGeneratedExerciseContent({ ...content, correctAnswer: "3" })).toThrow("EXERCISE_DRAFT_INVALID");
+  });
+
+  it.each([
+    [{ ...content, unexpected: true }, "UNEXPECTED_EXERCISE_FIELD", "unexpected"],
+    [{ ...content, options: ["1"] }, "INVALID_OPTIONS", "options"],
+    [{ ...content, options: ["1", " "] }, "INVALID_OPTION", "options[1]"],
+    [{ ...content, options: ["1", "1"] }, "DUPLICATE_OPTION", "options[1]"],
+    [{ ...content, correctAnswer: "" }, "INVALID_CORRECT_ANSWER", "correctAnswer"],
+    [{ ...content, correctAnswer: "3" }, "ANSWER_NOT_IN_OPTIONS", "correctAnswer"],
+  ])("reports precise validation metadata for invalid content", (invalid, validationCode, fieldPath) => {
+    expect.assertions(3);
+    try {
+      validateGeneratedExerciseContent(invalid);
+    } catch (error: unknown) {
+      expect(error).toBeInstanceOf(ExerciseValidationError);
+      expect(error).toMatchObject({ validationCode, fieldPath });
+      expect(error).toHaveProperty("message", "EXERCISE_DRAFT_INVALID");
+    }
   });
 
   it("requires the editable wrapper and content title/description to agree", () => {

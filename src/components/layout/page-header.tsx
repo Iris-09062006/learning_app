@@ -20,19 +20,19 @@ export const PageHeader = forwardRef<HTMLElement, PageHeaderProps>(
     ref,
   ) {
     return (
-      <header ref={ref} className={cn("mb-8", className)} {...props}>
+      <header ref={ref} className={cn("mb-9", className)} {...props}>
         <div className="flex flex-wrap items-end justify-between gap-x-4 gap-y-3">
           <div className="min-w-0 max-w-3xl flex-1">
             {eyebrow ? (
-              <p className="mb-2 text-sm font-semibold uppercase tracking-wider text-primary">
+              <p className="mb-3 text-xs font-semibold uppercase tracking-[0.16em] text-primary">
                 {eyebrow}
               </p>
             ) : null}
-            <h1 className="break-words text-2xl font-bold tracking-tight md:text-[2rem] md:leading-10">
+            <h1 className="max-w-3xl break-words text-3xl font-semibold tracking-[-0.025em] [text-wrap:balance] md:text-[2.5rem] md:leading-[1.15]">
               {title}
             </h1>
             {description ? (
-              <p className="mt-3 break-words text-text-secondary">{description}</p>
+              <p className="mt-3 max-w-2xl break-words leading-7 text-text-secondary">{description}</p>
             ) : null}
           </div>
           {actions ? (

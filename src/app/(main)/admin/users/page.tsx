@@ -4,10 +4,11 @@ import { redirect } from "next/navigation";
 
 import { PageContainer } from "@/components/layout/page-container";
 import { PageHeader } from "@/components/layout/page-header";
+import { createProductTitle } from "@/config/product";
 import { UserManagementView } from "@/features/admin/components/user-management-view";
 import { AdminServiceError, listAdminUsers } from "@/features/admin/services/admin-service";
 
-export const metadata: Metadata = { title: "Quản lý người dùng | LearningApp" };
+export const metadata: Metadata = { title: createProductTitle("Quản lý người dùng") };
 export const dynamic = "force-dynamic";
 
 export default async function AdminUsersPage() {

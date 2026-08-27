@@ -378,8 +378,14 @@ export async function createGeneratedExerciseRecord(
   payload: CreateGeneratedExercisePayload
 ): Promise<GeneratedExerciseRecord> {
   const supabase = await createServerSupabaseClient();
+  const rpcFunction = "create_generated_exercise_draft";
+  console.info("[exercise-generation-diagnostic]", {
+    stage: "exercise_generation",
+    event: "exercise_persistence_started",
+    rpcFunction,
+  });
   const { data, error } = await supabase
-    .rpc("create_generated_exercise_draft", {
+    .rpc(rpcFunction, {
       p_lesson_id: payload.lesson_id,
       p_exercise_type: payload.exercise_type,
       p_difficulty: payload.difficulty,
@@ -389,8 +395,23 @@ export async function createGeneratedExerciseRecord(
     });
 
   if (error || !data) {
+    console.error("[exercise-generation-diagnostic]", {
+      stage: "exercise_generation",
+      event: "exercise_persistence_failure",
+      rpcFunction,
+      code: error?.code ?? null,
+      message: error?.message ?? null,
+      details: error?.details ?? null,
+      hint: error?.hint ?? null,
+    });
     throw new Error("DATABASE_ERROR");
   }
+
+  console.info("[exercise-generation-diagnostic]", {
+    stage: "exercise_generation",
+    event: "exercise_persistence_success",
+    rpcFunction,
+  });
 
   return data as unknown as GeneratedExerciseRecord;
 }

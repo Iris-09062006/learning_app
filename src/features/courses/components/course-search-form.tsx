@@ -29,7 +29,7 @@ export function CourseSearchForm({
       action="/courses"
       method="get"
       role="search"
-      className="mb-8 flex flex-col gap-3 sm:flex-row sm:items-end"
+      className="mb-8 flex flex-col gap-3 rounded-2xl border border-border bg-surface p-3 shadow-[0_18px_50px_-38px_rgba(0,0,0,0.75)] sm:flex-row sm:items-end"
     >
       <div className="flex-1">
         <Input
@@ -42,7 +42,7 @@ export function CourseSearchForm({
         />
       </div>
       <input type="hidden" name="pageSize" value={pageSize} />
-      <Button type="submit" className="px-5">
+      <Button type="submit" className="px-5 sm:mb-0">
         Tìm kiếm
       </Button>
       {search ? (

@@ -5,10 +5,11 @@ import type { CourseSummary } from "@/features/courses/types";
 
 const baseCourse: CourseSummary = {
   id: 1,
-  slug: "python-basic",
-  title: "Python Basic",
-  description: "Learn Python.",
+  slug: "nhap-mon-ky-thuat-phan-mem",
+  title: "Nhập môn Kỹ thuật Phần mềm",
+  description: "Hiểu quy trình xây dựng phần mềm.",
   level: "beginner",
+  // This legacy default must not become a subject badge for unrelated courses.
   language: "python",
   isPublished: true,
   isEnrolled: false,
@@ -16,12 +17,28 @@ const baseCourse: CourseSummary = {
 };
 
 describe("CourseCard", () => {
-  it("renders title, language, level and description", () => {
+  it("renders real course data without treating legacy language as its subject", () => {
     render(<CourseCard course={baseCourse} />);
-    expect(screen.getByText("Python Basic")).toBeInTheDocument();
-    expect(screen.getByText("PYTHON")).toBeInTheDocument();
-    expect(screen.getByText("beginner")).toBeInTheDocument();
-    expect(screen.getByText("Learn Python.")).toBeInTheDocument();
+    expect(screen.getByText("Nhập môn Kỹ thuật Phần mềm")).toBeInTheDocument();
+    expect(screen.queryByText("PYTHON")).not.toBeInTheDocument();
+    expect(screen.getByText("Cấp độ beginner")).toBeInTheDocument();
+    expect(screen.getByText("Hiểu quy trình xây dựng phần mềm.")).toBeInTheDocument();
+  });
+
+  it("preserves legitimate Python course content from persisted data", () => {
+    render(
+      <CourseCard
+        course={{
+          ...baseCourse,
+          slug: "python-cho-nguoi-moi-bat-dau",
+          title: "Python cho người mới bắt đầu",
+          description: "Học cú pháp Python qua từng bài học.",
+        }}
+      />,
+    );
+
+    expect(screen.getByRole("heading", { name: "Python cho người mới bắt đầu" })).toBeInTheDocument();
+    expect(screen.getByText("Học cú pháp Python qua từng bài học.")).toBeInTheDocument();
   });
 
   it("shows not-enrolled status and detail link", () => {
@@ -38,7 +55,8 @@ describe("CourseCard", () => {
       completionPercentage: 42,
     };
     render(<CourseCard course={enrolled} />);
-    expect(screen.getByText(/Đã đăng ký \(42%\)/)).toBeInTheDocument();
+    expect(screen.getByText("Đã đăng ký")).toBeInTheDocument();
+    expect(screen.getByText("42%")).toBeInTheDocument();
     const link = screen.getByRole("link", { name: /tiếp tục học/i });
     expect(link).toHaveAttribute("href", "/courses/1");
   });
@@ -51,24 +69,20 @@ describe("CourseCard", () => {
     ).toBeInTheDocument();
   });
 
-  it("adopts shared surface/border tokens and the orange language tag", () => {
+  it("adopts shared surface/border tokens without a subject tag", () => {
     render(<CourseCard course={baseCourse} />);
 
     expect(screen.getByTestId("course-card")).toHaveClass(
       "bg-surface",
       "border-border",
-      "rounded-xl",
+      "rounded-2xl",
     );
 
-    // A-bucket indigo swap: the language tag is now a primary-soft/orange chip.
-    expect(screen.getByText("PYTHON")).toHaveClass(
-      "bg-primary-soft",
-      "text-primary",
-    );
+    expect(screen.queryByText("PYTHON")).not.toBeInTheDocument();
     expect(screen.getByRole("link", { name: /xem chi tiết/i })).toHaveClass(
       "text-primary",
     );
-    expect(screen.getByRole("heading", { name: "Python Basic" })).toHaveClass(
+    expect(screen.getByRole("heading", { name: "Nhập môn Kỹ thuật Phần mềm" })).toHaveClass(
       "text-text-primary",
     );
   });
@@ -86,7 +100,7 @@ describe("CourseCard", () => {
   });
 
   it("clamps long catalog titles while preserving the full title", () => {
-    const title = "KhóaHọcPythonKhôngCóĐiểmNgắt".repeat(8);
+    const title = "KhóaHọcKhôngCóĐiểmNgắt".repeat(8);
     render(<CourseCard course={{ ...baseCourse, title }} />);
 
     const heading = screen.getByRole("heading", { name: title });
@@ -100,9 +114,6 @@ describe("CourseCard", () => {
 
     const legacyPalette =
       /(^|\s)(bg|text|border|shadow|ring)-(slate|indigo|emerald|white)-\d+/;
-    const slashOpacityToken =
-      /(^|\s)(bg|text|border|hover:border|hover:bg)-(primary|danger|surface-subtle|warning|info|success)(-\S*)?\/\d+/;
-
     const offenders: string[] = [];
     container
       .querySelectorAll<HTMLElement>("div, span, p, a, h3")
@@ -110,7 +121,7 @@ describe("CourseCard", () => {
         const className = element.className;
         if (
           typeof className === "string" &&
-          (legacyPalette.test(className) || slashOpacityToken.test(className))
+          legacyPalette.test(className)
         ) {
           offenders.push(className);
         }

@@ -21,7 +21,7 @@ test("registers, logs in, and reaches the learner dashboard", async ({ page }) =
   await expectNoSeriousA11yViolations(page);
 
   await page.keyboard.press("Tab");
-  await expect(page.getByRole("link", { name: "Về trang chủ Python Learning" })).toBeFocused();
+  await expect(page.getByRole("link", { name: "Về trang chủ LearningApp" })).toBeFocused();
   await expectVisibleKeyboardFocus(page);
   await page.keyboard.press("Tab");
   await expect(page.getByLabel("Tên hiển thị")).toBeFocused();

@@ -22,7 +22,7 @@ export async function loginAs(
 
 export async function enrollInSeedCourse(page: Page) {
   await page.goto("/courses");
-  await page.getByRole("link", { name: "Xem chi tiết" }).click();
+  await page.getByRole("link", { name: "Xem chi tiết" }).first().click();
   await expect(page.getByRole("heading", { name: "Python căn bản" })).toBeVisible();
   await page.getByRole("button", { name: "Đăng ký khóa học" }).click();
   const startButton = page.getByRole("button", { name: "Bắt đầu học" });

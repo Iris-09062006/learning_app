@@ -230,19 +230,19 @@ describe("ExerciseGenerationForm", () => {
     const { container } = render(<ExerciseGenerationForm context={baseContext} />);
 
     const submitButton = screen.getByRole("button", { name: "Sinh Exercise draft" });
-    expect(submitButton).toHaveClass("bg-primary", "text-on-primary", "rounded-lg");
+    expect(submitButton).toHaveClass("bg-primary", "text-on-primary", "rounded-xl");
     expect(screen.getByRole("link", { name: "← Chọn Lesson khác" })).toHaveClass("text-primary");
 
     const form = container.querySelector("form");
     expect(form).toHaveClass("grid", "gap-5", "p-6", "md:grid-cols-2");
     const formCard = form?.parentElement;
-    expect(formCard).toHaveClass("rounded-xl", "border", "border-border", "bg-surface", "shadow-sm");
+    expect(formCard).toHaveClass("rounded-2xl", "border", "border-border", "bg-surface");
 
     for (const select of screen.getAllByRole("combobox")) {
-      expect(select).toHaveClass("border-border", "bg-surface", "rounded-lg");
+      expect(select).toHaveClass("border-border", "bg-surface", "rounded-xl");
     }
     for (const input of screen.getAllByRole("textbox")) {
-      expect(input).toHaveClass("border-border", "bg-surface", "rounded-lg");
+      expect(input).toHaveClass("border-border", "bg-surface", "rounded-xl");
     }
 
     const objectivesAside = screen.getByRole("complementary");

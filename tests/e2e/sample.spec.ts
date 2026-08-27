@@ -9,9 +9,10 @@ test("renders the product landing page without a framework error", async ({ page
   await page.goto("/");
 
   await expect(
-    page.getByRole("heading", { name: /Học Python bằng cách/i }),
+    page.getByRole("heading", { name: /Học theo lộ trình/i }),
   ).toBeVisible();
-  await expect(page.getByText("AI Mentor an toàn")).toBeVisible();
+  await expect(page.getByText("AI hỗ trợ đúng lúc")).toBeVisible();
+  await expect(page.getByRole("list", { name: "Tiến độ mẫu của khóa học" })).toBeVisible();
   await expect(page.getByRole("link", { name: "Bắt đầu học" })).toHaveAttribute(
     "href",
     "/register",
@@ -21,7 +22,7 @@ test("renders the product landing page without a framework error", async ({ page
 
   await page.getByRole("link", { name: "Bắt đầu học" }).click();
   await expect(page).toHaveURL(/\/register$/);
-  await expect(page.getByRole("heading", { name: "Bắt đầu học Python" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Bắt đầu hành trình học" })).toBeVisible();
 });
 
 test("keeps onboarding and health routes out of the login redirect", async ({ request }) => {

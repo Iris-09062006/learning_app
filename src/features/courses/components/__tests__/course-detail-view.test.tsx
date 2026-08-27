@@ -13,10 +13,11 @@ import type { CourseDetail } from "@/features/courses/types";
 
 const baseDetail: CourseDetail = {
   id: 1,
-  slug: "python-basic",
-  title: "Python Basic",
-  description: "Learn Python from scratch.",
+  slug: "co-so-du-lieu",
+  title: "Cơ sở dữ liệu",
+  description: "Tìm hiểu mô hình dữ liệu và truy vấn.",
   level: "beginner",
+  // This legacy default must not become a subject badge for unrelated courses.
   language: "python",
   isPublished: true,
   chapterCount: 2,
@@ -36,12 +37,27 @@ describe("CourseDetailView", () => {
 
   it("renders course headers and basic stats", () => {
     render(<CourseDetailView course={baseDetail} />);
-    expect(screen.getByText("Python Basic")).toBeInTheDocument();
-    expect(screen.getByText("PYTHON")).toBeInTheDocument();
-    expect(screen.getByText("Cấp độ: beginner")).toBeInTheDocument();
-    expect(screen.getByText("Learn Python from scratch.")).toBeInTheDocument();
+    expect(screen.getByText("Cơ sở dữ liệu")).toBeInTheDocument();
+    expect(screen.queryByText("PYTHON")).not.toBeInTheDocument();
+    expect(screen.getByText("Cấp độ beginner")).toBeInTheDocument();
+    expect(screen.getByText("Tìm hiểu mô hình dữ liệu và truy vấn.")).toBeInTheDocument();
     expect(screen.getByText(/2 chương/)).toBeInTheDocument();
     expect(screen.getByText(/5 bài học/)).toBeInTheDocument();
+  });
+
+  it("preserves legitimate Python course identity from persisted data", () => {
+    render(
+      <CourseDetailView
+        course={{
+          ...baseDetail,
+          title: "Python cho người mới bắt đầu",
+          description: "Học Python qua bài học và bài tập.",
+        }}
+      />,
+    );
+
+    expect(screen.getByRole("heading", { level: 1, name: "Python cho người mới bắt đầu" })).toBeInTheDocument();
+    expect(screen.getByText("Học Python qua bài học và bài tập.")).toBeInTheDocument();
   });
 
   it("renders start-learning action when enrolled", () => {
@@ -154,27 +170,23 @@ describe("CourseDetailView", () => {
     expect(emptyState).toHaveClass("border-border", "bg-surface");
   });
 
-  it("adopts shared surface/border tokens and the orange brand accent", () => {
+  it("adopts shared surface/border tokens and the indigo brand accent", () => {
     render(<CourseDetailView course={baseDetail} />);
 
     // Header summary card → shared card tokens.
     expect(screen.getByTestId("course-detail-header")).toHaveClass(
       "bg-surface",
       "border-border",
-      "rounded-xl",
+      "rounded-3xl",
     );
 
-    // A-bucket indigo swap: language tag + chapter ordinal are primary-soft/orange chips.
-    expect(screen.getByText("PYTHON")).toHaveClass(
-      "bg-primary-soft",
-      "text-primary",
-    );
+    expect(screen.queryByText("PYTHON")).not.toBeInTheDocument();
 
     const firstChapterRow = screen.getAllByTestId("course-chapter-row")[0];
     expect(firstChapterRow).toHaveClass(
       "bg-surface",
       "border-border",
-      "rounded-xl",
+      "rounded-2xl",
     );
     expect(within(firstChapterRow).getByText("1")).toHaveClass(
       "bg-primary-soft",
@@ -183,7 +195,7 @@ describe("CourseDetailView", () => {
 
     // Headings and stats use text tokens; CTA is the shared primary Button.
     expect(
-      screen.getByRole("heading", { level: 1, name: "Python Basic" })
+      screen.getByRole("heading", { level: 1, name: "Cơ sở dữ liệu" })
     ).toHaveClass("text-text-primary");
     expect(
       screen.getByRole("button", { name: "Đăng ký khóa học" })
@@ -195,9 +207,6 @@ describe("CourseDetailView", () => {
 
     const legacyPalette =
       /(^|\s)(bg|text|border|shadow|ring)-(slate|indigo|emerald|white)-\d+/;
-    const slashOpacityToken =
-      /(^|\s)(bg|text|border|hover:border|hover:bg)-(primary|danger|surface-subtle|warning|info|success)(-\S*)?\/\d+/;
-
     const offenders: string[] = [];
     container
       .querySelectorAll<HTMLElement>("h1, h2, h3, p, span, div, button, svg")
@@ -205,7 +214,7 @@ describe("CourseDetailView", () => {
         const className = element.className;
         if (
           typeof className === "string" &&
-          (legacyPalette.test(className) || slashOpacityToken.test(className))
+          legacyPalette.test(className)
         ) {
           offenders.push(className);
         }

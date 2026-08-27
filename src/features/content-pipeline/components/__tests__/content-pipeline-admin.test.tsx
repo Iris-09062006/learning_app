@@ -647,7 +647,7 @@ describe("content pipeline Admin", () => {
     expect(courseCard).not.toBeNull();
     expect(courseCard!).toHaveClass("rounded-xl", "border-border", "bg-surface", "shadow-sm");
 
-    expect(screen.getByRole("button", { name: "Continue: sinh Lesson contents" })).toHaveClass("bg-primary", "text-on-primary", "rounded-lg");
+    expect(screen.getByRole("button", { name: "Continue: sinh Lesson contents" })).toHaveClass("bg-primary", "text-on-primary", "rounded-xl");
     expect(screen.getByText("outline_review · outline r1")).toHaveClass("bg-primary-soft", "text-primary");
 
     for (const field of [
@@ -655,7 +655,7 @@ describe("content pipeline Admin", () => {
       screen.getByLabelText("Description"),
       screen.getByLabelText("Course learning objectives (mỗi dòng một mục tiêu)"),
     ]) {
-      expect(field).toHaveClass("border-border", "bg-surface", "rounded-lg");
+      expect(field).toHaveClass("border-border", "bg-surface", "rounded-xl");
     }
 
     vi.restoreAllMocks();
@@ -668,7 +668,7 @@ describe("content pipeline Admin", () => {
     const second = render(<ContentPipelineAdmin />);
     containers.push(second.container);
 
-    expect(await screen.findByRole("button", { name: "Publish Course" })).toHaveClass("bg-primary", "text-on-primary", "rounded-lg");
+    expect(await screen.findByRole("button", { name: "Publish Course" })).toHaveClass("bg-primary", "text-on-primary", "rounded-xl");
 
     for (const container of containers) {
       for (const element of Array.from(container.querySelectorAll<HTMLElement>("*"))) {

@@ -3,6 +3,7 @@ import Link from "next/link";
 
 import { PageContainer } from "@/components/layout/page-container";
 import { PageHeader } from "@/components/layout/page-header";
+import { createProductTitle, PRODUCT_NAME } from "@/config/product";
 import { CourseList } from "@/features/courses/components/course-list";
 import {
   CourseSearchForm,
@@ -14,8 +15,8 @@ import {
 } from "@/features/courses/services/course-service";
 
 export const metadata: Metadata = {
-  title: "Danh sách khóa học | Python Learning Platform",
-  description: "Khám phá các khóa học Python đã được phát hành.",
+  title: createProductTitle("Danh sách khóa học"),
+  description: "Khám phá các khóa học đã được phát hành và chọn lộ trình phù hợp với bạn.",
 };
 
 interface CoursesPageProps {
@@ -37,9 +38,10 @@ export default async function CoursesPage({
     <main className="min-h-screen bg-background py-8 sm:py-10 lg:py-12">
       <PageContainer className="pb-16 lg:pb-0">
         <PageHeader
-          eyebrow="Python Learning Platform"
-          title="Danh sách khóa học"
-          description="Chọn một khóa học phù hợp với cấp độ của bạn và bắt đầu hành trình học Python."
+          eyebrow={`${PRODUCT_NAME} · Thư viện học tập`}
+          title="Khám phá khóa học"
+          description="Chọn một chủ đề phù hợp, xem trước lộ trình và bắt đầu học theo tốc độ của riêng bạn."
+          actions={<span className="rounded-full border border-border bg-surface px-3 py-1.5 text-sm text-text-secondary">{result.total} khóa học</span>}
         />
 
         <CourseSearchForm search={search} pageSize={result.pageSize} />

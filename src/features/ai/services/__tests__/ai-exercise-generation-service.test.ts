@@ -24,7 +24,10 @@ vi.mock("../../repositories/ai-repository", async (importOriginal) => {
   };
 });
 
-import type { AIProvider } from "../../providers/ai-provider";
+import {
+  ExerciseProviderDiagnosticError,
+  type AIProvider,
+} from "../../providers/ai-provider";
 import { AiServiceError, generateExercise } from "../ai-service";
 
 function serverClient(profile: { role: string; is_active: boolean } | null) {
@@ -42,6 +45,7 @@ function serverClient(profile: { role: string; is_active: boolean } | null) {
 
 describe("Lesson-scoped AI exercise generation", () => {
   beforeEach(() => {
+    vi.restoreAllMocks();
     vi.clearAllMocks();
     mocks.checkRateLimit.mockResolvedValue({ allowed: true, remaining: 19, retryAfterSeconds: 0 });
   });
@@ -64,6 +68,7 @@ describe("Lesson-scoped AI exercise generation", () => {
   });
 
   it("uses only the selected Lesson context and persists its lesson_id", async () => {
+    const infoSpy = vi.spyOn(console, "info").mockImplementation(() => undefined);
     mocks.createServerSupabaseClient.mockResolvedValue(serverClient({ role: "admin", is_active: true }));
     mocks.fetchLessonContextForGeneration.mockResolvedValue({
       lessonId: 51,
@@ -107,6 +112,87 @@ describe("Lesson-scoped AI exercise generation", () => {
     expect(mocks.createGeneratedExerciseRecord).toHaveBeenCalledWith(expect.objectContaining({
       lesson_id: 51,
     }));
+    expect(infoSpy).toHaveBeenCalledWith("[exercise-generation-diagnostic]", {
+      stage: "exercise_generation",
+      event: "exercise_parse_complete",
+    });
+  });
+
+  it("logs a precise safe field failure and preserves the public provider error", async () => {
+    const errorSpy = vi.spyOn(console, "error").mockImplementation(() => undefined);
+    mocks.createServerSupabaseClient.mockResolvedValue(serverClient({ role: "admin", is_active: true }));
+    mocks.fetchLessonContextForGeneration.mockResolvedValue({
+      lessonId: 51,
+      lessonTitle: "SECRET_LESSON",
+      lessonContent: "SECRET_CONTENT",
+      learningObjectives: ["SECRET_EVIDENCE"],
+      courseTitle: "Python",
+      courseDescription: null,
+    });
+    const provider: AIProvider = {
+      generateExplanation: vi.fn(),
+      generateExercise: vi.fn().mockResolvedValue({
+        content: {
+          title: "SECRET_QUESTION",
+          description: "Description",
+          codeSnippet: "",
+          options: ["SECRET_ANSWER_A", "SECRET_ANSWER_B"],
+          correctAnswer: "SECRET_UNKNOWN_ANSWER",
+          explanation: "SECRET_EXPLANATION",
+        },
+        provider: "mock",
+        model: null,
+      }),
+    };
+
+    await expect(generateExercise({
+      lessonId: 51,
+      exerciseType: "predict_output",
+      difficulty: "easy",
+      learningObjective: "SECRET_OBJECTIVE",
+    }, provider)).rejects.toEqual(expect.objectContaining({
+      code: "AI_PROVIDER_ERROR",
+      message: "Invalid response from AI provider.",
+    }) satisfies Partial<AiServiceError>);
+
+    expect(errorSpy).toHaveBeenCalledWith("[exercise-generation-validation-failure]", expect.objectContaining({
+      stage: "exercise_generation",
+      validationCode: "ANSWER_NOT_IN_OPTIONS",
+      fieldPath: "correctAnswer",
+      optionCount: 2,
+    }));
+    expect(JSON.stringify(errorSpy.mock.calls)).not.toMatch(
+      /SECRET_LESSON|SECRET_CONTENT|SECRET_EVIDENCE|SECRET_QUESTION|SECRET_ANSWER|SECRET_EXPLANATION|SECRET_OBJECTIVE/
+    );
+    expect(mocks.createGeneratedExerciseRecord).not.toHaveBeenCalled();
+  });
+
+  it("preserves the provider-failure message for transport diagnostics", async () => {
+    mocks.createServerSupabaseClient.mockResolvedValue(serverClient({ role: "admin", is_active: true }));
+    mocks.fetchLessonContextForGeneration.mockResolvedValue({
+      lessonId: 51,
+      lessonTitle: "Variables",
+      lessonContent: "x = 1",
+      learningObjectives: ["Understand assignment"],
+      courseTitle: "Python",
+      courseDescription: null,
+    });
+    const provider: AIProvider = {
+      generateExplanation: vi.fn(),
+      generateExercise: vi.fn().mockRejectedValue(
+        new ExerciseProviderDiagnosticError("PROVIDER_TIMEOUT", "$http")
+      ),
+    };
+
+    await expect(generateExercise({
+      lessonId: 51,
+      exerciseType: "predict_output",
+      difficulty: "easy",
+      learningObjective: "Understand assignment",
+    }, provider)).rejects.toEqual(expect.objectContaining({
+      code: "AI_PROVIDER_ERROR",
+      message: "Unable to generate exercise at this time.",
+    }) satisfies Partial<AiServiceError>);
   });
 
   it("rate-limits an active privileged actor before reading Lesson context", async () => {

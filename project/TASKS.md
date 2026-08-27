@@ -11,6 +11,25 @@
 
 ## Active Task
 
+`TASK-095` is verified locally: UI/UX Pro Max drives a visual-only redesign of the public landing,
+subject-neutral brand mark, authenticated navigation, and Course catalog/detail surfaces. Product
+behavior and data contracts stay unchanged; browser screenshots and all local gates pass.
+
+`TASK-094` is verified locally: production platform branding, landing/auth copy, catalog metadata,
+and Course presentation are course-agnostic while persisted Python Course/Lesson content remains
+intact. Focused/full tests, lint, typecheck, build, automated Chromium/SSR smoke, regression search,
+diff check, and review pass; no database, AI pipeline, deploy, push, or commit occurred.
+
+`TASK-093` is verified locally: the active Exercise provider explicitly requests a non-streaming
+JSON response with `stream: false` and `Accept: application/json`, while preserving the existing
+Authorization, Content-Type, model, schema, prompt, parser, validation, persistence, routing, and
+TASK-092 diagnostics. Focused tests, lint, typecheck, diff check, and review pass; no live call or commit.
+
+`TASK-092` is verified locally: safe metadata-only diagnostics now distinguish provider transport,
+HTTP, envelope, parser field, semantic, and persistence failures in the active one-Lesson Exercise
+generation path. Prompt/schema/model/router/frontend/database contracts remain unchanged; 43 focused
+mock tests, lint, typecheck, diff check, and review pass without a real provider call or commit.
+
 `TASK-091` is verified locally: one bounded semantic repair retry handles HTTP-successful but
 application-invalid responses from synthesis/blueprint, sections, and initial quality review while
 preserving schemas, prior-stage results, provider/network behavior, correction/re-review, and

@@ -87,7 +87,7 @@ describe("ProfileView", () => {
     container
       .querySelectorAll<HTMLElement>("h3")
       .forEach((title) => {
-        const card = title.closest("div.rounded-xl");
+        const card = title.closest("div.rounded-2xl");
         expect(card).not.toBeNull();
         expect(card).toHaveClass("bg-surface", "border-border");
       });

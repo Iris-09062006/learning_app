@@ -1,10 +1,11 @@
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 
+import { createProductTitle } from "@/config/product";
 import { CourseManagementView } from "@/features/admin/components/course-management-view";
 import { AdminServiceError, listAdminCourses } from "@/features/admin/services/admin-service";
 
-export const metadata: Metadata = { title: "Quản lý khóa học | LearningApp" };
+export const metadata: Metadata = { title: createProductTitle("Quản lý khóa học") };
 export const dynamic = "force-dynamic";
 
 export default async function AdminCoursesPage() {

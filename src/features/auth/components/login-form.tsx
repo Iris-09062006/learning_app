@@ -104,20 +104,15 @@ export function LoginForm({ notice }: LoginFormProps) {
   }
 
   return (
-    <Card className="w-full max-w-md border-slate-200/80 shadow-xl shadow-indigo-950/5">
+    <Card className="w-full max-w-md border-border bg-surface shadow-[0_28px_80px_-45px_rgba(99,102,241,0.45)]">
       <CardHeader className="space-y-3 px-6 pb-5 pt-7 sm:px-8 sm:pt-8">
-        <div
-          aria-hidden="true"
-          className="flex size-11 items-center justify-center rounded-2xl bg-indigo-50 text-xl font-bold text-indigo-600"
-        >
-          &gt;_
-        </div>
+        <p className="text-xs font-semibold uppercase tracking-[0.16em] text-primary">Tiếp tục lộ trình</p>
         <div className="space-y-2">
-          <h1 className="text-2xl font-bold tracking-tight sm:text-3xl">
+          <h1 className="text-2xl font-semibold tracking-[-0.025em] sm:text-3xl">
             Chào mừng trở lại
           </h1>
           <CardDescription className="text-sm leading-6 sm:text-base">
-            Đăng nhập để tiếp tục lộ trình học Python của bạn.
+            Đăng nhập để tiếp tục lộ trình học của bạn.
           </CardDescription>
         </div>
       </CardHeader>
@@ -126,7 +121,7 @@ export function LoginForm({ notice }: LoginFormProps) {
         {notice ? (
           <p
             role="status"
-            className="mb-5 rounded-xl border border-cyan-200 bg-cyan-50 px-4 py-3 text-sm leading-5 text-cyan-900"
+            className="mb-5 rounded-xl border border-info/30 bg-info-soft px-4 py-3 text-sm leading-5 text-info"
           >
             {notice}
           </p>
@@ -158,7 +153,7 @@ export function LoginForm({ notice }: LoginFormProps) {
           <div className="flex justify-end">
             <Link
               href="/forgot-password"
-              className="text-sm font-medium text-indigo-600 underline-offset-4 hover:underline"
+              className="text-sm font-medium text-primary underline-offset-4 hover:underline"
             >
               Quên mật khẩu?
             </Link>
@@ -167,7 +162,7 @@ export function LoginForm({ notice }: LoginFormProps) {
           {formError ? (
             <p
               role="alert"
-              className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm leading-5 text-red-700"
+              className="rounded-xl border border-danger/30 bg-danger-soft px-4 py-3 text-sm leading-5 text-danger"
             >
               {formError}
             </p>
@@ -185,11 +180,11 @@ export function LoginForm({ notice }: LoginFormProps) {
         </form>
       </CardContent>
 
-      <CardFooter className="justify-center border-t border-slate-100 px-6 py-5 text-sm text-slate-600 sm:px-8">
+      <CardFooter className="justify-center border-t border-border px-6 py-5 text-sm text-text-secondary sm:px-8">
         Chưa có tài khoản?&nbsp;
         <Link
           href="/register"
-          className="font-semibold text-indigo-600 underline-offset-4 hover:underline"
+          className="font-semibold text-primary underline-offset-4 hover:underline"
         >
           Đăng ký miễn phí
         </Link>

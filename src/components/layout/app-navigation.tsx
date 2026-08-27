@@ -4,6 +4,8 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useState } from "react";
 
+import { BrandMark } from "@/components/brand/brand-mark";
+import { PRODUCT_NAME } from "@/config/product";
 import type { CurrentUser, UserRole } from "@/features/auth/auth.types";
 
 interface AppNavigationProps {
@@ -64,16 +66,16 @@ export function AppNavigation({ user }: AppNavigationProps) {
 
   return (
     <>
-      <aside className="fixed inset-y-0 left-0 z-40 hidden w-72 flex-col border-r border-border bg-surface-container-lowest px-4 py-6 lg:flex">
-        <Link href="/" className="flex items-center gap-3 rounded-xl px-2 py-2 text-text-primary">
-          <span className="flex size-10 items-center justify-center rounded-xl bg-primary-container font-mono text-sm font-bold text-on-primary-container">Py</span>
+      <aside className="fixed inset-y-0 left-0 z-40 hidden w-64 flex-col border-r border-border bg-surface-container-lowest px-4 py-5 lg:flex">
+        <Link href="/" className="flex min-h-11 items-center gap-3 rounded-xl px-2 text-text-primary">
+          <BrandMark className="size-8 text-primary" />
           <span>
-            <span className="block font-bold tracking-tight">Python Learning</span>
+            <span className="block font-semibold tracking-[-0.02em]">{PRODUCT_NAME}</span>
             <span className="block text-xs text-text-secondary">Học theo lộ trình</span>
           </span>
         </Link>
 
-        <nav aria-label="Điều hướng chính" className="mt-8 flex flex-1 flex-col gap-1">
+        <nav aria-label="Điều hướng chính" className="mt-7 flex flex-1 flex-col gap-1">
           {visibleItems.map((item) => {
             const active = isActivePath(pathname, item.href);
             return (
@@ -81,8 +83,8 @@ export function AppNavigation({ user }: AppNavigationProps) {
                 key={item.href}
                 href={item.href}
                 aria-current={active ? "page" : undefined}
-                className={`flex min-h-11 items-center gap-3 rounded-xl px-3 text-sm font-semibold focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring focus-visible:ring-offset-2 focus-visible:ring-offset-surface-container-lowest ${
-                  active ? "bg-primary-soft text-primary" : "text-text-secondary hover:bg-surface-subtle hover:text-text-primary"
+                className={`flex min-h-11 items-center gap-3 rounded-xl border px-3 text-sm font-medium transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring focus-visible:ring-offset-2 focus-visible:ring-offset-surface-container-lowest ${
+                  active ? "border-primary/20 bg-primary-soft text-primary" : "border-transparent text-text-secondary hover:bg-surface-subtle hover:text-text-primary"
                 }`}
               >
                 <span
@@ -100,13 +102,15 @@ export function AppNavigation({ user }: AppNavigationProps) {
         <div className="border-t border-border pt-4">
           {user ? (
             <>
-              <p className="truncate px-2 text-sm font-semibold text-text-primary">{user.username}</p>
-              <p className="mt-1 px-2 text-xs capitalize text-text-secondary">{user.role}</p>
+              <div className="flex items-center gap-3 rounded-xl bg-surface-subtle p-3">
+                <span aria-hidden="true" className="flex size-8 shrink-0 items-center justify-center rounded-full bg-primary-soft text-xs font-semibold uppercase text-primary">{user.username.slice(0, 1)}</span>
+                <span className="min-w-0"><span className="block truncate text-sm font-semibold text-text-primary">{user.username}</span><span className="mt-0.5 block text-xs capitalize text-text-muted">{user.role}</span></span>
+              </div>
               <button
                 type="button"
                 onClick={handleSignOut}
                 disabled={isSigningOut}
-                className="mt-3 min-h-10 w-full rounded-lg border border-border px-3 text-sm font-semibold text-text-secondary hover:bg-surface-subtle disabled:cursor-wait disabled:opacity-60"
+                className="mt-3 min-h-11 w-full rounded-xl border border-border px-3 text-sm font-semibold text-text-secondary transition-colors duration-200 hover:bg-surface-subtle disabled:cursor-wait disabled:opacity-60"
               >
                 {isSigningOut ? "Đang đăng xuất…" : "Đăng xuất"}
               </button>
@@ -121,12 +125,12 @@ export function AppNavigation({ user }: AppNavigationProps) {
         </div>
       </aside>
 
-      <div className="fixed inset-x-0 top-0 z-30 flex h-14 items-center justify-between border-b border-border bg-surface px-4 lg:hidden">
+      <div className="fixed inset-x-0 top-0 z-30 flex h-16 items-center justify-between border-b border-border bg-surface/95 px-4 backdrop-blur lg:hidden">
         <Link
           href="/"
-          className="font-bold tracking-tight text-text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-focus-ring"
+          className="flex min-h-11 items-center gap-2 font-semibold tracking-tight text-text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-focus-ring"
         >
-          Python Learning
+          <BrandMark className="size-7 text-primary" /> {PRODUCT_NAME}
         </Link>
         {user ? (
           <span className="max-w-32 truncate text-sm text-text-secondary">{user.username}</span>

@@ -174,6 +174,15 @@ function tableRows(table) {
         language: "python",
         is_published: true,
       },
+      {
+        id: 2,
+        slug: "nhap-mon-ky-thuat-phan-mem",
+        title: "Nhập môn Kỹ thuật Phần mềm",
+        description: "Hiểu quy trình, yêu cầu và thiết kế phần mềm từ các nguồn học tập đã chọn.",
+        level: "beginner",
+        language: "python",
+        is_published: true,
+      },
     ],
     chapters: [
       {
@@ -184,6 +193,15 @@ function tableRows(table) {
         chapter_order: 1,
         is_published: true,
         lessons: [{ count: 2 }],
+      },
+      {
+        id: 12,
+        course_id: 2,
+        title: "Tổng quan Kỹ thuật Phần mềm",
+        description: "Các khái niệm nền tảng và lộ trình học.",
+        chapter_order: 1,
+        is_published: true,
+        lessons: [{ count: 0 }],
       },
     ],
     lessons: [

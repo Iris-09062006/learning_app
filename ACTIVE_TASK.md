@@ -1,12 +1,42 @@
 # Active Task Queue
 
-- **Active task:** `TASK-091` — Add Bounded Semantic Repair Retry for Primary Lesson Stages
+- **Active task:** `TASK-095` — UI/UX Pro Max Visual Redesign
 - **Status:** `VERIFIED` (uncommitted by user request)
 - **Owner / Reviewer:** Codex
 - **Deferred design task:** `TASK-047` (`DRAFT`)
 - **Previous blocked task:** `TASK-044` — external Supabase Redirect URL verification
 
 ## Current objective
+
+TASK-095 applies a verified visual-only, dark-first redesign to LearningApp: a new subject-neutral geometric
+brand mark, a more balanced landing hero and product preview, a coherent authenticated shell, and
+denser Course catalog/detail surfaces. Product behavior, real Course data, auth, Supabase, AI,
+database, permissions, publication, and progress semantics remain unchanged. Browser screenshots
+and local quality gates pass; no live AI call, deploy, push, or commit occurred.
+
+## Previous verified objective
+
+TASK-094 removes Python-only platform branding, copy, hero/demo, catalog badges, and SEO assumptions
+from the production learning UI. Platform chrome uses the established generic `LearningApp` name,
+while Course/Lesson identity continues to come from persisted server data. No database, AI pipeline,
+auth, publication, progress, deploy, push, or commit is in scope. Focused/full tests, lint, typecheck,
+build, automated Chromium smoke, SSR smoke, regression search, diff check, and final review pass.
+
+## Previous verified objective
+
+TASK-093 applies the smallest targeted fix for the proven Exercise-generation SSE mismatch: the
+active provider request explicitly sends `stream: false` and `Accept: application/json`. All
+TASK-092 diagnostics, prompt/schema/parser/validation/persistence/routing behavior, DB/frontend,
+and Lesson/Course generation remain unchanged; no live provider call or commit is authorized.
+
+## Previous verified objective
+
+TASK-092 adds metadata-only diagnostics to the active one-Lesson Exercise generation path so the
+next separately authorized real request identifies the precise provider-envelope, parser field, or
+persistence boundary. Prompt, schema, validation rules, retry behavior, provider/router/model,
+frontend, database schema, Lesson/Course generation, live provider calls, and commits are excluded.
+
+## Previous verified objective
 
 TASK-091 adds exactly one application-validation repair retry inside each of the three primary
 Lesson stages (`synthesis_blueprint`, `sections`, and `quality_review`). It preserves original stage

@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
 import { Be_Vietnam_Pro, JetBrains_Mono } from "next/font/google";
 
+import { PRODUCT_DESCRIPTION, PRODUCT_NAME } from "@/config/product";
+
 import "./globals.css";
 
 const beVietnamPro = Be_Vietnam_Pro({
@@ -16,8 +18,8 @@ const jetBrainsMono = JetBrains_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Python Learning Platform",
-  description: "Nền tảng học Python với lộ trình rõ ràng và trợ lý AI an toàn.",
+  title: PRODUCT_NAME,
+  description: PRODUCT_DESCRIPTION,
 };
 
 export default function RootLayout({

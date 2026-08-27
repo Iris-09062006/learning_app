@@ -6,7 +6,10 @@ import type {
   GeneratedExerciseContent,
   SubmissionDetailsForAi,
 } from "@/features/ai/types";
-import { validateGeneratedExerciseContent } from "@/features/ai/validation/exercise-draft";
+import {
+  ExerciseValidationError,
+  validateGeneratedExerciseContent,
+} from "@/features/ai/validation/exercise-draft";
 
 export interface AiProviderRequest {
   submission: SubmissionDetailsForAi;
@@ -108,7 +111,56 @@ interface OpenAIChatResponse {
   model?: string;
 }
 
-function parseGeneratedExerciseContent(value: string): GeneratedExerciseContent {
+export type ExerciseProviderDiagnosticCode =
+  | "INVALID_HTTP_RESPONSE"
+  | "PROVIDER_REQUEST_FAILED"
+  | "PROVIDER_TIMEOUT"
+  | "INVALID_PROVIDER_JSON_ENVELOPE"
+  | "MISSING_CHOICES"
+  | "MISSING_MESSAGE"
+  | "MISSING_CONTENT"
+  | "CONTENT_NOT_STRING"
+  | "EMPTY_CONTENT"
+  | "INVALID_EXERCISE_JSON";
+
+export class ExerciseProviderDiagnosticError extends Error {
+  constructor(
+    public readonly diagnosticCode: ExerciseProviderDiagnosticCode,
+    public readonly fieldPath: string
+  ) {
+    super(diagnosticCode);
+    this.name = "ExerciseProviderDiagnosticError";
+  }
+}
+
+function runtimeType(value: unknown): string {
+  if (value === null) return "null";
+  if (Array.isArray(value)) return "array";
+  return typeof value;
+}
+
+function logExerciseValidationFailure(error: ExerciseValidationError) {
+  console.error("[exercise-generation-validation-failure]", {
+    stage: "exercise_generation",
+    validationCode: error.validationCode,
+    fieldPath: error.fieldPath,
+    ...error.metadata,
+  });
+}
+
+function exerciseEnvelopeFailure(
+  diagnosticCode: ExerciseProviderDiagnosticCode,
+  fieldPath: string
+): ExerciseProviderDiagnosticError {
+  console.error("[exercise-generation-provider-envelope-failure]", {
+    stage: "exercise_generation",
+    validationCode: diagnosticCode,
+    fieldPath,
+  });
+  return new ExerciseProviderDiagnosticError(diagnosticCode, fieldPath);
+}
+
+export function parseGeneratedExerciseContent(value: string): GeneratedExerciseContent {
   const normalized = value
     .trim()
     .replace(/^```(?:json)?\s*/i, "")
@@ -119,11 +171,17 @@ function parseGeneratedExerciseContent(value: string): GeneratedExerciseContent 
   try {
     payload = JSON.parse(normalized);
   } catch {
-    throw new Error("AI_RESPONSE_INVALID");
+    throw exerciseEnvelopeFailure("INVALID_EXERCISE_JSON", "$");
   }
 
-  try { return validateGeneratedExerciseContent(payload); }
-  catch { throw new Error("AI_RESPONSE_INVALID"); }
+  try {
+    return validateGeneratedExerciseContent(payload);
+  } catch (error: unknown) {
+    if (error instanceof ExerciseValidationError) {
+      logExerciseValidationFailure(error);
+    }
+    throw error;
+  }
 }
 
 // Provider schema stays structural for Gemini OpenAI compatibility; the strict validator below
@@ -243,39 +301,114 @@ Loại bài tập bắt buộc: ${request.exerciseType}
 
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), 180_000);
+    const startedAt = Date.now();
+    const providerHost = (() => {
+      try { return new URL(this.endpoint).host; }
+      catch { return "invalid-provider-url"; }
+    })();
     try {
-      const response = await fetch(this.endpoint, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${this.apiKey}`,
-        },
-        signal: controller.signal,
-        body: JSON.stringify({
-          model: this.model,
-          messages: [
-            { role: "system", content: systemPrompt },
-            { role: "user", content: userContent },
-          ],
-          temperature: 0.4,
-          response_format: { type: "json_schema", json_schema: EXERCISE_SCHEMA },
-        }),
-      });
-
-      if (!response.ok) {
-        throw new Error("AI_PROVIDER_REQUEST_FAILED");
+      let response: Response;
+      try {
+        response = await fetch(this.endpoint, {
+          method: "POST",
+          headers: {
+            Accept: "application/json",
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${this.apiKey}`,
+          },
+          signal: controller.signal,
+          body: JSON.stringify({
+            model: this.model,
+            stream: false,
+            messages: [
+              { role: "system", content: systemPrompt },
+              { role: "user", content: userContent },
+            ],
+            temperature: 0.4,
+            response_format: { type: "json_schema", json_schema: EXERCISE_SCHEMA },
+          }),
+        });
+      } catch {
+        const timedOut = controller.signal.aborted;
+        const errorCode: ExerciseProviderDiagnosticCode = timedOut
+          ? "PROVIDER_TIMEOUT"
+          : "PROVIDER_REQUEST_FAILED";
+        console.error("[exercise-generation-provider-failure]", {
+          stage: "exercise_generation",
+          upstreamStatus: null,
+          providerHost,
+          durationMs: Date.now() - startedAt,
+          timeout: timedOut,
+          errorCode,
+        });
+        throw new ExerciseProviderDiagnosticError(errorCode, "$http");
       }
 
-      const payload = (await response.json()) as OpenAIChatResponse;
-      const rawContent = payload.choices?.[0]?.message?.content;
-      if (!rawContent?.trim()) {
-        throw new Error("AI_RESPONSE_INVALID");
+      if (!response.ok) {
+        console.error("[exercise-generation-provider-failure]", {
+          stage: "exercise_generation",
+          upstreamStatus: response.status,
+          providerHost,
+          durationMs: Date.now() - startedAt,
+          timeout: false,
+          errorCode: "INVALID_HTTP_RESPONSE",
+        });
+        throw new ExerciseProviderDiagnosticError("INVALID_HTTP_RESPONSE", "$http");
+      }
+
+      let payload: unknown;
+      try {
+        payload = await response.json();
+      } catch {
+        console.info("[exercise-generation-provider-response]", {
+          stage: "exercise_generation",
+          httpStatus: response.status,
+          httpContentType: response.headers?.get?.("content-type") ?? null,
+          providerModel: this.model,
+          choiceCount: 0,
+          contentType: "undefined",
+          contentLength: 0,
+        });
+        throw exerciseEnvelopeFailure("INVALID_PROVIDER_JSON_ENVELOPE", "$");
+      }
+
+      const envelope = payload as OpenAIChatResponse | null;
+      const choices = envelope && typeof envelope === "object" ? envelope.choices : undefined;
+      const message = Array.isArray(choices) ? choices[0]?.message : undefined;
+      const rawContent = message?.content;
+      console.info("[exercise-generation-provider-response]", {
+        stage: "exercise_generation",
+        httpStatus: response.status,
+        httpContentType: response.headers?.get?.("content-type") ?? null,
+        providerModel: envelope && typeof envelope.model === "string" ? envelope.model : this.model,
+        choiceCount: Array.isArray(choices) ? choices.length : 0,
+        contentType: runtimeType(rawContent),
+        contentLength: typeof rawContent === "string" ? rawContent.length : 0,
+      });
+
+      if (!envelope || typeof envelope !== "object" || Array.isArray(envelope)) {
+        throw exerciseEnvelopeFailure("INVALID_PROVIDER_JSON_ENVELOPE", "$");
+      }
+      if (!Array.isArray(choices) || choices.length === 0) {
+        throw exerciseEnvelopeFailure("MISSING_CHOICES", "choices");
+      }
+      if (!message || typeof message !== "object") {
+        throw exerciseEnvelopeFailure("MISSING_MESSAGE", "choices[0].message");
+      }
+      if (!("content" in message) || message.content === null || message.content === undefined) {
+        throw exerciseEnvelopeFailure("MISSING_CONTENT", "choices[0].message.content");
+      }
+      if (typeof rawContent !== "string") {
+        throw exerciseEnvelopeFailure("CONTENT_NOT_STRING", "choices[0].message.content");
+      }
+      if (!rawContent.trim()) {
+        throw exerciseEnvelopeFailure("EMPTY_CONTENT", "choices[0].message.content");
       }
 
       return {
         content: parseGeneratedExerciseContent(rawContent),
         provider: "openai-compatible",
-        model: payload.model ?? this.model,
+        model: envelope?.model ?? this.model,
       };
     } finally {
       clearTimeout(timeout);

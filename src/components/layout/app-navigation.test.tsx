@@ -53,20 +53,20 @@ describe("AppNavigation", () => {
     expect(screen.getAllByRole("link", { name: "Hệ thống" }).length).toBeGreaterThan(0);
   });
 
-  it("restyles the desktop sidebar with Stitch semantic tokens", () => {
+  it("uses the compact semantic desktop sidebar and geometric brand", () => {
     render(<AppNavigation user={null} />);
 
     const aside = document.querySelector("aside");
     expect(aside).not.toBeNull();
-    expect(aside?.className).toContain("w-72");
+    expect(aside?.className).toContain("w-64");
     expect(aside?.className).toContain("bg-surface-container-lowest");
     expect(aside?.className).toContain("border-border");
     expect(aside?.className).toContain("hidden");
     expect(aside?.className).toContain("lg:flex");
 
-    const brandTile = screen.getByText("Py");
-    expect(brandTile.className).toContain("bg-primary-container");
-    expect(brandTile.className).toContain("text-on-primary-container");
+    const brandLink = screen.getAllByRole("link", { name: "LearningApp" })[0];
+    expect(brandLink.querySelector("svg")).toHaveClass("text-primary");
+    expect(screen.queryByText("LA")).not.toBeInTheDocument();
 
     const guestRegister = screen.getByRole("link", { name: "Đăng ký" });
     expect(guestRegister.className).toContain("bg-primary");
@@ -84,7 +84,7 @@ describe("AppNavigation", () => {
     expect(coursesLink.className).toContain("bg-primary-soft");
     expect(coursesLink.className).toContain("text-primary");
     expect(coursesLink.className).toContain("focus-visible:ring-focus-ring");
-    expect(coursesLink.className).not.toContain("transition-colors");
+    expect(coursesLink.className).toContain("transition-colors");
 
     // Active marker text shares the primary foreground for a coherent pill.
     const marker = coursesLink.querySelector('[aria-hidden="true"]');
@@ -134,7 +134,7 @@ describe("AppNavigation", () => {
     expect(topBar?.className).toContain("border-border");
     expect(topBar?.className).toContain("lg:hidden");
 
-    const brandLink = within(topBar as HTMLElement).getByRole("link", { name: "Python Learning" });
+    const brandLink = within(topBar as HTMLElement).getByRole("link", { name: "LearningApp" });
     expect(brandLink).toHaveAttribute("href", "/");
     expect(brandLink.className).toContain("text-text-primary");
     expect(brandLink.className).toContain("focus-visible:ring-focus-ring");
@@ -178,7 +178,7 @@ describe("AppNavigation", () => {
     expect(coursesLink.className).toContain("bg-primary-soft");
     expect(coursesLink.className).toContain("text-primary");
     expect(coursesLink.className).toContain("focus-visible:ring-focus-ring");
-    expect(coursesLink.className).not.toContain("transition-colors");
+    expect(coursesLink.className).not.toContain("duration-300");
   });
 
   it("keeps inactive mobile tabs neutral with a subtle hover treatment", () => {

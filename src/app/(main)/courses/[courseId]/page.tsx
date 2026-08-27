@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { cache } from "react";
 
 import { PageContainer } from "@/components/layout/page-container";
+import { createProductTitle } from "@/config/product";
 import { CourseLearningRecommendation } from "@/features/ai/components/course-learning-recommendation";
 import { CourseDetailView } from "@/features/courses/components/course-detail-view";
 import { getCourseById } from "@/features/courses/services/course-service";
@@ -22,10 +23,8 @@ export async function generateMetadata({
   const course = await getCachedCourseById(Number(courseId));
 
   return {
-    title: course
-      ? `${course.title} | Python Learning Platform`
-      : "Không tìm thấy khóa học | Python Learning Platform",
-    description: course?.description ?? "Chi tiết khóa học Python.",
+    title: createProductTitle(course?.title ?? "Không tìm thấy khóa học"),
+    description: course?.description ?? "Thông tin chi tiết và lộ trình của khóa học.",
   };
 }
 

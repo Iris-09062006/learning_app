@@ -47,29 +47,37 @@ describe("course page request memoization", () => {
   it("shares the course detail load between metadata and page rendering", async () => {
     serviceMocks.getCourseById.mockResolvedValue({
       id: 401,
-      title: "Python foundations",
-      description: "Course description",
+      title: "Nhập môn Kỹ thuật Phần mềm",
+      description: "Hiểu quy trình xây dựng phần mềm.",
     });
     const params = Promise.resolve({ courseId: "401" });
 
-    await generateCourseMetadata({ params });
+    const metadata = await generateCourseMetadata({ params });
     await CourseDetailPage({ params });
 
+    expect(metadata).toMatchObject({
+      title: "Nhập môn Kỹ thuật Phần mềm | LearningApp",
+      description: "Hiểu quy trình xây dựng phần mềm.",
+    });
     expect(serviceMocks.getCourseById).toHaveBeenCalledTimes(1);
     expect(serviceMocks.getCourseById).toHaveBeenCalledWith(401);
   });
 
   it("shares the roadmap load between metadata and page rendering", async () => {
     serviceMocks.getCourseRoadmap.mockResolvedValue({
-      course: { id: 402, title: "Python roadmap" },
+      course: { id: 402, title: "Cơ sở dữ liệu" },
       completionPercentage: 0,
       chapters: [],
     });
     const params = Promise.resolve({ courseId: "402" });
 
-    await generateRoadmapMetadata({ params });
+    const metadata = await generateRoadmapMetadata({ params });
     await CourseRoadmapPage({ params });
 
+    expect(metadata).toMatchObject({
+      title: "Lộ trình: Cơ sở dữ liệu | LearningApp",
+      description: "Chi tiết lộ trình học cho khóa học Cơ sở dữ liệu",
+    });
     expect(serviceMocks.getCourseRoadmap).toHaveBeenCalledTimes(1);
     expect(serviceMocks.getCourseRoadmap).toHaveBeenCalledWith(402);
   });

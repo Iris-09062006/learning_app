@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import {
   createAiExplanationRecord,
+  createGeneratedExerciseRecord,
   fetchAiExplanationBySubmissionId,
   fetchAiExplanationHistory,
   fetchSubmissionDetailsForAi,
@@ -9,11 +10,13 @@ import {
 
 const mockGetUser = vi.fn();
 const mockFrom = vi.fn();
+const mockRpc = vi.fn();
 
 vi.mock("@/lib/supabase/server", () => ({
   createServerSupabaseClient: vi.fn(async () => ({
     auth: { getUser: mockGetUser },
     from: mockFrom,
+    rpc: mockRpc,
   })),
 }));
 
@@ -55,6 +58,7 @@ function createBuilder(result: unknown) {
 
 describe("ai repository", () => {
   beforeEach(() => {
+    vi.restoreAllMocks();
     vi.clearAllMocks();
   });
 
@@ -194,6 +198,65 @@ describe("ai repository", () => {
 
       expect(result.id).toBe(2);
       expect(result.provider).toBe("rest");
+    });
+  });
+
+  describe("createGeneratedExerciseRecord", () => {
+    const payload = {
+      lesson_id: 51,
+      exercise_type: "predict_output" as const,
+      difficulty: "easy" as const,
+      content: {
+        title: "SECRET_TITLE",
+        description: "SECRET_DESCRIPTION",
+        codeSnippet: "SECRET_CODE",
+        options: ["SECRET_OPTION_A", "SECRET_OPTION_B"],
+        correctAnswer: "SECRET_OPTION_A",
+        explanation: "SECRET_EXPLANATION",
+      },
+      provider: "openai-compatible",
+      model: "test-model",
+    };
+
+    it("logs persistence start and success without Exercise content", async () => {
+      const infoSpy = vi.spyOn(console, "info").mockImplementation(() => undefined);
+      mockRpc.mockResolvedValue({ data: { id: 88 }, error: null });
+
+      await createGeneratedExerciseRecord(payload);
+
+      expect(infoSpy).toHaveBeenNthCalledWith(1, "[exercise-generation-diagnostic]", {
+        stage: "exercise_generation",
+        event: "exercise_persistence_started",
+        rpcFunction: "create_generated_exercise_draft",
+      });
+      expect(infoSpy).toHaveBeenNthCalledWith(2, "[exercise-generation-diagnostic]", {
+        stage: "exercise_generation",
+        event: "exercise_persistence_success",
+        rpcFunction: "create_generated_exercise_draft",
+      });
+      expect(JSON.stringify(infoSpy.mock.calls)).not.toMatch(/SECRET_/);
+    });
+
+    it("logs only safe Supabase metadata on persistence failure", async () => {
+      const infoSpy = vi.spyOn(console, "info").mockImplementation(() => undefined);
+      const errorSpy = vi.spyOn(console, "error").mockImplementation(() => undefined);
+      mockRpc.mockResolvedValue({
+        data: null,
+        error: { code: "P0001", message: "safe message", details: "safe details", hint: "safe hint" },
+      });
+
+      await expect(createGeneratedExerciseRecord(payload)).rejects.toThrow("DATABASE_ERROR");
+
+      expect(errorSpy).toHaveBeenCalledWith("[exercise-generation-diagnostic]", {
+        stage: "exercise_generation",
+        event: "exercise_persistence_failure",
+        rpcFunction: "create_generated_exercise_draft",
+        code: "P0001",
+        message: "safe message",
+        details: "safe details",
+        hint: "safe hint",
+      });
+      expect(JSON.stringify([...infoSpy.mock.calls, ...errorSpy.mock.calls])).not.toMatch(/SECRET_/);
     });
   });
 
