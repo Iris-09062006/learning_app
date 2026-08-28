@@ -1,12 +1,23 @@
 # Active Task Queue
 
-- **Active task:** `TASK-097` — Subject-Agnostic Lesson Exercises
-- **Status:** `DONE` — pushed to `production-test-2` at `4a4fa6c3eb9fe23e028f14b1a3ded37b209bb510`
+- **Active task:** `TASK-098` — Lesson Exercise Card Cross-Browser Contrast
+- **Status:** `VERIFIED` — local only; commit explicitly deferred
 - **Owner / Reviewer:** Codex
 - **Deferred design task:** `TASK-047` (`DRAFT`)
 - **Previous blocked task:** `TASK-044` — external Supabase Redirect URL verification
 
 ## Current objective
+
+TASK-098 makes `/moderation/lessons` use the existing TASK-095 dark semantic surface and foreground
+tokens. Computed-style regressions pass in Chromium, installed Chrome, and installed Edge at
+1920×1080 and 1366×768 with title contrast 16.96:1 and no horizontal overflow. Firefox is not
+installed. Lint, typecheck, the full Vitest suite, build, diff check, and final review pass; no
+Exercise behavior, provider, database, auth, Supabase, deploy, push, or commit changed.
+
+## Previous completed objective
+
+TASK-097 is done and pushed to `production-test-2` at
+`4a4fa6c3eb9fe23e028f14b1a3ded37b209bb510`.
 
 TASK-097 replaces the programming-only Lesson Exercise contract with a subject-agnostic,
 type-discriminated contract selected from actual Lesson title, summary, objectives, and content.
