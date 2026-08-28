@@ -216,12 +216,12 @@ export async function getCourseRecommendation(
   if (currentLessonIndex === -1) {
     result.recommendation = {
       type: "COURSE_COMPLETED",
-      title: "KhÃ³a há»c hoÃ n táº¥t",
-      description: "ChÃºc má»«ng báº¡n Ä‘Ã£ hoÃ n thÃ nh táº¥t cáº£ bÃ i há»c trong khÃ³a há»c nÃ y.",
+      title: "Khóa học hoàn tất",
+      description: "Chúc mừng bạn đã hoàn thành tất cả bài học trong khóa học này.",
       targetUrl: `/courses/${courseId}`,
       lessonId: null,
       exerciseId: null,
-      reason: "Báº¡n Ä‘Ã£ hoÃ n thÃ nh 100% khÃ³a há»c.",
+      reason: "Bạn đã hoàn thành 100% khóa học.",
     };
     return result;
   }
@@ -242,24 +242,24 @@ export async function getCourseRecommendation(
   if (needsReview && stuckExercise) {
     result.recommendation = {
       type: "REVIEW_LESSON",
-      title: "Ã”n táº­p bÃ i há»c",
-      description: "CÃ³ váº» báº¡n Ä‘ang gáº·p khÃ³ khÄƒn. HÃ£y xem láº¡i ná»™i dung bÃ i há»c nhÃ©.",
+      title: "Ôn tập bài học",
+      description: "Có vẻ bạn đang gặp khó khăn. Hãy xem lại nội dung bài học nhé.",
       targetUrl: `/lessons/${currentLesson.id}`,
       lessonId: currentLesson.id,
       exerciseId: stuckExercise.id,
-      reason: "Gá»£i Ã½ Ã´n táº­p dá»±a trÃªn káº¿t quáº£ lÃ m bÃ i gáº§n Ä‘Ã¢y.",
+      reason: "Gợi ý ôn tập dựa trên kết quả làm bài gần đây.",
     };
     return result;
   }
 
   result.recommendation = {
     type: "NEXT_LESSON",
-    title: "Tiáº¿p tá»¥c há»c",
-    description: `BÃ i há»c tiáº¿p theo: ${currentLesson.title}`,
+    title: "Tiếp tục học",
+    description: `Bài học tiếp theo: ${currentLesson.title}`,
     targetUrl: `/lessons/${currentLesson.id}`,
     lessonId: currentLesson.id,
     exerciseId: null,
-    reason: "ÄÃ¢y lÃ  bÃ i há»c tiáº¿p theo trong lá»™ trÃ¬nh cá»§a báº¡n.",
+    reason: "Đây là bài học tiếp theo trong lộ trình của bạn.",
   };
 
   return result;
@@ -344,4 +344,3 @@ export async function generateExercise(
     throw new AiServiceError("AI_PROVIDER_ERROR", "Unable to generate exercise at this time.");
   }
 }
-

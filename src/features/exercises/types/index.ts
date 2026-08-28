@@ -109,4 +109,3 @@ export interface SubmissionSummary {
 export interface GetLearnerSubmissionsResponse {
   submissions: SubmissionSummary[];
 }
-

@@ -72,7 +72,7 @@ export async function fetchSubmissionDetailsForAi(
     exerciseId: submission.exercise_id,
     answer: submission.answer,
     isCorrect: submission.is_correct,
-    exerciseTitle: exercise?.title ?? "BÃ i táº­p",
+    exerciseTitle: exercise?.title ?? "Bài tập",
     exercisePrompt: exercise?.description ?? "",
     staticExplanation: solution?.static_explanation ?? null,
   };
@@ -483,4 +483,3 @@ export async function listPublishedExerciseLessonTargets(): Promise<ExerciseLess
     courseTitle: lesson.chapters.courses.title,
   }));
 }
-

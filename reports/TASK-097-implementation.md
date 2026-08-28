@@ -49,4 +49,3 @@ authorization.
 Before the current release, the provider/schema follow-up passed 52/52 focused tests, the full
 Vitest suite (1,211 passed, 1 skipped), lint, typecheck, production build, `git diff --check`, and
 secret review. No live AI request or application deployment was performed.
-

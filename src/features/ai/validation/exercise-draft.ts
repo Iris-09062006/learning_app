@@ -233,4 +233,3 @@ export function validateGeneratedExerciseDraft(value: unknown): GeneratedExercis
     content,
   };
 }
-

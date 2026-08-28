@@ -1,6 +1,6 @@
-# TASK-096 â€” UI Workflow Continuity and Auth-Aware Navigation
+# TASK-096 — UI Workflow Continuity and Auth-Aware Navigation
 
-- **Status:** `DONE` â€” `production-test-2` commit `6d08668f78b914d02fb6b1fed9edde8f7a855db2`
+- **Status:** `DONE` — `production-test-2` commit `6d08668f78b914d02fb6b1fed9edde8f7a855db2`
 - **Owner / Reviewer:** Codex
 - **Starting HEAD:** `dce587004fdcde228020a9ab4146187e687b0ba7`
 
@@ -55,4 +55,3 @@ No auth semantic/RBAC/schema change; no AI generation, 9Router, outline/Lesson/E
 TASK-090/TASK-091, publication-state, visual-system, dependency, or deploy change. The original
 no-push/no-commit exclusion was superseded by the user's 2026-08-28 request to release the verified
 work to `production-test-2` through GitHub MCP.
-

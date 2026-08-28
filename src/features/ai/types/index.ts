@@ -171,4 +171,3 @@ export interface GeneratedExerciseRecord {
 export interface GenerateExerciseResponse {
   generatedExercise: GeneratedExerciseRecord;
 }
-

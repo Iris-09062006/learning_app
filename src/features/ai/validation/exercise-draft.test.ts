@@ -7,12 +7,12 @@ import {
 
 const content = {
   type: "predict_output" as const,
-  title: "Dá»± Ä‘oÃ¡n káº¿t quáº£",
-  description: "ChÆ°Æ¡ng trÃ¬nh in gÃ¬?",
+  title: "Dự đoán kết quả",
+  description: "Chương trình in gì?",
   codeSnippet: "x = 1\nprint(x)",
   options: ["1", "2"],
   correctAnswer: "1",
-  explanation: "x Ä‘Æ°á»£c gÃ¡n giÃ¡ trá»‹ 1.",
+  explanation: "x được gán giá trị 1.",
 };
 
 describe("generated Exercise draft validation", () => {
@@ -64,7 +64,7 @@ describe("generated Exercise draft validation", () => {
 
   it("requires the editable wrapper and content title/description to agree", () => {
     expect(() => validateGeneratedExerciseDraft({
-      title: "KhÃ¡c",
+      title: "Khác",
       description: content.description,
       exerciseType: "predict_output",
       difficulty: "easy",
@@ -72,4 +72,3 @@ describe("generated Exercise draft validation", () => {
     })).toThrow("EXERCISE_DRAFT_INVALID");
   });
 });
-

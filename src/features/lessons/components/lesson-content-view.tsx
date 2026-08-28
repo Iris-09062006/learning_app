@@ -14,29 +14,29 @@ interface LessonContentViewProps {
 }
 
 const statusDetails: Record<Exclude<ProgressStatus, "locked">, { label: string; classes: string }> = {
-  unlocked: { label: "Sáºµn sÃ ng", classes: "bg-warning-soft text-warning" },
-  inProgress: { label: "Äang há»c", classes: "bg-info-soft text-info" },
-  completed: { label: "HoÃ n thÃ nh", classes: "bg-success-soft text-success" },
+  unlocked: { label: "Sẵn sàng", classes: "bg-warning-soft text-warning" },
+  inProgress: { label: "Đang học", classes: "bg-info-soft text-info" },
+  completed: { label: "Hoàn thành", classes: "bg-success-soft text-success" },
 };
 
 function formatExerciseType(type: string): string {
   const labels: Record<string, string> = {
-    multiple_choice: "Tráº¯c nghiá»‡m",
-    true_false: "ÄÃºng / sai",
-    short_answer: "Tráº£ lá»i ngáº¯n",
-    ordering: "Sáº¯p xáº¿p",
-    matching: "GhÃ©p cáº·p",
-    scenario: "TÃ¬nh huá»‘ng",
-    fix_the_bug: "Sá»­a lá»—i",
-    predict_output: "ÄoÃ¡n káº¿t quáº£",
+    multiple_choice: "Trắc nghiệm",
+    true_false: "Đúng / sai",
+    short_answer: "Trả lời ngắn",
+    ordering: "Sắp xếp",
+    matching: "Ghép cặp",
+    scenario: "Tình huống",
+    fix_the_bug: "Sửa lỗi",
+    predict_output: "Đoán kết quả",
   };
   return labels[type] ?? type.replaceAll("_", " ");
 }
 
 function formatDifficulty(difficulty: string): string {
-  if (difficulty === "easy") return "Dá»…";
-  if (difficulty === "hard") return "KhÃ³";
-  return "Trung bÃ¬nh";
+  if (difficulty === "easy") return "Dễ";
+  if (difficulty === "hard") return "Khó";
+  return "Trung bình";
 }
 
 export const LessonContentView: React.FC<LessonContentViewProps> = ({ lesson }) => {
@@ -78,13 +78,13 @@ export const LessonContentView: React.FC<LessonContentViewProps> = ({ lesson }) 
       };
 
       if (!response.ok || !payload.success) {
-        throw new Error(payload.error?.message || "KhÃ´ng thá»ƒ báº¯t Ä‘áº§u bÃ i há»c.");
+        throw new Error(payload.error?.message || "Không thể bắt đầu bài học.");
       }
 
       setStatus(payload.data?.status === "completed" ? "completed" : "inProgress");
       setShouldFocusContent(true);
     } catch (error: unknown) {
-      setErrorMessage(error instanceof Error ? error.message : "KhÃ´ng thá»ƒ báº¯t Ä‘áº§u bÃ i há»c.");
+      setErrorMessage(error instanceof Error ? error.message : "Không thể bắt đầu bài học.");
     } finally {
       setIsStarting(false);
     }
@@ -106,13 +106,13 @@ export const LessonContentView: React.FC<LessonContentViewProps> = ({ lesson }) 
       };
 
       if (!response.ok || !payload.success) {
-        throw new Error(payload.error?.message || "KhÃ´ng thá»ƒ má»Ÿ bÃ i há»c tiáº¿p theo.");
+        throw new Error(payload.error?.message || "Không thể mở bài học tiếp theo.");
       }
 
       router.push(`/lessons/${lesson.nextLesson.id}`);
     } catch (error: unknown) {
       setAdvanceErrorMessage(
-        error instanceof Error ? error.message : "KhÃ´ng thá»ƒ má»Ÿ bÃ i há»c tiáº¿p theo.",
+        error instanceof Error ? error.message : "Không thể mở bài học tiếp theo.",
       );
       setIsAdvancing(false);
     }
@@ -120,10 +120,10 @@ export const LessonContentView: React.FC<LessonContentViewProps> = ({ lesson }) 
 
   return (
     <div data-testid="lesson-content-view" className="min-w-0 space-y-8 pb-16 lg:pb-0">
-      <nav aria-label="Äiá»u hÆ°á»›ng bÃ i há»c">
+      <nav aria-label="Điều hướng bài học">
         <Link href="/courses" className="inline-flex items-center gap-2 text-sm font-medium text-text-secondary transition hover:text-primary">
-          <span aria-hidden="true">â†</span>
-          Quay láº¡i khÃ³a há»c
+          <span aria-hidden="true">←</span>
+          Quay lại khóa học
         </Link>
       </nav>
 
@@ -131,13 +131,13 @@ export const LessonContentView: React.FC<LessonContentViewProps> = ({ lesson }) 
         <div className="grid grid-cols-1 gap-6 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-end">
           <div className="min-w-0 max-w-3xl">
             <div className="flex flex-wrap items-center gap-3">
-              <span className="rounded-full bg-primary-container px-3 py-1 text-xs font-bold uppercase tracking-[0.16em] text-on-primary-container">BÃ i {lesson.order}</span>
+              <span className="rounded-full bg-primary-container px-3 py-1 text-xs font-bold uppercase tracking-[0.16em] text-on-primary-container">Bài {lesson.order}</span>
               <span className={`rounded-full px-3 py-1 text-xs font-semibold ${visibleStatus.classes}`}>{visibleStatus.label}</span>
-              {lesson.estimatedMinutes !== null && <span className="text-sm text-text-muted">Khoáº£ng {lesson.estimatedMinutes} phÃºt</span>}
+              {lesson.estimatedMinutes !== null && <span className="text-sm text-text-muted">Khoảng {lesson.estimatedMinutes} phút</span>}
             </div>
             <h1 className="mt-4 max-w-3xl break-words text-2xl font-bold tracking-tight text-text-primary sm:text-[2rem] sm:leading-10">{lesson.title}</h1>
             <p className="mt-3 max-w-2xl text-base leading-7 text-text-secondary sm:text-lg">
-              {isContentVisible ? "Tiáº¿p tá»¥c tá»« ná»™i dung bÃªn dÆ°á»›i vÃ  hoÃ n thÃ nh cÃ¡c bÃ i táº­p Ä‘á»ƒ cá»§ng cá»‘ kiáº¿n thá»©c." : "Báº¯t Ä‘áº§u khi báº¡n Ä‘Ã£ sáºµn sÃ ng. Ná»™i dung bÃ i há»c sáº½ má»Ÿ ngay táº¡i Ä‘Ã¢y."}
+              {isContentVisible ? "Tiếp tục từ nội dung bên dưới và hoàn thành các bài tập để củng cố kiến thức." : "Bắt đầu khi bạn đã sẵn sàng. Nội dung bài học sẽ mở ngay tại đây."}
             </p>
           </div>
 
@@ -174,47 +174,47 @@ export const LessonContentView: React.FC<LessonContentViewProps> = ({ lesson }) 
                   </svg>
                 )}
               </span>
-              {isStarting ? "Äang má»Ÿ bÃ i há»c..." : isContentVisible ? (status === "completed" ? "Ã”n láº¡i ná»™i dung" : "Tiáº¿p tá»¥c há»c") : "Báº¯t Ä‘áº§u bÃ i há»c"}
+              {isStarting ? "Đang mở bài học..." : isContentVisible ? (status === "completed" ? "Ôn lại nội dung" : "Tiếp tục học") : "Bắt đầu bài học"}
             </Button>
-            <p className="text-center text-xs text-text-muted lg:text-right">Tiáº¿n Ä‘á»™ Ä‘Æ°á»£c lÆ°u tá»± Ä‘á»™ng</p>
+            <p className="text-center text-xs text-text-muted lg:text-right">Tiến độ được lưu tự động</p>
           </div>
         </div>
 
         {errorMessage && <p id="lesson-start-error" role="alert" className="mt-5 rounded-xl border border-danger bg-danger-soft px-4 py-3 text-sm font-medium text-danger">{errorMessage}</p>}
-        <p className="sr-only" aria-live="polite">{isStarting ? "Äang má»Ÿ bÃ i há»c" : isContentVisible ? "Ná»™i dung bÃ i há»c Ä‘Ã£ sáºµn sÃ ng" : ""}</p>
+        <p className="sr-only" aria-live="polite">{isStarting ? "Đang mở bài học" : isContentVisible ? "Nội dung bài học đã sẵn sàng" : ""}</p>
       </header>
 
       {!isContentVisible ? (
         <section aria-labelledby="lesson-preview-title" className="rounded-xl border border-dashed border-primary bg-primary-soft px-6 py-10 text-center sm:px-10">
-          <div className="mx-auto flex size-14 items-center justify-center rounded-xl bg-surface text-2xl shadow-sm" aria-hidden="true">ðŸ“–</div>
-          <h2 id="lesson-preview-title" className="mt-5 text-xl font-bold text-text-primary">Ná»™i dung Ä‘ang chá» báº¡n</h2>
-          <p className="mx-auto mt-2 max-w-lg text-sm leading-6 text-text-secondary">Nháº¥n â€œBáº¯t Ä‘áº§u bÃ i há»câ€ Ä‘á»ƒ ghi nháº­n tiáº¿n Ä‘á»™ vÃ  má»Ÿ toÃ n bá»™ ná»™i dung.</p>
+          <div className="mx-auto flex size-14 items-center justify-center rounded-xl bg-surface text-2xl shadow-sm" aria-hidden="true">📖</div>
+          <h2 id="lesson-preview-title" className="mt-5 text-xl font-bold text-text-primary">Nội dung đang chờ bạn</h2>
+          <p className="mx-auto mt-2 max-w-lg text-sm leading-6 text-text-secondary">Nhấn “Bắt đầu bài học” để ghi nhận tiến độ và mở toàn bộ nội dung.</p>
         </section>
       ) : (
         <div className="grid grid-cols-1 gap-6 lg:grid-cols-[minmax(0,1fr)_15rem] lg:items-start">
           <div className="min-w-0 space-y-8">
             <article ref={contentRef} tabIndex={-1} aria-labelledby="lesson-body-title" className="scroll-mt-20 rounded-xl border border-border bg-surface p-6 shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background sm:p-8">
               <div className="mb-8 flex items-center gap-4 border-b border-border pb-4">
-                <span className="flex size-10 items-center justify-center rounded-xl bg-primary-soft text-lg" aria-hidden="true">âœ¦</span>
+                <span className="flex size-10 items-center justify-center rounded-xl bg-primary-soft text-lg" aria-hidden="true">✦</span>
                 <div>
-                  <p className="text-xs font-bold uppercase tracking-[0.16em] text-primary">Ná»™i dung chÃ­nh</p>
-                  <h2 id="lesson-body-title" className="mt-2 text-xl font-semibold leading-7 text-text-primary">BÃ i há»c</h2>
+                  <p className="text-xs font-bold uppercase tracking-[0.16em] text-primary">Nội dung chính</p>
+                  <h2 id="lesson-body-title" className="mt-2 text-xl font-semibold leading-7 text-text-primary">Bài học</h2>
                 </div>
               </div>
-              {lesson.content?.trim() ? <LessonMarkdown content={lesson.content} /> : <div className="rounded-xl bg-surface-subtle px-5 py-8 text-center text-sm text-text-secondary">Ná»™i dung bÃ i há»c Ä‘ang Ä‘Æ°á»£c cáº­p nháº­t.</div>}
+              {lesson.content?.trim() ? <LessonMarkdown content={lesson.content} /> : <div className="rounded-xl bg-surface-subtle px-5 py-8 text-center text-sm text-text-secondary">Nội dung bài học đang được cập nhật.</div>}
             </article>
 
             <section aria-labelledby="lesson-exercises-title" className="rounded-xl border border-border bg-surface p-6 shadow-sm sm:p-8">
               <div className="flex flex-wrap items-end justify-between gap-3">
                 <div>
-                  <p className="text-xs font-bold uppercase tracking-[0.16em] text-primary">Luyá»‡n táº­p</p>
-                  <h2 id="lesson-exercises-title" className="mt-2 text-xl font-semibold leading-7 text-text-primary">BÃ i táº­p cá»§a bÃ i há»c</h2>
+                  <p className="text-xs font-bold uppercase tracking-[0.16em] text-primary">Luyện tập</p>
+                  <h2 id="lesson-exercises-title" className="mt-2 text-xl font-semibold leading-7 text-text-primary">Bài tập của bài học</h2>
                 </div>
-                {lesson.exercises.length > 0 && <span className="rounded-full bg-surface-subtle px-3 py-1 text-xs font-semibold text-text-secondary">{lesson.exercises.length} bÃ i</span>}
+                {lesson.exercises.length > 0 && <span className="rounded-full bg-surface-subtle px-3 py-1 text-xs font-semibold text-text-secondary">{lesson.exercises.length} bài</span>}
               </div>
 
               {lesson.exercises.length === 0 ? (
-                <div className="mt-6 rounded-xl border border-dashed border-border-strong bg-surface-subtle px-5 py-8 text-center text-sm text-text-secondary">ChÆ°a cÃ³ bÃ i táº­p cho bÃ i há»c nÃ y. Báº¡n cÃ³ thá»ƒ xem láº¡i ná»™i dung phÃ­a trÃªn.</div>
+                <div className="mt-6 rounded-xl border border-dashed border-border-strong bg-surface-subtle px-5 py-8 text-center text-sm text-text-secondary">Chưa có bài tập cho bài học này. Bạn có thể xem lại nội dung phía trên.</div>
               ) : (
                 <div className="mt-6 grid gap-4">
                   {lesson.exercises.map((exercise) => (
@@ -223,10 +223,10 @@ export const LessonContentView: React.FC<LessonContentViewProps> = ({ lesson }) 
                         <span className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-primary-soft text-sm font-extrabold text-primary">{exercise.order}</span>
                         <div className="min-w-0">
                           <h3 className="break-words text-base font-semibold leading-6 text-text-primary">{exercise.title}</h3>
-                          <p className="mt-1 text-sm text-text-secondary">{formatExerciseType(exercise.type)} Â· {formatDifficulty(exercise.difficulty)}</p>
+                          <p className="mt-1 text-sm text-text-secondary">{formatExerciseType(exercise.type)} · {formatDifficulty(exercise.difficulty)}</p>
                         </div>
                       </div>
-                      <Link href={`/exercises/${exercise.id}`} className="inline-flex min-h-10 shrink-0 items-center justify-center rounded-xl border border-primary bg-surface px-4 py-2 text-sm font-bold text-primary transition group-hover:bg-primary group-hover:text-text-inverse focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background">LÃ m bÃ i <span aria-hidden="true" className="ml-2">â†’</span></Link>
+                      <Link href={`/exercises/${exercise.id}`} className="inline-flex min-h-10 shrink-0 items-center justify-center rounded-xl border border-primary bg-surface px-4 py-2 text-sm font-bold text-primary transition group-hover:bg-primary group-hover:text-text-inverse focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background">Làm bài <span aria-hidden="true" className="ml-2">→</span></Link>
                     </article>
                   ))}
                 </div>
@@ -234,13 +234,13 @@ export const LessonContentView: React.FC<LessonContentViewProps> = ({ lesson }) 
             </section>
 
             {isContentVisible && lesson.nextLesson ? (
-              <nav aria-label="BÃ i tiáº¿p theo" className="relative rounded-xl border border-border bg-surface p-5">
+              <nav aria-label="Bài tiếp theo" className="relative rounded-xl border border-border bg-surface p-5">
                 <span aria-hidden="true" className="absolute inset-y-5 left-0 w-1 rounded-r-md bg-primary" />
                 <div className="sm:flex sm:items-center sm:justify-between sm:gap-4">
                   <div className="min-w-0">
-                    <p className="text-xs font-bold uppercase tracking-[0.16em] text-primary">BÃ i tiáº¿p theo</p>
+                    <p className="text-xs font-bold uppercase tracking-[0.16em] text-primary">Bài tiếp theo</p>
                     <p className="mt-1 break-words font-bold text-text-primary">{lesson.nextLesson.title}</p>
-                    <p className="mt-1 text-sm text-text-secondary">Báº¡n cÃ³ thá»ƒ tiáº¿p tá»¥c ngay; bÃ i hiá»‡n táº¡i váº«n giá»¯ Ä‘Ãºng tiáº¿n Ä‘á»™ Ä‘Ã£ Ä‘áº¡t.</p>
+                    <p className="mt-1 text-sm text-text-secondary">Bạn có thể tiếp tục ngay; bài hiện tại vẫn giữ đúng tiến độ đã đạt.</p>
                   </div>
                   <Button
                     type="button"
@@ -250,7 +250,7 @@ export const LessonContentView: React.FC<LessonContentViewProps> = ({ lesson }) 
                     aria-describedby={advanceErrorMessage ? "lesson-next-error" : undefined}
                     className="mt-3 shrink-0 gap-2 sm:mt-0"
                   >
-                    {isAdvancing ? "Äang má»Ÿ..." : "Tiáº¿p theo"} <span aria-hidden="true">â†’</span>
+                    {isAdvancing ? "Đang mở..." : "Tiếp theo"} <span aria-hidden="true">→</span>
                   </Button>
                 </div>
                 {advanceErrorMessage ? (
@@ -262,20 +262,19 @@ export const LessonContentView: React.FC<LessonContentViewProps> = ({ lesson }) 
             ) : null}
           </div>
 
-          <aside aria-label="ThÃ´ng tin bÃ i há»c" className="min-w-0 space-y-4 lg:sticky lg:top-6">
+          <aside aria-label="Thông tin bài học" className="min-w-0 space-y-4 lg:sticky lg:top-6">
             <div className="rounded-xl border border-border bg-surface p-5 shadow-sm">
-              <p className="text-xs font-bold uppercase tracking-[0.16em] text-text-muted">Tá»•ng quan</p>
+              <p className="text-xs font-bold uppercase tracking-[0.16em] text-text-muted">Tổng quan</p>
               <dl className="mt-4 space-y-4 text-sm">
-                <div className="flex items-center justify-between gap-3"><dt className="text-text-secondary">Tráº¡ng thÃ¡i</dt><dd className="font-semibold text-text-primary">{visibleStatus.label}</dd></div>
-                <div className="flex items-center justify-between gap-3"><dt className="text-text-secondary">Thá»i lÆ°á»£ng</dt><dd className="font-semibold text-text-primary">{lesson.estimatedMinutes ?? "â€”"}{lesson.estimatedMinutes !== null ? " phÃºt" : ""}</dd></div>
-                <div className="flex items-center justify-between gap-3"><dt className="text-text-secondary">BÃ i táº­p</dt><dd className="font-semibold text-text-primary">{lesson.exercises.length}</dd></div>
+                <div className="flex items-center justify-between gap-3"><dt className="text-text-secondary">Trạng thái</dt><dd className="font-semibold text-text-primary">{visibleStatus.label}</dd></div>
+                <div className="flex items-center justify-between gap-3"><dt className="text-text-secondary">Thời lượng</dt><dd className="font-semibold text-text-primary">{lesson.estimatedMinutes ?? "—"}{lesson.estimatedMinutes !== null ? " phút" : ""}</dd></div>
+                <div className="flex items-center justify-between gap-3"><dt className="text-text-secondary">Bài tập</dt><dd className="font-semibold text-text-primary">{lesson.exercises.length}</dd></div>
               </dl>
             </div>
-            <Link href="/courses" className="flex min-h-11 items-center justify-center rounded-xl border border-border bg-surface px-4 py-2 text-sm font-semibold text-text-secondary transition hover:border-primary hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background">Xem lá»™ trÃ¬nh khÃ¡c</Link>
+            <Link href="/courses" className="flex min-h-11 items-center justify-center rounded-xl border border-border bg-surface px-4 py-2 text-sm font-semibold text-text-secondary transition hover:border-primary hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background">Xem lộ trình khác</Link>
           </aside>
         </div>
       )}
     </div>
   );
 };
-

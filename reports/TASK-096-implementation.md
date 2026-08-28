@@ -44,4 +44,3 @@ UI/UX Pro Max checks informed server-first auth rendering, persistent semantic n
 mutation controls, labeled inputs, focus visibility, touch targets, and serious accessibility scans.
 Context7 Next.js 15 documentation confirmed that cookie-backed server rendering makes the route
 dynamic and that refreshed server truth is reconciled without a full browser reload.
-

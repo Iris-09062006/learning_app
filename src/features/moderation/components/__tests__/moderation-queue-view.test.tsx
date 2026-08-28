@@ -14,12 +14,12 @@ function json(data: unknown): Response {
 
 const content: GeneratedExerciseContent = {
   type: "predict_output",
-  title: "BÃ i táº­p kiá»ƒm duyá»‡t 1",
-  description: "MÃ´ táº£ bÃ i táº­p 1",
+  title: "Bài tập kiểm duyệt 1",
+  description: "Mô tả bài tập 1",
   codeSnippet: "let x = 1;",
   options: ["A", "B"],
   correctAnswer: "A",
-  explanation: "Giáº£i thÃ­ch Ä‘Ã¡p Ã¡n.",
+  explanation: "Giải thích đáp án.",
 };
 
 function queueItem(
@@ -29,11 +29,11 @@ function queueItem(
   return {
     id,
     lessonId: 100 + id,
-    lessonTitle: `BÃ i há»c ${id}`,
+    lessonTitle: `Bài học ${id}`,
     exerciseType: "predict_output",
     difficulty: "easy",
-    title: `BÃ i táº­p kiá»ƒm duyá»‡t ${id}`,
-    description: `MÃ´ táº£ bÃ i táº­p ${id}`,
+    title: `Bài tập kiểm duyệt ${id}`,
+    description: `Mô tả bài tập ${id}`,
     content,
     status,
     provider: "9router",
@@ -70,32 +70,32 @@ describe("ModerationQueueView", () => {
     );
     render(<ModerationQueueView />);
 
-    expect(await screen.findByText("BÃ i táº­p kiá»ƒm duyá»‡t 1")).toBeInTheDocument();
-    expect(screen.getByText("BÃ i táº­p kiá»ƒm duyá»‡t 2")).toBeInTheDocument();
-    expect(screen.getByText("BÃ i táº­p kiá»ƒm duyá»‡t 3")).toBeInTheDocument();
-    expect(screen.getByText("MÃ´ táº£ bÃ i táº­p 1")).toBeInTheDocument();
-    expect(screen.getByText("BÃ i há»c 1")).toBeInTheDocument();
+    expect(await screen.findByText("Bài tập kiểm duyệt 1")).toBeInTheDocument();
+    expect(screen.getByText("Bài tập kiểm duyệt 2")).toBeInTheDocument();
+    expect(screen.getByText("Bài tập kiểm duyệt 3")).toBeInTheDocument();
+    expect(screen.getByText("Mô tả bài tập 1")).toBeInTheDocument();
+    expect(screen.getByText("Bài học 1")).toBeInTheDocument();
 
     expect(
       screen.getByRole("heading", {
         level: 1,
-        name: "HÃ ng Ä‘á»£i kiá»ƒm duyá»‡t bÃ i táº­p",
+        name: "Hàng đợi kiểm duyệt bài tập",
       }),
     ).toBeInTheDocument();
 
-    const createLink = screen.getByRole("link", { name: "Táº¡o Exercise" });
+    const createLink = screen.getByRole("link", { name: "Tạo Exercise" });
     expect(createLink).toHaveAttribute("href", "/moderation/lessons");
     expect(createLink).toHaveClass("bg-primary", "text-on-primary", "rounded-lg");
 
     expect(
       screen
-        .getAllByRole("link", { name: "Xem & duyá»‡t" })
+        .getAllByRole("link", { name: "Xem & duyệt" })
         .map((link) => link.getAttribute("href")),
     ).toEqual(["/moderation/1", "/moderation/2", "/moderation/3"]);
   });
 
   it("truncates long queue-card titles without discarding the accessible value", async () => {
-    const title = "BÃ iTáº­pKiá»ƒmDuyá»‡tKhÃ´ngCÃ³Äiá»ƒmNgáº¯t".repeat(8);
+    const title = "BàiTậpKiểmDuyệtKhôngCóĐiểmNgắt".repeat(8);
     vi.spyOn(globalThis, "fetch").mockResolvedValue(
       json(queueResult([{ ...queueItem(1), title, description: title }])),
     );
@@ -127,24 +127,24 @@ describe("ModerationQueueView", () => {
     render(<ModerationQueueView />);
 
     expect(
-      await screen.findByText("Chá» duyá»‡t", { selector: "span" }),
+      await screen.findByText("Chờ duyệt", { selector: "span" }),
     ).toHaveClass("bg-warning-soft", "text-warning");
-    expect(screen.getByText("ÄÃ£ duyá»‡t", { selector: "span" })).toHaveClass(
+    expect(screen.getByText("Đã duyệt", { selector: "span" })).toHaveClass(
       "bg-success-soft",
       "text-success",
     );
     expect(
-      screen.getByText("Cáº§n chá»‰nh sá»­a", { selector: "span" }),
+      screen.getByText("Cần chỉnh sửa", { selector: "span" }),
     ).toHaveClass("bg-info-soft", "text-info");
-    expect(screen.getByText("Tá»« chá»‘i", { selector: "span" })).toHaveClass(
+    expect(screen.getByText("Từ chối", { selector: "span" })).toHaveClass(
       "bg-danger-soft",
       "text-danger",
     );
-    expect(screen.getByText("ÄÃ£ xuáº¥t báº£n", { selector: "span" })).toHaveClass(
+    expect(screen.getByText("Đã xuất bản", { selector: "span" })).toHaveClass(
       "bg-primary-soft",
       "text-primary",
     );
-    expect(screen.getByText("KhÃ¡c", { selector: "span" })).toHaveClass(
+    expect(screen.getByText("Khác", { selector: "span" })).toHaveClass(
       "bg-surface-subtle",
       "text-text-secondary",
     );
@@ -157,12 +157,12 @@ describe("ModerationQueueView", () => {
 
     render(<ModerationQueueView />);
 
-    await screen.findByText("BÃ i táº­p kiá»ƒm duyá»‡t 1");
+    await screen.findByText("Bài tập kiểm duyệt 1");
     expect(String(fetchMock.mock.calls[0][0])).toContain(
       "/api/moderation/generated-exercises?status=pending&page=1&limit=10",
     );
 
-    fireEvent.change(screen.getByLabelText("Tráº¡ng thÃ¡i:"), {
+    fireEvent.change(screen.getByLabelText("Trạng thái:"), {
       target: { value: "approved" },
     });
 
@@ -180,9 +180,9 @@ describe("ModerationQueueView", () => {
 
     render(<ModerationQueueView />);
 
-    await screen.findByText("BÃ i táº­p kiá»ƒm duyá»‡t 1");
+    await screen.findByText("Bài tập kiểm duyệt 1");
 
-    const previous = screen.getByRole("button", { name: "TrÆ°á»›c" });
+    const previous = screen.getByRole("button", { name: "Trước" });
     const next = screen.getByRole("button", { name: "Sau" });
     expect(previous).toBeDisabled();
     expect(next).toBeEnabled();
@@ -193,7 +193,7 @@ describe("ModerationQueueView", () => {
         "/api/moderation/generated-exercises?status=pending&page=2&limit=10",
       ),
     );
-    expect(screen.getByText("Trang 2 / 3 (25 má»¥c)")).toBeInTheDocument();
+    expect(screen.getByText("Trang 2 / 3 (25 mục)")).toBeInTheDocument();
 
     fireEvent.click(next);
     await waitFor(() =>
@@ -201,7 +201,7 @@ describe("ModerationQueueView", () => {
         "/api/moderation/generated-exercises?status=pending&page=3&limit=10",
       ),
     );
-    expect(screen.getByText("Trang 3 / 3 (25 má»¥c)")).toBeInTheDocument();
+    expect(screen.getByText("Trang 3 / 3 (25 mục)")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Sau" })).toBeDisabled();
   });
 
@@ -212,10 +212,10 @@ describe("ModerationQueueView", () => {
     render(<ModerationQueueView />);
 
     expect(screen.getByRole("status")).toHaveAttribute("aria-busy", "true");
-    expect(screen.getByText("Äang táº£i danh sÃ¡ch...")).toBeInTheDocument();
+    expect(screen.getByText("Đang tải danh sách...")).toBeInTheDocument();
 
     const alert = await screen.findByRole("alert");
-    expect(alert).toHaveTextContent("Lá»—i táº£i danh sÃ¡ch");
+    expect(alert).toHaveTextContent("Lỗi tải danh sách");
     expect(alert).toHaveTextContent("Network down");
     expect(alert).toHaveClass("border-danger", "bg-danger-soft");
   });
@@ -228,7 +228,7 @@ describe("ModerationQueueView", () => {
 
     const alert = await screen.findByRole("alert");
     expect(alert).toHaveTextContent(
-      "Báº¡n khÃ´ng cÃ³ quyá»n truy cáº­p. Cáº§n quyá»n ngÆ°á»i duyá»‡t.",
+      "Bạn không có quyền truy cập. Cần quyền người duyệt.",
     );
   });
 
@@ -238,7 +238,7 @@ describe("ModerationQueueView", () => {
 
     const emptyState = await screen.findByRole("status");
     expect(emptyState).toHaveTextContent(
-      "KhÃ´ng cÃ³ bÃ i táº­p nÃ o khá»›p vá»›i bá»™ lá»c hiá»‡n táº¡i.",
+      "Không có bài tập nào khớp với bộ lọc hiện tại.",
     );
     expect(emptyState).toHaveAttribute("data-state", "empty");
   });
@@ -259,7 +259,7 @@ describe("ModerationQueueView", () => {
     );
     const { container } = render(<ModerationQueueView />);
 
-    expect(await screen.findAllByText(/BÃ i táº­p kiá»ƒm duyá»‡t/u)).toHaveLength(6);
+    expect(await screen.findAllByText(/Bài tập kiểm duyệt/u)).toHaveLength(6);
 
     for (const element of Array.from(
       container.querySelectorAll<HTMLElement>("*"),
@@ -281,4 +281,3 @@ describe("ModerationQueueView", () => {
     }
   });
 });
-

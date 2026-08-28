@@ -17,9 +17,9 @@ const choiceTypes = new Set(["multiple_choice", "true_false", "scenario", "predi
 
 function typeLabel(type: GetExerciseResponse["type"]): string {
   return ({
-    multiple_choice: "Tráº¯c nghiá»‡m", true_false: "ÄÃºng / sai", short_answer: "Tráº£ lá»i ngáº¯n",
-    ordering: "Sáº¯p xáº¿p", matching: "GhÃ©p cáº·p", scenario: "TÃ¬nh huá»‘ng",
-    predict_output: "ÄoÃ¡n káº¿t quáº£ code", fix_the_bug: "Sá»­a lá»—i code",
+    multiple_choice: "Trắc nghiệm", true_false: "Đúng / sai", short_answer: "Trả lời ngắn",
+    ordering: "Sắp xếp", matching: "Ghép cặp", scenario: "Tình huống",
+    predict_output: "Đoán kết quả code", fix_the_bug: "Sửa lỗi code",
   } satisfies Record<GetExerciseResponse["type"], string>)[type];
 }
 
@@ -61,11 +61,11 @@ export const ExerciseView: React.FC<ExerciseViewProps> = ({ exercise }) => {
         method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ answer: buildAnswer() }),
       });
       const payload = (await response.json()) as SubmitEnvelope;
-      if (!response.ok || !payload.success) throw new Error(payload.error?.message || "KhÃ´ng thá»ƒ ná»™p bÃ i táº­p.");
-      if (!payload.data) throw new Error("Pháº£n há»“i khÃ´ng há»£p lá»‡.");
+      if (!response.ok || !payload.success) throw new Error(payload.error?.message || "Không thể nộp bài tập.");
+      if (!payload.data) throw new Error("Phản hồi không hợp lệ.");
       setResult(payload.data); router.refresh();
     } catch (error: unknown) {
-      setErrorMessage(error instanceof Error ? error.message : "KhÃ´ng thá»ƒ ná»™p bÃ i táº­p.");
+      setErrorMessage(error instanceof Error ? error.message : "Không thể nộp bài tập.");
     } finally { setIsSubmitting(false); }
   }
 
@@ -85,7 +85,7 @@ export const ExerciseView: React.FC<ExerciseViewProps> = ({ exercise }) => {
     <div data-testid="exercise-view" className="min-w-0 space-y-6">
       <div className="rounded-xl border border-border bg-surface p-6 shadow-sm">
         <div className="flex flex-wrap items-center justify-between gap-3">
-          <span className="rounded-full bg-primary-container px-3 py-1 text-xs font-semibold text-on-primary-container">BÃ i táº­p {exercise.order}</span>
+          <span className="rounded-full bg-primary-container px-3 py-1 text-xs font-semibold text-on-primary-container">Bài tập {exercise.order}</span>
           <span className="text-xs text-text-muted">{typeLabel(exercise.type)} &bull; {exercise.difficulty}</span>
         </div>
         <h1 className="mt-3 break-words text-xl font-bold text-text-primary">{exercise.title}</h1>
@@ -97,7 +97,7 @@ export const ExerciseView: React.FC<ExerciseViewProps> = ({ exercise }) => {
 
       <div className="rounded-xl border border-border bg-surface p-6 shadow-sm">
         <h2 className="text-sm font-semibold uppercase tracking-wide text-text-muted">
-          {exercise.type === "short_answer" ? "Nháº­p cÃ¢u tráº£ lá»i" : exercise.type === "ordering" ? "Sáº¯p xáº¿p theo thá»© tá»± Ä‘Ãºng" : exercise.type === "matching" ? "GhÃ©p tá»«ng má»¥c" : "Chá»n Ä‘Ã¡p Ã¡n"}
+          {exercise.type === "short_answer" ? "Nhập câu trả lời" : exercise.type === "ordering" ? "Sắp xếp theo thứ tự đúng" : exercise.type === "matching" ? "Ghép từng mục" : "Chọn đáp án"}
         </h2>
         {exercise.type === "fix_the_bug" ? (
           <div className="mt-4"><FixTheBugDragDrop options={options} value={selectedOptionId} onChange={setSelectedOptionId} /></div>
@@ -112,32 +112,31 @@ export const ExerciseView: React.FC<ExerciseViewProps> = ({ exercise }) => {
             })}
           </div>
         ) : exercise.type === "short_answer" ? (
-          <div className="mt-4"><Input id="short-answer" label="CÃ¢u tráº£ lá»i" maxLength={1000} value={answerText} onChange={(event) => setAnswerText(event.target.value)} /></div>
+          <div className="mt-4"><Input id="short-answer" label="Câu trả lời" maxLength={1000} value={answerText} onChange={(event) => setAnswerText(event.target.value)} /></div>
         ) : exercise.type === "ordering" ? (
           <ol className="mt-4 space-y-3">
             {orderedOptions.map((option, index) => <li key={option.id} className="flex items-center gap-3 rounded-xl border border-border bg-surface p-3">
               <span className="w-6 shrink-0 text-center text-sm font-semibold text-text-muted">{index + 1}</span><span className="min-w-0 flex-1 break-words text-sm text-text-primary">{option.content}</span>
-              <Button type="button" size="sm" variant="outline" aria-label={`ÄÆ°a ${option.content} lÃªn`} disabled={index === 0} onClick={() => moveOrderingItem(index, -1)}>â†‘</Button>
-              <Button type="button" size="sm" variant="outline" aria-label={`ÄÆ°a ${option.content} xuá»‘ng`} disabled={index === orderedOptions.length - 1} onClick={() => moveOrderingItem(index, 1)}>â†“</Button>
+              <Button type="button" size="sm" variant="outline" aria-label={`Đưa ${option.content} lên`} disabled={index === 0} onClick={() => moveOrderingItem(index, -1)}>↑</Button>
+              <Button type="button" size="sm" variant="outline" aria-label={`Đưa ${option.content} xuống`} disabled={index === orderedOptions.length - 1} onClick={() => moveOrderingItem(index, 1)}>↓</Button>
             </li>)}
           </ol>
         ) : (
           <div className="mt-4 space-y-4">
             {options.map((option) => <Select key={option.id} id={`match-${option.id}`} label={option.content} value={matches[option.id] ?? ""} onChange={(event) => setMatches((current) => ({ ...current, [option.id]: event.target.value }))}>
-              <option value="">Chá»n váº¿ phÃ¹ há»£p</option>{matchingAnswers.map((answer) => <option key={answer} value={answer}>{answer}</option>)}
+              <option value="">Chọn vế phù hợp</option>{matchingAnswers.map((answer) => <option key={answer} value={answer}>{answer}</option>)}
             </Select>)}
           </div>
         )}
 
         <div className="mt-6 flex flex-col items-start gap-3">
-          <Button type="button" onClick={handleSubmit} disabled={isSubmitting || !canSubmit}>{isSubmitting ? "Äang ná»™p..." : result ? "Ná»™p láº¡i" : "Ná»™p bÃ i"}</Button>
+          <Button type="button" onClick={handleSubmit} disabled={isSubmitting || !canSubmit}>{isSubmitting ? "Đang nộp..." : result ? "Nộp lại" : "Nộp bài"}</Button>
           {errorMessage && <p role="alert" className="max-w-md rounded-lg border border-danger bg-danger-soft px-4 py-3 text-xs text-danger">{errorMessage}</p>}
           {result && <div role="status" className={["w-full rounded-xl border p-5 text-sm shadow-sm", result.isCorrect ? "border-success bg-success-soft text-success" : "border-danger bg-danger-soft text-danger"].join(" ")}>
-            <p className="font-semibold">{result.isCorrect ? "ChÃ­nh xÃ¡c!" : "ChÆ°a chÃ­nh xÃ¡c"}</p><p className="mt-1 whitespace-pre-wrap break-words">{result.feedback}</p>{!result.isCorrect ? <AiExplanationView submissionId={result.submissionId} /> : null}
+            <p className="font-semibold">{result.isCorrect ? "Chính xác!" : "Chưa chính xác"}</p><p className="mt-1 whitespace-pre-wrap break-words">{result.feedback}</p>{!result.isCorrect ? <AiExplanationView submissionId={result.submissionId} /> : null}
           </div>}
         </div>
       </div>
     </div>
   );
 };
-

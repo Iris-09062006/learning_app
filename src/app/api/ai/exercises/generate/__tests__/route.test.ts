@@ -32,16 +32,16 @@ const MOCK_GENERATED_EXERCISE: GeneratedExerciseRecord = {
   lessonId: 10,
   exerciseType: "predict_output",
   difficulty: "medium",
-  title: "Luyá»‡n táº­p: Biáº¿n sá»‘",
-  description: "BÃ i táº­p medium vá» Biáº¿n sá»‘.",
+  title: "Luyện tập: Biến số",
+  description: "Bài tập medium về Biến số.",
   content: {
     type: "predict_output",
-    title: "Luyá»‡n táº­p: Biáº¿n sá»‘",
-    description: "BÃ i táº­p medium vá» Biáº¿n sá»‘.",
+    title: "Luyện tập: Biến số",
+    description: "Bài tập medium về Biến số.",
     codeSnippet: 'console.log("Hello");',
     options: ["Hello", "Error", "undefined"],
     correctAnswer: "Hello",
-    explanation: "ÄÃ¢y lÃ  giáº£i thÃ­ch máº«u.",
+    explanation: "Đây là giải thích mẫu.",
   },
   status: "pending",
   provider: "mock",
@@ -124,8 +124,8 @@ describe("POST /api/ai/exercises/generate", () => {
       const request = createJsonRequest({
         lessonId: 10,
         difficulty: "medium",
-        learningObjective: "Biáº¿n sá»‘ trong JS",
-        topicHint: "Tá»« khÃ³a let",
+        learningObjective: "Biến số trong JS",
+        topicHint: "Từ khóa let",
       });
 
       const response = await POST(request);
@@ -136,8 +136,8 @@ describe("POST /api/ai/exercises/generate", () => {
       expect(aiService.generateExercise).toHaveBeenCalledWith({
         lessonId: 10,
         difficulty: "medium",
-        learningObjective: "Biáº¿n sá»‘ trong JS",
-        topicHint: "Tá»« khÃ³a let",
+        learningObjective: "Biến số trong JS",
+        topicHint: "Từ khóa let",
       });
       expect(JSON.stringify(data)).not.toMatch(/Tavily|raw_content|request_id/i);
     });
@@ -150,7 +150,7 @@ describe("POST /api/ai/exercises/generate", () => {
       const request = createJsonRequest({
         lessonId: 10,
         difficulty: "medium",
-        learningObjective: "Biáº¿n sá»‘",
+        learningObjective: "Biến số",
       });
 
       const response = await POST(request);
@@ -168,7 +168,7 @@ describe("POST /api/ai/exercises/generate", () => {
       const request = createJsonRequest({
         lessonId: 10,
         difficulty: "medium",
-        learningObjective: "Biáº¿n sá»‘",
+        learningObjective: "Biến số",
       });
 
       const response = await POST(request);
@@ -186,7 +186,7 @@ describe("POST /api/ai/exercises/generate", () => {
       const request = createJsonRequest({
         lessonId: 10,
         difficulty: "medium",
-        learningObjective: "Biáº¿n sá»‘",
+        learningObjective: "Biến số",
       });
 
       const response = await POST(request);
@@ -204,7 +204,7 @@ describe("POST /api/ai/exercises/generate", () => {
       const response = await POST(createJsonRequest({
         lessonId: 10,
         difficulty: "medium",
-        learningObjective: "Biáº¿n sá»‘",
+        learningObjective: "Biến số",
       }));
       const data = await response.json();
 
@@ -220,7 +220,7 @@ describe("POST /api/ai/exercises/generate", () => {
       const request = createJsonRequest({
         lessonId: 10,
         difficulty: "medium",
-        learningObjective: "Biáº¿n sá»‘",
+        learningObjective: "Biến số",
       });
 
       const response = await POST(request);
@@ -231,4 +231,3 @@ describe("POST /api/ai/exercises/generate", () => {
     });
   });
 });
-

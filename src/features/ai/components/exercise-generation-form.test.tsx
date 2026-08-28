@@ -5,11 +5,11 @@ import { ExerciseGenerationForm } from "./exercise-generation-form";
 
 const baseContext = {
   lessonId: 51,
-  lessonTitle: "Biáº¿n",
-  lessonSummary: "Giá»›i thiá»‡u phÃ©p gÃ¡n vÃ  biáº¿n.",
+  lessonTitle: "Biến",
+  lessonSummary: "Giới thiệu phép gán và biến.",
   lessonContent: "x = 1",
-  learningObjectives: ["Hiá»ƒu phÃ©p gÃ¡n", "Váº­n dá»¥ng biáº¿n"],
-  courseTitle: "Python cÆ¡ báº£n",
+  learningObjectives: ["Hiểu phép gán", "Vận dụng biến"],
+  courseTitle: "Python cơ bản",
   courseDescription: null,
 };
 
@@ -39,7 +39,7 @@ function pendingFetch() {
 
 const generatedExercise = (id: number) =>
   new Response(
-    JSON.stringify({ generatedExercise: { id, lessonId: 51, title: "Dá»± Ä‘oÃ¡n", status: "pending" } }),
+    JSON.stringify({ generatedExercise: { id, lessonId: 51, title: "Dự đoán", status: "pending" } }),
     { status: 201, headers: { "Content-Type": "application/json" } },
   );
 
@@ -51,24 +51,24 @@ describe("ExerciseGenerationForm", () => {
   it("renders subject-aware generation guidance, difficulty, and the Lesson datalist", () => {
     render(<ExerciseGenerationForm context={baseContext} />);
 
-    expect(screen.queryByLabelText("Loáº¡i bÃ i táº­p")).not.toBeInTheDocument();
-    expect(screen.getByText(/AI sáº½ chá»n Ä‘á»‹nh dáº¡ng phÃ¹ há»£p/u)).toBeInTheDocument();
+    expect(screen.queryByLabelText("Loại bài tập")).not.toBeInTheDocument();
+    expect(screen.getByText(/AI sẽ chọn định dạng phù hợp/u)).toBeInTheDocument();
 
-    const difficultySelect = screen.getByLabelText("Äá»™ khÃ³");
+    const difficultySelect = screen.getByLabelText("Độ khó");
     expect(difficultySelect).toHaveValue("easy");
     expect(within(difficultySelect).getAllByRole("option").map((option) => option.textContent)).toEqual([
-      "Dá»…",
-      "Trung bÃ¬nh",
-      "KhÃ³",
+      "Dễ",
+      "Trung bình",
+      "Khó",
     ]);
 
-    const objectiveInput = screen.getByLabelText("Má»¥c tiÃªu há»c táº­p");
-    expect(objectiveInput).toHaveValue("Hiá»ƒu phÃ©p gÃ¡n");
+    const objectiveInput = screen.getByLabelText("Mục tiêu học tập");
+    expect(objectiveInput).toHaveValue("Hiểu phép gán");
     expect(objectiveInput).toHaveAttribute("maxlength", "500");
     expect(objectiveInput).toHaveAttribute("required");
     expect(objectiveInput).toHaveAttribute("list", "lesson-objectives");
 
-    const topicInput = screen.getByLabelText("Gá»£i Ã½ chá»§ Ä‘á» (khÃ´ng báº¯t buá»™c)");
+    const topicInput = screen.getByLabelText("Gợi ý chủ đề (không bắt buộc)");
     expect(topicInput).toHaveValue("");
     expect(topicInput).toHaveAttribute("maxlength", "500");
 
@@ -77,11 +77,11 @@ describe("ExerciseGenerationForm", () => {
       baseContext.learningObjectives,
     );
 
-    expect(screen.getByRole("heading", { level: 1 })).toHaveTextContent("Táº¡o Exercise cho Biáº¿n");
-    expect(screen.getByRole("link", { name: "â† Chá»n Lesson khÃ¡c" })).toHaveAttribute("href", "/moderation/lessons");
+    expect(screen.getByRole("heading", { level: 1 })).toHaveTextContent("Tạo Exercise cho Biến");
+    expect(screen.getByRole("link", { name: "← Chọn Lesson khác" })).toHaveAttribute("href", "/moderation/lessons");
 
     const objectivesAside = screen.getByRole("complementary");
-    expect(within(objectivesAside).getByText("Má»¥c tiÃªu chÃ­nh thá»©c:")).toBeInTheDocument();
+    expect(within(objectivesAside).getByText("Mục tiêu chính thức:")).toBeInTheDocument();
     for (const objective of baseContext.learningObjectives) {
       expect(within(objectivesAside).getByText(objective)).toBeInTheDocument();
     }
@@ -93,7 +93,7 @@ describe("ExerciseGenerationForm", () => {
   it("keeps native validation: the required objective gates submit and inputs stay capped at 500 chars", () => {
     render(<ExerciseGenerationForm context={{ ...baseContext, learningObjectives: [] }} />);
 
-    const objectiveInput = screen.getByLabelText("Má»¥c tiÃªu há»c táº­p");
+    const objectiveInput = screen.getByLabelText("Mục tiêu học tập");
     const submitButton = screen.getByRole("button", { name: "Sinh Exercise draft" });
 
     expect(objectiveInput).toHaveValue("");
@@ -102,11 +102,11 @@ describe("ExerciseGenerationForm", () => {
     fireEvent.change(objectiveInput, { target: { value: "   " } });
     expect(submitButton).toBeDisabled();
 
-    fireEvent.change(objectiveInput, { target: { value: "Hiá»ƒu phÃ©p gÃ¡n" } });
+    fireEvent.change(objectiveInput, { target: { value: "Hiểu phép gán" } });
     expect(submitButton).toBeEnabled();
     expect(objectiveInput).toHaveAttribute("required");
     expect(objectiveInput).toHaveAttribute("maxlength", "500");
-    expect(screen.getByLabelText("Gá»£i Ã½ chá»§ Ä‘á» (khÃ´ng báº¯t buá»™c)")).toHaveAttribute("maxlength", "500");
+    expect(screen.getByLabelText("Gợi ý chủ đề (không bắt buộc)")).toHaveAttribute("maxlength", "500");
   });
 
   it("posts the exact fixed payload once to the existing endpoint and blocks duplicate submits while pending", async () => {
@@ -132,13 +132,13 @@ describe("ExerciseGenerationForm", () => {
     expect(calls[0].body).toEqual({
       lessonId: 51,
       difficulty: "easy",
-      learningObjective: "Hiá»ƒu phÃ©p gÃ¡n",
+      learningObjective: "Hiểu phép gán",
     });
 
     await act(async () => {
       resolveFetch(generatedExercise(88));
     });
-    expect(await screen.findByRole("link", { name: "Má»Ÿ draft" })).toHaveAttribute("href", "/moderation/88");
+    expect(await screen.findByRole("link", { name: "Mở draft" })).toHaveAttribute("href", "/moderation/88");
     expect(calls).toHaveLength(1);
   });
 
@@ -151,19 +151,19 @@ describe("ExerciseGenerationForm", () => {
 
     expect(submitButton).toBeDisabled();
     expect(submitButton).toHaveAttribute("aria-busy", "true");
-    expect(screen.getByText("Äang sinh...")).toBeInTheDocument();
+    expect(screen.getByText("Đang sinh...")).toBeInTheDocument();
 
     await act(async () => {
       resolveFetch(generatedExercise(1));
     });
-    expect(await screen.findByRole("link", { name: "Má»Ÿ draft" })).toHaveAttribute("href", "/moderation/1");
-    expect(screen.queryByText("Äang sinh...")).not.toBeInTheDocument();
+    expect(await screen.findByRole("link", { name: "Mở draft" })).toHaveAttribute("href", "/moderation/1");
+    expect(screen.queryByText("Đang sinh...")).not.toBeInTheDocument();
     expect(submitButton).toBeEnabled();
   });
 
   it("surfaces the API error with role=alert and allows retry with the identical payload", async () => {
     const { calls } = captureFetch([
-      new Response(JSON.stringify({ message: "Háº¿t giá»›i háº¡n sinh." }), {
+      new Response(JSON.stringify({ message: "Hết giới hạn sinh." }), {
         status: 429,
         headers: { "Content-Type": "application/json" },
       }),
@@ -175,18 +175,18 @@ describe("ExerciseGenerationForm", () => {
     fireEvent.click(submitButton);
 
     const alert = await screen.findByRole("alert");
-    expect(alert).toHaveTextContent("Háº¿t giá»›i háº¡n sinh.");
+    expect(alert).toHaveTextContent("Hết giới hạn sinh.");
     expect(submitButton).toBeEnabled();
 
     fireEvent.click(submitButton);
-    expect(await screen.findByRole("link", { name: "Má»Ÿ draft" })).toHaveAttribute("href", "/moderation/77");
+    expect(await screen.findByRole("link", { name: "Mở draft" })).toHaveAttribute("href", "/moderation/77");
 
     expect(calls).toHaveLength(2);
     expect(calls[0]).toEqual(calls[1]);
     expect(calls[0].body).toEqual({
       lessonId: 51,
       difficulty: "easy",
-      learningObjective: "Hiá»ƒu phÃ©p gÃ¡n",
+      learningObjective: "Hiểu phép gán",
     });
   });
 
@@ -194,17 +194,17 @@ describe("ExerciseGenerationForm", () => {
     const { calls } = captureFetch([generatedExercise(90)]);
 
     render(<ExerciseGenerationForm context={baseContext} />);
-    fireEvent.change(screen.getByLabelText("Gá»£i Ã½ chá»§ Ä‘á» (khÃ´ng báº¯t buá»™c)"), {
-      target: { value: "  vÃ²ng láº·p for  " },
+    fireEvent.change(screen.getByLabelText("Gợi ý chủ đề (không bắt buộc)"), {
+      target: { value: "  vòng lặp for  " },
     });
     fireEvent.click(screen.getByRole("button", { name: "Sinh Exercise draft" }));
 
-    expect(await screen.findByRole("link", { name: "Má»Ÿ draft" })).toHaveAttribute("href", "/moderation/90");
+    expect(await screen.findByRole("link", { name: "Mở draft" })).toHaveAttribute("href", "/moderation/90");
     expect(calls[0].body).toEqual({
       lessonId: 51,
       difficulty: "easy",
-      learningObjective: "Hiá»ƒu phÃ©p gÃ¡n",
-      topicHint: "vÃ²ng láº·p for",
+      learningObjective: "Hiểu phép gán",
+      topicHint: "vòng lặp for",
     });
   });
 
@@ -214,10 +214,10 @@ describe("ExerciseGenerationForm", () => {
     render(<ExerciseGenerationForm context={baseContext} />);
     fireEvent.click(screen.getByRole("button", { name: "Sinh Exercise draft" }));
 
-    const draftLink = await screen.findByRole("link", { name: "Má»Ÿ draft" });
+    const draftLink = await screen.findByRole("link", { name: "Mở draft" });
     expect(draftLink).toHaveAttribute("href", "/moderation/88");
-    const resultPanel = screen.getByText(/Ä‘ang chá» moderation/u).closest("p");
-    expect(resultPanel).toHaveTextContent("Draft â€œDá»± Ä‘oÃ¡nâ€ Ä‘ang chá» moderation.");
+    const resultPanel = screen.getByText(/đang chờ moderation/u).closest("p");
+    expect(resultPanel).toHaveTextContent("Draft “Dự đoán” đang chờ moderation.");
   });
 
   it("renders with the shared Stitch tokens and no legacy or dark-hardcoded palette", () => {
@@ -225,7 +225,7 @@ describe("ExerciseGenerationForm", () => {
 
     const submitButton = screen.getByRole("button", { name: "Sinh Exercise draft" });
     expect(submitButton).toHaveClass("bg-primary", "text-on-primary", "rounded-xl");
-    expect(screen.getByRole("link", { name: "â† Chá»n Lesson khÃ¡c" })).toHaveClass("text-primary");
+    expect(screen.getByRole("link", { name: "← Chọn Lesson khác" })).toHaveClass("text-primary");
 
     const form = container.querySelector("form");
     expect(form).toHaveClass("grid", "gap-5", "p-6", "md:grid-cols-2");
@@ -241,7 +241,7 @@ describe("ExerciseGenerationForm", () => {
 
     const objectivesAside = screen.getByRole("complementary");
     expect(objectivesAside).toHaveClass("rounded-xl", "border-info", "bg-info-soft");
-    expect(within(objectivesAside).getByText("Má»¥c tiÃªu chÃ­nh thá»©c:")).toHaveClass("text-info");
+    expect(within(objectivesAside).getByText("Mục tiêu chính thức:")).toHaveClass("text-info");
 
     for (const element of Array.from(container.querySelectorAll("*"))) {
       const className = element.getAttribute("class") ?? "";
@@ -257,19 +257,18 @@ describe("ExerciseGenerationForm", () => {
 
     const selects = Array.from(container.querySelectorAll("select"));
     expect(selects).toHaveLength(1);
-    expect(screen.getByLabelText("Äá»™ khÃ³")).toBe(selects[0]);
-    expect(screen.queryByLabelText("Loáº¡i bÃ i táº­p")).not.toBeInTheDocument();
+    expect(screen.getByLabelText("Độ khó")).toBe(selects[0]);
+    expect(screen.queryByLabelText("Loại bài tập")).not.toBeInTheDocument();
 
     const inputs = Array.from(container.querySelectorAll("input"));
     expect(inputs).toHaveLength(2);
-    expect(screen.getByLabelText("Má»¥c tiÃªu há»c táº­p")).toBe(inputs[0]);
-    expect(screen.getByLabelText("Gá»£i Ã½ chá»§ Ä‘á» (khÃ´ng báº¯t buá»™c)")).toBe(inputs[1]);
+    expect(screen.getByLabelText("Mục tiêu học tập")).toBe(inputs[0]);
+    expect(screen.getByLabelText("Gợi ý chủ đề (không bắt buộc)")).toBe(inputs[1]);
 
     expect(container.querySelector("textarea")).toBeNull();
     expect(screen.queryByRole("slider")).not.toBeInTheDocument();
     expect(screen.queryAllByRole("checkbox")).toHaveLength(0);
     expect(screen.getAllByRole("button")).toHaveLength(1);
-    expect(screen.queryByLabelText(/nhiá»‡t Ä‘á»™|temperature|model|sá»‘ lÆ°á»£ng cÃ¢u|difficulty/i)).not.toBeInTheDocument();
+    expect(screen.queryByLabelText(/nhiệt độ|temperature|model|số lượng câu|difficulty/i)).not.toBeInTheDocument();
   });
 });
-

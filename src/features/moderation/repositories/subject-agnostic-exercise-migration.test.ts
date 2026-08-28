@@ -39,4 +39,3 @@ describe("TASK-097 subject-agnostic Exercise migration", () => {
     expect(migration).not.toMatch(/update\s+public\.generated_exercises\s+set\s+content/i);
   });
 });
-

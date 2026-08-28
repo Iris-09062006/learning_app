@@ -1,6 +1,6 @@
 # Decisions
 
-## ADR-Topic-001 â€” Additive multi-source evidence in the existing Course-import pipeline
+## ADR-Topic-001 — Additive multi-source evidence in the existing Course-import pipeline
 
 **Status:** Accepted
 
@@ -16,52 +16,52 @@ and immutable revisions; research and URL entry paths can be disabled independen
 research-session tables, embeddings/vector storage, redesign, and destructive down-migration are
 not part of this decision.
 
-## 1. Má»¥c Ä‘Ã­ch
+## 1. Mục đích
 
-TÃ i liá»‡u nÃ y lÆ°u cÃ¡c quyáº¿t Ä‘á»‹nh quan trá»ng cá»§a dá»± Ã¡n.
+Tài liệu này lưu các quyết định quan trọng của dự án.
 
-Má»¥c tiÃªu:
+Mục tiêu:
 
-- GiÃºp cÃ¡c thÃ nh viÃªn hiá»ƒu vÃ¬ sao má»™t lá»±a chá»n Ä‘Æ°á»£c Ä‘Æ°a ra.
-- NgÄƒn viá»‡c thay Ä‘á»•i kiáº¿n trÃºc tÃ¹y Ã½.
-- GiÃºp AI agent biáº¿t pháº§n nÃ o Ä‘Ã£ Ä‘Æ°á»£c chá»‘t.
-- Ghi láº¡i cÃ¡c Ä‘Ã¡nh Ä‘á»•i ká»¹ thuáº­t.
-- LÃ m cÆ¡ sá»Ÿ review khi cáº§n thay Ä‘á»•i quyáº¿t Ä‘á»‹nh sau nÃ y.
+- Giúp các thành viên hiểu vì sao một lựa chọn được đưa ra.
+- Ngăn việc thay đổi kiến trúc tùy ý.
+- Giúp AI agent biết phần nào đã được chốt.
+- Ghi lại các đánh đổi kỹ thuật.
+- Làm cơ sở review khi cần thay đổi quyết định sau này.
 
-Má»—i quyáº¿t Ä‘á»‹nh gá»“m:
+Mỗi quyết định gồm:
 
 - ID.
-- Tráº¡ng thÃ¡i.
-- Bá»‘i cáº£nh.
-- Quyáº¿t Ä‘á»‹nh.
-- LÃ½ do.
-- Há»‡ quáº£.
-- PhÆ°Æ¡ng Ã¡n Ä‘Ã£ cÃ¢n nháº¯c.
-- Äiá»u kiá»‡n xem xÃ©t láº¡i.
+- Trạng thái.
+- Bối cảnh.
+- Quyết định.
+- Lý do.
+- Hệ quả.
+- Phương án đã cân nhắc.
+- Điều kiện xem xét lại.
 
 ---
 
-## 2. Tráº¡ng thÃ¡i quyáº¿t Ä‘á»‹nh
+## 2. Trạng thái quyết định
 
-| Tráº¡ng thÃ¡i | Ã nghÄ©a |
+| Trạng thái | Ý nghĩa |
 |---|---|
-| Proposed | Äang Ä‘Æ°á»£c Ä‘á» xuáº¥t |
-| Accepted | ÄÃ£ Ä‘Æ°á»£c cháº¥p nháº­n |
-| Superseded | ÄÃ£ bá»‹ thay tháº¿ bá»Ÿi quyáº¿t Ä‘á»‹nh má»›i |
-| Rejected | KhÃ´ng Ä‘Æ°á»£c chá»n |
-| Deprecated | KhÃ´ng cÃ²n khuyáº¿n nghá»‹ nhÆ°ng chÆ°a loáº¡i bá» hoÃ n toÃ n |
+| Proposed | Đang được đề xuất |
+| Accepted | Đã được chấp nhận |
+| Superseded | Đã bị thay thế bởi quyết định mới |
+| Rejected | Không được chọn |
+| Deprecated | Không còn khuyến nghị nhưng chưa loại bỏ hoàn toàn |
 
-AI agent chá»‰ Ä‘Æ°á»£c triá»ƒn khai theo quyáº¿t Ä‘á»‹nh cÃ³ tráº¡ng thÃ¡i `Accepted`.
+AI agent chỉ được triển khai theo quyết định có trạng thái `Accepted`.
 
 ---
 
-# ADR-001 â€” Sá»­ dá»¥ng Modular Monolith
+# ADR-001 — Sử dụng Modular Monolith
 
-**Tráº¡ng thÃ¡i:** Accepted
+**Trạng thái:** Accepted
 
-## Bá»‘i cáº£nh
+## Bối cảnh
 
-Dá»± Ã¡n cÃ³ cÃ¡c module:
+Dự án có các module:
 
 - Authentication.
 - Course.
@@ -75,145 +75,145 @@ Dá»± Ã¡n cÃ³ cÃ¡c module:
 - Moderation.
 - Admin.
 
-Quy mÃ´ hiá»‡n táº¡i lÃ  Ä‘á»“ Ã¡n nhá» Ä‘áº¿n vá»«a, chÆ°a cáº§n cÃ¡c service Ä‘á»™c láº­p.
+Quy mô hiện tại là đồ án nhỏ đến vừa, chưa cần các service độc lập.
 
-## Quyáº¿t Ä‘á»‹nh
+## Quyết định
 
-Sá»­ dá»¥ng kiáº¿n trÃºc:
+Sử dụng kiến trúc:
 
 ```text
-Clientâ€“Server + Modular Monolith
+Client–Server + Modular Monolith
 ```
 
-ToÃ n bá»™ á»©ng dá»¥ng chÃ­nh náº±m trong má»™t repository Next.js, nhÆ°ng Ä‘Æ°á»£c chia module theo nghiá»‡p vá»¥.
+Toàn bộ ứng dụng chính nằm trong một repository Next.js, nhưng được chia module theo nghiệp vụ.
 
-## LÃ½ do
+## Lý do
 
-- Dá»… phÃ¡t triá»ƒn.
-- Dá»… deploy.
-- Dá»… debug.
-- Ãt chi phÃ­ váº­n hÃ nh.
-- KhÃ´ng cáº§n xá»­ lÃ½ distributed transaction.
-- Váº«n cÃ³ thá»ƒ tÃ¡ch service sau náº¿u cáº§n.
+- Dễ phát triển.
+- Dễ deploy.
+- Dễ debug.
+- Ít chi phí vận hành.
+- Không cần xử lý distributed transaction.
+- Vẫn có thể tách service sau nếu cần.
 
-## Há»‡ quáº£
+## Hệ quả
 
-TÃ­ch cá»±c:
+Tích cực:
 
-- Má»™t codebase.
-- Má»™t pipeline deploy.
-- Dá»… chia module.
-- PhÃ¹ há»£p Vercel.
+- Một codebase.
+- Một pipeline deploy.
+- Dễ chia module.
+- Phù hợp Vercel.
 
-ÄÃ¡nh Ä‘á»•i:
+Đánh đổi:
 
-- CÃ¡c module dÃ¹ng chung runtime.
-- KhÃ´ng scale Ä‘á»™c láº­p ngay tá»« Ä‘áº§u.
-- Cáº§n giá»¯ boundary giá»¯a cÃ¡c module.
+- Các module dùng chung runtime.
+- Không scale độc lập ngay từ đầu.
+- Cần giữ boundary giữa các module.
 
-## KhÃ´ng chá»n
+## Không chọn
 
 - Microservices.
 - Event-driven architecture.
-- Serverless service riÃªng cho tá»«ng module.
+- Serverless service riêng cho từng module.
 
-## Xem xÃ©t láº¡i khi
+## Xem xét lại khi
 
-- AI traffic tÄƒng máº¡nh.
-- CÃ³ background job phá»©c táº¡p.
-- Module cáº§n scale hoáº·c deploy Ä‘á»™c láº­p.
-- Má»™t repository trá»Ÿ nÃªn khÃ³ quáº£n lÃ½.
+- AI traffic tăng mạnh.
+- Có background job phức tạp.
+- Module cần scale hoặc deploy độc lập.
+- Một repository trở nên khó quản lý.
 
 ---
 
-# ADR-002 â€” Sá»­ dá»¥ng Next.js vÃ  TypeScript
+# ADR-002 — Sử dụng Next.js và TypeScript
 
-**Tráº¡ng thÃ¡i:** Accepted
+**Trạng thái:** Accepted
 
-## Bá»‘i cáº£nh
+## Bối cảnh
 
-Há»‡ thá»‘ng cáº§n:
+Hệ thống cần:
 
 - Web responsive.
 - Frontend.
 - Server-side API.
 - Authentication integration.
-- Deploy Ä‘Æ¡n giáº£n.
+- Deploy đơn giản.
 
-## Quyáº¿t Ä‘á»‹nh
+## Quyết định
 
-Sá»­ dá»¥ng:
+Sử dụng:
 
 ```text
 Next.js + TypeScript
 ```
 
-## LÃ½ do
+## Lý do
 
-- Frontend vÃ  server trong cÃ¹ng project.
-- Há»— trá»£ Route Handlers vÃ  Server Actions.
-- TÆ°Æ¡ng thÃ­ch tá»‘t vá»›i Vercel.
-- TypeScript giÃºp giáº£m lá»—i contract.
-- PhÃ¹ há»£p modular monolith.
+- Frontend và server trong cùng project.
+- Hỗ trợ Route Handlers và Server Actions.
+- Tương thích tốt với Vercel.
+- TypeScript giúp giảm lỗi contract.
+- Phù hợp modular monolith.
 
-## Há»‡ quáº£
+## Hệ quả
 
-- KhÃ´ng cáº§n backend repository riÃªng.
-- Server logic pháº£i Ä‘Æ°á»£c tÃ¡ch khá»i UI component.
-- Máº·c Ä‘á»‹nh Æ°u tiÃªn Server Component.
-- Chá»‰ dÃ¹ng Client Component khi cáº§n tÆ°Æ¡ng tÃ¡c phÃ­a browser.
+- Không cần backend repository riêng.
+- Server logic phải được tách khỏi UI component.
+- Mặc định ưu tiên Server Component.
+- Chỉ dùng Client Component khi cần tương tác phía browser.
 
-## KhÃ´ng chá»n
+## Không chọn
 
-- React SPA + Express riÃªng.
-- NestJS riÃªng.
+- React SPA + Express riêng.
+- NestJS riêng.
 - Django/FastAPI.
 - Spring Boot.
 
-## Xem xÃ©t láº¡i khi
+## Xem xét lại khi
 
-- CÃ³ mobile app hoáº·c external client cáº§n backend Ä‘á»™c láº­p.
-- Backend workload vÆ°á»£t kháº£ nÄƒng phÃ¹ há»£p cá»§a Next.js.
-- CÃ³ nhiá»u service cáº§n deploy riÃªng.
-
----
-
-# ADR-003 â€” Sá»­ dá»¥ng Tailwind CSS
-
-**Tráº¡ng thÃ¡i:** Accepted
-
-## Quyáº¿t Ä‘á»‹nh
-
-Sá»­ dá»¥ng Tailwind CSS cho giao diá»‡n.
-
-## LÃ½ do
-
-- PhÃ¡t triá»ƒn nhanh.
-- Responsive thuáº­n tiá»‡n.
-- Dá»… giá»¯ spacing vÃ  typography thá»‘ng nháº¥t.
-- PhÃ¹ há»£p vá»›i component-based UI.
-
-## Há»‡ quáº£
-
-- KhÃ´ng dÃ¹ng class Tailwind lÃ m selector trong test.
-- Class láº·p láº¡i nhiá»u pháº£i tÃ¡ch component hoáº·c helper.
-- KhÃ´ng láº¡m dá»¥ng arbitrary value.
-
-## KhÃ´ng chá»n
-
-- CSS framework khÃ¡c lÃ m ná»n táº£ng chÃ­nh.
-- CSS-in-JS phá»©c táº¡p.
-- UI library lá»›n báº¯t buá»™c toÃ n há»‡ thá»‘ng.
+- Có mobile app hoặc external client cần backend độc lập.
+- Backend workload vượt khả năng phù hợp của Next.js.
+- Có nhiều service cần deploy riêng.
 
 ---
 
-# ADR-004 â€” Sá»­ dá»¥ng Supabase cho Database vÃ  Authentication
+# ADR-003 — Sử dụng Tailwind CSS
 
-**Tráº¡ng thÃ¡i:** Accepted
+**Trạng thái:** Accepted
 
-## Bá»‘i cáº£nh
+## Quyết định
 
-Dá»± Ã¡n cáº§n:
+Sử dụng Tailwind CSS cho giao diện.
+
+## Lý do
+
+- Phát triển nhanh.
+- Responsive thuận tiện.
+- Dễ giữ spacing và typography thống nhất.
+- Phù hợp với component-based UI.
+
+## Hệ quả
+
+- Không dùng class Tailwind làm selector trong test.
+- Class lặp lại nhiều phải tách component hoặc helper.
+- Không lạm dụng arbitrary value.
+
+## Không chọn
+
+- CSS framework khác làm nền tảng chính.
+- CSS-in-JS phức tạp.
+- UI library lớn bắt buộc toàn hệ thống.
+
+---
+
+# ADR-004 — Sử dụng Supabase cho Database và Authentication
+
+**Trạng thái:** Accepted
+
+## Bối cảnh
+
+Dự án cần:
 
 - PostgreSQL.
 - Authentication.
@@ -221,9 +221,9 @@ Dá»± Ã¡n cáº§n:
 - Row Level Security.
 - Deploy nhanh.
 
-## Quyáº¿t Ä‘á»‹nh
+## Quyết định
 
-Sá»­ dá»¥ng:
+Sử dụng:
 
 ```text
 Supabase PostgreSQL
@@ -231,78 +231,78 @@ Supabase Auth
 Supabase Row Level Security
 ```
 
-## LÃ½ do
+## Lý do
 
-- Giáº£m khá»‘i lÆ°á»£ng backend háº¡ táº§ng.
-- CÃ³ PostgreSQL chuáº©n.
-- CÃ³ Auth tÃ­ch há»£p.
-- CÃ³ RLS.
-- PhÃ¹ há»£p MVP vÃ  Vercel.
+- Giảm khối lượng backend hạ tầng.
+- Có PostgreSQL chuẩn.
+- Có Auth tích hợp.
+- Có RLS.
+- Phù hợp MVP và Vercel.
 
-## Há»‡ quáº£
+## Hệ quả
 
-- KhÃ´ng tá»± lÆ°u password.
-- `auth.users` quáº£n lÃ½ danh tÃ­nh.
-- `profiles` lÆ°u dá»¯ liá»‡u á»©ng dá»¥ng.
-- Má»i thay Ä‘á»•i schema pháº£i dÃ¹ng migration.
-- RLS lÃ  báº¯t buá»™c vá»›i dá»¯ liá»‡u riÃªng.
+- Không tự lưu password.
+- `auth.users` quản lý danh tính.
+- `profiles` lưu dữ liệu ứng dụng.
+- Mọi thay đổi schema phải dùng migration.
+- RLS là bắt buộc với dữ liệu riêng.
 
-## KhÃ´ng chá»n
+## Không chọn
 
 - MongoDB.
 - Firebase Firestore.
-- Tá»± xÃ¢y auth.
+- Tự xây auth.
 - PostgreSQL self-hosted.
 
-## Xem xÃ©t láº¡i khi
+## Xem xét lại khi
 
-- CÃ³ yÃªu cáº§u háº¡ táº§ng riÃªng.
-- CÃ³ constraint phÃ¡p lÃ½ hoáº·c dá»¯ liá»‡u.
-- Chi phÃ­ hoáº·c giá»›i háº¡n Supabase khÃ´ng cÃ²n phÃ¹ há»£p.
+- Có yêu cầu hạ tầng riêng.
+- Có constraint pháp lý hoặc dữ liệu.
+- Chi phí hoặc giới hạn Supabase không còn phù hợp.
 
 ---
 
-# ADR-005 â€” TÃ¡ch `auth.users` vÃ  `profiles`
+# ADR-005 — Tách `auth.users` và `profiles`
 
-**Tráº¡ng thÃ¡i:** Accepted
+**Trạng thái:** Accepted
 
-## Quyáº¿t Ä‘á»‹nh
+## Quyết định
 
-Supabase Auth quáº£n lÃ½:
+Supabase Auth quản lý:
 
 - Email.
 - Password.
 - Session.
 
-Báº£ng `profiles` quáº£n lÃ½:
+Bảng `profiles` quản lý:
 
 - Username.
 - Role.
 - Active status.
-- Dá»¯ liá»‡u á»©ng dá»¥ng.
+- Dữ liệu ứng dụng.
 
-## LÃ½ do
+## Lý do
 
-- KhÃ´ng tá»± lÆ°u password.
-- Khá»›p mÃ´ hÃ¬nh Supabase.
-- Giáº£m rá»§i ro báº£o máº­t.
-- Dá»… Ã¡p dá»¥ng RLS.
+- Không tự lưu password.
+- Khớp mô hình Supabase.
+- Giảm rủi ro bảo mật.
+- Dễ áp dụng RLS.
 
-## Há»‡ quáº£
+## Hệ quả
 
-- `profiles.id` dÃ¹ng cÃ¹ng UUID vá»›i `auth.users.id`.
-- Khi Ä‘Äƒng kÃ½ pháº£i táº¡o profile tÆ°Æ¡ng á»©ng.
-- KhÃ´ng query password tá»« application database.
+- `profiles.id` dùng cùng UUID với `auth.users.id`.
+- Khi đăng ký phải tạo profile tương ứng.
+- Không query password từ application database.
 
 ---
 
-# ADR-006 â€” DÃ¹ng má»™t role chÃ­nh cho má»—i tÃ i khoáº£n
+# ADR-006 — Dùng một role chính cho mỗi tài khoản
 
-**Tráº¡ng thÃ¡i:** Accepted
+**Trạng thái:** Accepted
 
-## Quyáº¿t Ä‘á»‹nh
+## Quyết định
 
-Má»—i profile cÃ³ má»™t role:
+Mỗi profile có một role:
 
 ```text
 learner
@@ -310,36 +310,36 @@ moderator
 admin
 ```
 
-Guest lÃ  tráº¡ng thÃ¡i chÆ°a Ä‘Äƒng nháº­p, khÃ´ng lÆ°u trong database.
+Guest là trạng thái chưa đăng nhập, không lưu trong database.
 
-## LÃ½ do
+## Lý do
 
-- ÄÆ¡n giáº£n.
-- Äá»§ cho MVP.
-- Dá»… kiá»ƒm tra quyá»n.
-- KhÃ´ng cáº§n permission matrix phá»©c táº¡p.
+- Đơn giản.
+- Đủ cho MVP.
+- Dễ kiểm tra quyền.
+- Không cần permission matrix phức tạp.
 
-## Há»‡ quáº£
+## Hệ quả
 
-- Má»™t user khÃ´ng cÃ³ nhiá»u role Ä‘á»“ng thá»i.
-- Admin cÃ³ thá»ƒ Ä‘Æ°á»£c phÃ©p thá»±c hiá»‡n chá»©c nÄƒng Moderator.
-- Náº¿u cáº§n permission chi tiáº¿t hÆ¡n pháº£i táº¡o quyáº¿t Ä‘á»‹nh má»›i.
+- Một user không có nhiều role đồng thời.
+- Admin có thể được phép thực hiện chức năng Moderator.
+- Nếu cần permission chi tiết hơn phải tạo quyết định mới.
 
 ---
 
-# ADR-007 â€” KhÃ´ng cho client tá»± cáº­p nháº­t progress
+# ADR-007 — Không cho client tự cập nhật progress
 
-**Tráº¡ng thÃ¡i:** Accepted
+**Trạng thái:** Accepted
 
-## Bá»‘i cáº£nh
+## Bối cảnh
 
-Náº¿u client cÃ³ quyá»n cáº­p nháº­t progress, learner cÃ³ thá»ƒ tá»± Ä‘Ã¡nh dáº¥u lesson completed.
+Nếu client có quyền cập nhật progress, learner có thể tự đánh dấu lesson completed.
 
-## Quyáº¿t Ä‘á»‹nh
+## Quyết định
 
-Progress chá»‰ Ä‘Æ°á»£c cáº­p nháº­t bá»Ÿi server sau khi business logic xÃ¡c nháº­n.
+Progress chỉ được cập nhật bởi server sau khi business logic xác nhận.
 
-Client khÃ´ng Ä‘Æ°á»£c tá»± gá»­i:
+Client không được tự gửi:
 
 ```text
 status
@@ -348,27 +348,27 @@ score
 completedAt
 ```
 
-## LÃ½ do
+## Lý do
 
-- NgÄƒn gian láº­n.
-- Báº£o vá»‡ tÃ­nh toÃ n váº¹n dá»¯ liá»‡u.
-- Äáº£m báº£o progress khá»›p submission.
+- Ngăn gian lận.
+- Bảo vệ tính toàn vẹn dữ liệu.
+- Đảm bảo progress khớp submission.
 
-## Há»‡ quáº£
+## Hệ quả
 
-- Submission vÃ  progress update pháº£i qua service.
-- RLS pháº£i cháº·n client update trá»±c tiáº¿p.
-- NÃªn dÃ¹ng transaction hoáº·c RPC an toÃ n.
+- Submission và progress update phải qua service.
+- RLS phải chặn client update trực tiếp.
+- Nên dùng transaction hoặc RPC an toàn.
 
 ---
 
-# ADR-008 â€” TÃ¡ch Ä‘Ã¡p Ã¡n Ä‘Ãºng khá»i báº£ng bÃ i táº­p cÃ´ng khai
+# ADR-008 — Tách đáp án đúng khỏi bảng bài tập công khai
 
-**Tráº¡ng thÃ¡i:** Accepted
+**Trạng thái:** Accepted
 
-## Quyáº¿t Ä‘á»‹nh
+## Quyết định
 
-Dá»¯ liá»‡u Ä‘Æ°á»£c tÃ¡ch:
+Dữ liệu được tách:
 
 ```text
 exercises
@@ -376,117 +376,117 @@ exercise_options
 exercise_solutions
 ```
 
-`exercise_solutions` lÃ  server-only.
+`exercise_solutions` là server-only.
 
-## LÃ½ do
+## Lý do
 
-- TrÃ¡nh client Ä‘á»c Ä‘Ã¡p Ã¡n Ä‘Ãºng.
-- TrÃ¡nh API vÃ´ tÃ¬nh tráº£ solution.
-- Dá»… kiá»ƒm soÃ¡t quyá»n.
+- Tránh client đọc đáp án đúng.
+- Tránh API vô tình trả solution.
+- Dễ kiểm soát quyền.
 
-## Há»‡ quáº£
+## Hệ quả
 
-- Endpoint láº¥y exercise khÃ´ng tráº£ solution.
-- Server pháº£i Ä‘á»c solution khi cháº¥m bÃ i.
-- RLS khÃ´ng cho Learner select `exercise_solutions`.
+- Endpoint lấy exercise không trả solution.
+- Server phải đọc solution khi chấm bài.
+- RLS không cho Learner select `exercise_solutions`.
 
 ---
 
-# ADR-009 â€” Sá»­ dá»¥ng JSONB cho Ä‘Ã¡p Ã¡n cÃ³ cáº¥u trÃºc khÃ¡c nhau
+# ADR-009 — Sử dụng JSONB cho đáp án có cấu trúc khác nhau
 
-**Tráº¡ng thÃ¡i:** Accepted
+**Trạng thái:** Accepted
 
-## Bá»‘i cáº£nh
+## Bối cảnh
 
-Fix the Bug vÃ  Predict the Output cÃ³ cáº¥u trÃºc answer khÃ¡c nhau.
+Fix the Bug và Predict the Output có cấu trúc answer khác nhau.
 
-## Quyáº¿t Ä‘á»‹nh
+## Quyết định
 
-Sá»­ dá»¥ng JSONB cho:
+Sử dụng JSONB cho:
 
 - Learner answer.
 - Exercise solution.
 - Generated exercise content.
-- Má»™t sá»‘ metadata.
+- Một số metadata.
 
-## LÃ½ do
+## Lý do
 
-- Linh hoáº¡t.
-- KhÃ´ng cáº§n táº¡o quÃ¡ nhiá»u báº£ng cho tá»«ng exercise type.
-- Dá»… má»Ÿ rá»™ng loáº¡i bÃ i.
+- Linh hoạt.
+- Không cần tạo quá nhiều bảng cho từng exercise type.
+- Dễ mở rộng loại bài.
 
-## Há»‡ quáº£
+## Hệ quả
 
-- Pháº£i validate báº±ng schema theo exercise type.
-- KhÃ´ng Ä‘Æ°á»£c coi JSONB lÃ  dá»¯ liá»‡u tá»± do khÃ´ng kiá»ƒm soÃ¡t.
-- TypeScript types vÃ  Zod schema pháº£i Ä‘á»“ng bá»™.
+- Phải validate bằng schema theo exercise type.
+- Không được coi JSONB là dữ liệu tự do không kiểm soát.
+- TypeScript types và Zod schema phải đồng bộ.
 
 ---
 
-# ADR-010 â€” Chá»‰ há»— trá»£ hai loáº¡i bÃ i táº­p trong MVP
+# ADR-010 — Chỉ hỗ trợ hai loại bài tập trong MVP
 
-**Tráº¡ng thÃ¡i:** Accepted
+**Trạng thái:** Accepted
 
-## Quyáº¿t Ä‘á»‹nh
+## Quyết định
 
-MVP há»— trá»£:
+MVP hỗ trợ:
 
 ```text
 Fix the Bug
 Predict the Output
 ```
 
-## LÃ½ do
+## Lý do
 
-- ÄÃºng pháº¡m vi ban Ä‘áº§u.
-- KhÃ´ng cáº§n code execution sandbox.
-- Dá»… kiá»ƒm thá»­.
-- PhÃ¹ há»£p learner má»›i.
+- Đúng phạm vi ban đầu.
+- Không cần code execution sandbox.
+- Dễ kiểm thử.
+- Phù hợp learner mới.
 
-## Há»‡ quáº£
+## Hệ quả
 
-- KhÃ´ng xÃ¢y IDE Ä‘áº§y Ä‘á»§.
-- KhÃ´ng cháº¡y code Python khÃ´ng tin cáº­y.
-- Loáº¡i bÃ i má»›i cáº§n evaluator, validation vÃ  UI riÃªng.
-
----
-
-# ADR-011 â€” KhÃ´ng sá»­ dá»¥ng code execution sandbox trong MVP
-
-**Tráº¡ng thÃ¡i:** Accepted
-
-## Quyáº¿t Ä‘á»‹nh
-
-KhÃ´ng cháº¡y code Python do learner nháº­p trÃªn server trong MVP.
-
-## LÃ½ do
-
-- Rá»§i ro báº£o máº­t.
-- Cáº§n container isolation.
-- Cáº§n CPU, memory vÃ  network limits.
-- NgoÃ i pháº¡m vi Ä‘á»“ Ã¡n hiá»‡n táº¡i.
-
-## Há»‡ quáº£
-
-- Cháº¥m bÃ i dá»±a trÃªn lá»±a chá»n hoáº·c logic tÄ©nh.
-- KhÃ´ng cÃ³ hidden test case.
-- KhÃ´ng cÃ³ terminal hoáº·c IDE.
-
-## Xem xÃ©t láº¡i khi
-
-- CÃ³ yÃªu cáº§u bÃ i táº­p viáº¿t code tá»± do.
-- CÃ³ thiáº¿t káº¿ sandbox an toÃ n.
-- CÃ³ háº¡ táº§ng riÃªng phÃ¹ há»£p.
+- Không xây IDE đầy đủ.
+- Không chạy code Python không tin cậy.
+- Loại bài mới cần evaluator, validation và UI riêng.
 
 ---
 
-# ADR-012 â€” AI Explanation dÃ¹ng context trá»±c tiáº¿p, chÆ°a dÃ¹ng RAG
+# ADR-011 — Không sử dụng code execution sandbox trong MVP
 
-**Tráº¡ng thÃ¡i:** Accepted
+**Trạng thái:** Accepted
 
-## Bá»‘i cáº£nh
+## Quyết định
 
-AI giáº£i thÃ­ch dá»±a trÃªn bÃ i táº­p hiá»‡n táº¡i, nÃªn há»‡ thá»‘ng Ä‘Ã£ cÃ³:
+Không chạy code Python do learner nhập trên server trong MVP.
+
+## Lý do
+
+- Rủi ro bảo mật.
+- Cần container isolation.
+- Cần CPU, memory và network limits.
+- Ngoài phạm vi đồ án hiện tại.
+
+## Hệ quả
+
+- Chấm bài dựa trên lựa chọn hoặc logic tĩnh.
+- Không có hidden test case.
+- Không có terminal hoặc IDE.
+
+## Xem xét lại khi
+
+- Có yêu cầu bài tập viết code tự do.
+- Có thiết kế sandbox an toàn.
+- Có hạ tầng riêng phù hợp.
+
+---
+
+# ADR-012 — AI Explanation dùng context trực tiếp, chưa dùng RAG
+
+**Trạng thái:** Accepted
+
+## Bối cảnh
+
+AI giải thích dựa trên bài tập hiện tại, nên hệ thống đã có:
 
 - Lesson.
 - Exercise.
@@ -494,140 +494,140 @@ AI giáº£i thÃ­ch dá»±a trÃªn bÃ i táº­p hiá»‡n táº¡i, nÃ�
 - Correct solution.
 - User question.
 
-## Quyáº¿t Ä‘á»‹nh
+## Quyết định
 
-MVP dÃ¹ng context injection trá»±c tiáº¿p.
+MVP dùng context injection trực tiếp.
 
-KhÃ´ng triá»ƒn khai RAG trong phiÃªn báº£n Ä‘áº§u.
+Không triển khai RAG trong phiên bản đầu.
 
-## LÃ½ do
+## Lý do
 
-- Äá»§ cho use case hiá»‡n táº¡i.
-- ÄÆ¡n giáº£n hÆ¡n.
-- KhÃ´ng cáº§n embedding pipeline.
-- KhÃ´ng cáº§n vector database.
-- Dá»… kiá»ƒm thá»­.
+- Đủ cho use case hiện tại.
+- Đơn giản hơn.
+- Không cần embedding pipeline.
+- Không cần vector database.
+- Dễ kiểm thử.
 
-## Há»‡ quáº£
+## Hệ quả
 
-- AI chá»‰ giáº£i thÃ­ch trong pháº¡m vi context Ä‘Æ°á»£c cung cáº¥p.
-- KhÃ´ng tÃ¬m kiáº¿m trong kho tÃ i liá»‡u lá»›n.
-- AI Provider interface váº«n pháº£i cho phÃ©p má»Ÿ rá»™ng sau.
+- AI chỉ giải thích trong phạm vi context được cung cấp.
+- Không tìm kiếm trong kho tài liệu lớn.
+- AI Provider interface vẫn phải cho phép mở rộng sau.
 
-## Xem xÃ©t láº¡i khi
+## Xem xét lại khi
 
-- CÃ³ nhiá»u tÃ i liá»‡u.
-- AI Mentor tráº£ lá»i cÃ¢u há»i tá»± do.
-- Cáº§n citation.
-- Cáº§n truy xuáº¥t theo course hoáº·c lesson.
+- Có nhiều tài liệu.
+- AI Mentor trả lời câu hỏi tự do.
+- Cần citation.
+- Cần truy xuất theo course hoặc lesson.
 
 ---
 
-# ADR-013 â€” AI chá»‰ Ä‘Æ°á»£c gá»i phÃ­a server
+# ADR-013 — AI chỉ được gọi phía server
 
-**Tráº¡ng thÃ¡i:** Accepted
+**Trạng thái:** Accepted
 
-## Quyáº¿t Ä‘á»‹nh
+## Quyết định
 
-Browser khÃ´ng gá»i trá»±c tiáº¿p AI Provider.
+Browser không gọi trực tiếp AI Provider.
 
-Luá»“ng:
+Luồng:
 
 ```text
 Client
-â†’ Next.js Server
-â†’ Validation
-â†’ Context Builder
-â†’ AI Provider
-â†’ Response Validator
-â†’ Client
+→ Next.js Server
+→ Validation
+→ Context Builder
+→ AI Provider
+→ Response Validator
+→ Client
 ```
 
-## LÃ½ do
+## Lý do
 
-- Báº£o vá»‡ API key.
-- Kiá»ƒm soÃ¡t prompt.
-- Kiá»ƒm tra ownership.
+- Bảo vệ API key.
+- Kiểm soát prompt.
+- Kiểm tra ownership.
 - Rate limit.
 - Validate response.
 
-## Há»‡ quáº£
+## Hệ quả
 
-- AI key lÃ  server-only.
-- KhÃ´ng cÃ³ `NEXT_PUBLIC_AI_API_KEY`.
-- Client khÃ´ng gá»­i system prompt.
-- CÃ³ timeout vÃ  error handling.
+- AI key là server-only.
+- Không có `NEXT_PUBLIC_AI_API_KEY`.
+- Client không gửi system prompt.
+- Có timeout và error handling.
 
 ---
 
-# ADR-014 â€” Generated Exercise pháº£i qua Moderator
+# ADR-014 — Generated Exercise phải qua Moderator
 
-**Tráº¡ng thÃ¡i:** Accepted
+**Trạng thái:** Accepted
 
-## Quyáº¿t Ä‘á»‹nh
+## Quyết định
 
-Luá»“ng ná»™i dung AI:
+Luồng nội dung AI:
 
 ```text
 pending
-â†’ review
-â†’ approved / rejected / needsRevision
-â†’ published
+→ review
+→ approved / rejected / needsRevision
+→ published
 ```
 
-AI khÃ´ng Ä‘Æ°á»£c publish tá»± Ä‘á»™ng.
+AI không được publish tự động.
 
-## LÃ½ do
+## Lý do
 
-- Giáº£m hallucination.
-- Äáº£m báº£o Ä‘Ã¡p Ã¡n Ä‘Ãºng.
-- Äáº£m báº£o phÃ¹ há»£p curriculum.
-- Giá»¯ con ngÆ°á»i chá»‹u trÃ¡ch nhiá»‡m cuá»‘i.
+- Giảm hallucination.
+- Đảm bảo đáp án đúng.
+- Đảm bảo phù hợp curriculum.
+- Giữ con người chịu trách nhiệm cuối.
 
-## Há»‡ quáº£
+## Hệ quả
 
-- Cáº§n `generated_exercises`.
-- Cáº§n `exercise_reviews`.
-- Publish pháº£i cháº¡y transaction.
-- Moderator/Admin má»›i cÃ³ quyá»n.
+- Cần `generated_exercises`.
+- Cần `exercise_reviews`.
+- Publish phải chạy transaction.
+- Moderator/Admin mới có quyền.
 
 ---
 
-# ADR-015 â€” Sá»­ dá»¥ng REST-style Route Handlers
+# ADR-015 — Sử dụng REST-style Route Handlers
 
-**Tráº¡ng thÃ¡i:** Accepted
+**Trạng thái:** Accepted
 
-## Quyáº¿t Ä‘á»‹nh
+## Quyết định
 
-API chÃ­nh sá»­ dá»¥ng:
+API chính sử dụng:
 
 - Next.js Route Handlers.
 - REST-style endpoint.
-- Server Actions cho form ná»™i bá»™ phÃ¹ há»£p.
+- Server Actions cho form nội bộ phù hợp.
 
-## LÃ½ do
+## Lý do
 
-- Dá»… hiá»ƒu.
-- Dá»… test.
-- Khá»›p `api_contract.md`.
-- KhÃ´ng cáº§n GraphQL.
+- Dễ hiểu.
+- Dễ test.
+- Khớp `api_contract.md`.
+- Không cần GraphQL.
 
-## Há»‡ quáº£
+## Hệ quả
 
-- Response pháº£i thá»‘ng nháº¥t.
-- API field dÃ¹ng camelCase.
-- Database field dÃ¹ng snake_case.
-- Mapper chuyá»ƒn Ä‘á»•i giá»¯a hai lá»›p.
+- Response phải thống nhất.
+- API field dùng camelCase.
+- Database field dùng snake_case.
+- Mapper chuyển đổi giữa hai lớp.
 
 ---
 
-# ADR-016 â€” Response API cÃ³ cáº¥u trÃºc thá»‘ng nháº¥t
+# ADR-016 — Response API có cấu trúc thống nhất
 
-**Tráº¡ng thÃ¡i:** Accepted
+**Trạng thái:** Accepted
 
-## Quyáº¿t Ä‘á»‹nh
+## Quyết định
 
-ThÃ nh cÃ´ng:
+Thành công:
 
 ```ts
 {
@@ -636,7 +636,7 @@ ThÃ nh cÃ´ng:
 }
 ```
 
-Tháº¥t báº¡i:
+Thất bại:
 
 ```ts
 {
@@ -648,268 +648,267 @@ Tháº¥t báº¡i:
 }
 ```
 
-## LÃ½ do
+## Lý do
 
-- Frontend xá»­ lÃ½ nháº¥t quÃ¡n.
-- Dá»… test.
-- KhÃ´ng lá»™ lá»—i ná»™i bá»™.
-- AI agent khÃ´ng tá»± táº¡o format khÃ¡c.
+- Frontend xử lý nhất quán.
+- Dễ test.
+- Không lộ lỗi nội bộ.
+- AI agent không tự tạo format khác.
 
-## Há»‡ quáº£
+## Hệ quả
 
-- Route Handler chá»‹u trÃ¡ch nhiá»‡m map lá»—i.
-- Service khÃ´ng phá»¥ thuá»™c `NextResponse`.
-- KhÃ´ng tráº£ raw Supabase error.
+- Route Handler chịu trách nhiệm map lỗi.
+- Service không phụ thuộc `NextResponse`.
+- Không trả raw Supabase error.
 
 ---
 
-# ADR-017 â€” Sá»­ dá»¥ng Zod cho validation náº¿u Ä‘Æ°á»£c cÃ i Ä‘áº·t
+# ADR-017 — Sử dụng Zod cho validation nếu được cài đặt
 
-**Tráº¡ng thÃ¡i:** Accepted
+**Trạng thái:** Accepted
 
-## Quyáº¿t Ä‘á»‹nh
+## Quyết định
 
-DÃ¹ng Zod cho:
+Dùng Zod cho:
 
 - API input.
-- Form input quan trá»ng.
+- Form input quan trọng.
 - AI response.
 - JSONB content.
 - Query params.
 
-## LÃ½ do
+## Lý do
 
 - Runtime validation.
-- TÃ­ch há»£p TypeScript tá»‘t.
-- PhÃ¹ há»£p dá»¯ liá»‡u tá»« client vÃ  AI.
+- Tích hợp TypeScript tốt.
+- Phù hợp dữ liệu từ client và AI.
 
-## Há»‡ quáº£
+## Hệ quả
 
-- Client validation khÃ´ng thay tháº¿ server validation.
-- Schema pháº£i Ä‘Æ°á»£c tÃ¡i sá»­ dá»¥ng khi phÃ¹ há»£p.
-- KhÃ´ng dÃ¹ng type assertion thay validation.
-
----
-
-# ADR-018 â€” Sá»­ dá»¥ng Playwright cho E2E
-
-**Tráº¡ng thÃ¡i:** Accepted
-
-## Quyáº¿t Ä‘á»‹nh
-
-Playwright lÃ  cÃ´ng cá»¥ E2E chÃ­nh.
-
-## LÃ½ do
-
-- Kiá»ƒm tra luá»“ng ngÆ°á»i dÃ¹ng.
-- Há»— trá»£ browser automation.
-- PhÃ¹ há»£p Next.js.
-- CÃ³ screenshot vÃ  trace.
-
-## Há»‡ quáº£
-
-- KhÃ´ng dÃ¹ng Tailwind class lÃ m selector.
-- KhÃ´ng dÃ¹ng timeout cá»‘ Ä‘á»‹nh náº¿u cÃ³ thá»ƒ.
-- Test khÃ´ng dÃ¹ng production database.
-- Critical flows pháº£i cÃ³ E2E test.
+- Client validation không thay thế server validation.
+- Schema phải được tái sử dụng khi phù hợp.
+- Không dùng type assertion thay validation.
 
 ---
 
-# ADR-019 â€” Vitest lÃ  lá»±a chá»n cho Unit vÃ  Integration Test
+# ADR-018 — Sử dụng Playwright cho E2E
 
-**Tráº¡ng thÃ¡i:** Accepted
+**Trạng thái:** Accepted
 
-## Quyáº¿t Ä‘á»‹nh
+## Quyết định
 
-Sá»­ dá»¥ng Vitest cho unit test vÃ  integration test.
+Playwright là công cụ E2E chính.
 
-## LÃ½ do
+## Lý do
+
+- Kiểm tra luồng người dùng.
+- Hỗ trợ browser automation.
+- Phù hợp Next.js.
+- Có screenshot và trace.
+
+## Hệ quả
+
+- Không dùng Tailwind class làm selector.
+- Không dùng timeout cố định nếu có thể.
+- Test không dùng production database.
+- Critical flows phải có E2E test.
+
+---
+
+# ADR-019 — Vitest là lựa chọn cho Unit và Integration Test
+
+**Trạng thái:** Accepted
+
+## Quyết định
+
+Sử dụng Vitest cho unit test và integration test.
+
+## Lý do
 
 - Nhanh.
-- PhÃ¹ há»£p TypeScript.
-- Dá»… mock AI provider.
-- TÃ¡ch khá»i Playwright.
+- Phù hợp TypeScript.
+- Dễ mock AI provider.
+- Tách khỏi Playwright.
 
-## Há»‡ quáº£
+## Hệ quả
 
-- Playwright khÃ´ng thay tháº¿ unit test.
-- Business logic quan trá»ng pháº£i Ä‘Æ°á»£c test Ä‘á»™c láº­p.
-- KhÃ´ng gá»i AI provider tháº­t trong test máº·c Ä‘á»‹nh.
+- Playwright không thay thế unit test.
+- Business logic quan trọng phải được test độc lập.
+- Không gọi AI provider thật trong test mặc định.
 
 ---
 
-# ADR-020 â€” Deploy báº±ng Vercel
+# ADR-020 — Deploy bằng Vercel
 
-**Tráº¡ng thÃ¡i:** Accepted
+**Trạng thái:** Accepted
 
-## Quyáº¿t Ä‘á»‹nh
+## Quyết định
 
-Next.js Ä‘Æ°á»£c deploy trÃªn Vercel.
+Next.js được deploy trên Vercel.
 
-## LÃ½ do
+## Lý do
 
-- TÃ­ch há»£p Next.js tá»‘t.
+- Tích hợp Next.js tốt.
 - Preview deployment.
-- Deploy tá»« GitHub.
-- Quáº£n lÃ½ environment variables.
+- Deploy từ GitHub.
+- Quản lý environment variables.
 
-## Há»‡ quáº£
+## Hệ quả
 
-- Production branch lÃ  `main`.
-- Preview vÃ  Production cáº§n environment riÃªng.
-- KhÃ´ng Ä‘Æ°a secret vÃ o repository.
-- Rollback á»©ng dá»¥ng báº±ng deployment trÆ°á»›c.
+- Production branch là `main`.
+- Preview và Production cần environment riêng.
+- Không đưa secret vào repository.
+- Rollback ứng dụng bằng deployment trước.
 
 ---
 
-# ADR-021 â€” GitHub lÃ  nguá»“n mÃ£ chÃ­nh
+# ADR-021 — GitHub là nguồn mã chính
 
-**Tráº¡ng thÃ¡i:** Accepted
+**Trạng thái:** Accepted
 
-## Quyáº¿t Ä‘á»‹nh
+## Quyết định
 
-GitHub dÃ¹ng cho:
+GitHub dùng cho:
 
 - Source control.
 - Pull request.
 - Code review.
 - Issue.
-- CI náº¿u báº­t.
+- CI nếu bật.
 
-## Há»‡ quáº£
+## Hệ quả
 
-- KhÃ´ng push secret.
-- DÃ¹ng branch vÃ  pull request.
-- Commit message pháº£i rÃµ.
-- Migration pháº£i Ä‘Æ°á»£c commit.
+- Không push secret.
+- Dùng branch và pull request.
+- Commit message phải rõ.
+- Migration phải được commit.
 
 ---
 
-# ADR-022 â€” Chá»‰ dÃ¹ng má»™t package manager
+# ADR-022 — Chỉ dùng một package manager
 
-**Tráº¡ng thÃ¡i:** Accepted
+**Trạng thái:** Accepted
 
-## Quyáº¿t Ä‘á»‹nh
+## Quyết định
 
-Project sá»­ dá»¥ng npm vÃ  commit:
+Project sử dụng npm và commit:
 
 ```text
 package-lock.json
 ```
 
-ToÃ n bá»™ local development, CI vÃ  deployment dÃ¹ng npm.
+Toàn bộ local development, CI và deployment dùng npm.
 
-## LÃ½ do
+## Lý do
 
-- TrÃ¡nh lock file xung Ä‘á»™t.
-- CI vÃ  local cÃ i cÃ¹ng dependency.
-- Dá»… dÃ¹ng `npm ci`.
+- Tránh lock file xung đột.
+- CI và local cài cùng dependency.
+- Dễ dùng `npm ci`.
 
-## Há»‡ quáº£
+## Hệ quả
 
-- KhÃ´ng táº¡o thÃªm `yarn.lock` hoáº·c `pnpm-lock.yaml`.
-- Muá»‘n Ä‘á»•i package manager cáº§n quyáº¿t Ä‘á»‹nh má»›i.
-
----
-
-# ADR-023 â€” Database thay Ä‘á»•i báº±ng migration
-
-**Tráº¡ng thÃ¡i:** Accepted
-
-## Quyáº¿t Ä‘á»‹nh
-
-Má»i thay Ä‘á»•i database schema pháº£i dÃ¹ng SQL migration file.
-
-## LÃ½ do
-
-- LÆ°u lá»‹ch sá»­ database.
-- TÃ¡i táº¡o mÃ´i trÆ°á»ng dá»… dÃ ng.
-- TÃ­ch há»£p vá»›i CI/CD.
-- TrÃ¡nh sai lá»‡ch giá»¯a local vÃ  production.
-
-## Há»‡ quáº£
-
-- KhÃ´ng sá»­a database thá»§ cÃ´ng.
-- Migration pháº£i Ä‘Æ°á»£c commit.
-- Generate láº¡i TypeScript types sau khi Ä‘á»•i schema.
+- Không tạo thêm `yarn.lock` hoặc `pnpm-lock.yaml`.
+- Muốn đổi package manager cần quyết định mới.
 
 ---
 
-# ADR-024 â€” Luá»“ng khÃ´i phá»¥c máº­t kháº©u dÃ¹ng Supabase Auth + má»™t endpoint
+# ADR-023 — Database thay đổi bằng migration
 
-**Tráº¡ng thÃ¡i:** Accepted
+**Trạng thái:** Accepted
 
-## Bá»‘i cáº£nh
+## Quyết định
 
-TASK-035 lÃ  giai Ä‘oáº¡n 2 cá»§a Auth UI, bao gá»“m chá»©c nÄƒng khÃ´i phá»¥c máº­t kháº©u (F-AUTH-04). Táº¡i thá»i Ä‘iá»ƒm chá»‘t contract, `docs/api_contract.md` chÆ°a Ä‘á»‹nh nghÄ©a endpoint nÃ o cho luá»“ng nÃ y vÃ  `docs/security.md` chÆ°a cÃ³ sá»‘ liá»‡u rate limit riÃªng cho forgot-password. Theo AGENTS.md, agent khÃ´ng Ä‘Æ°á»£c tá»± thÃªm endpoint/contract khi chÆ°a cÃ³ quyáº¿t Ä‘á»‹nh sáº£n pháº©m, nÃªn task bá»‹ cháº·n Ä‘á»ƒ chá»‘t phÆ°Æ¡ng Ã¡n.
+Mọi thay đổi database schema phải dùng SQL migration file.
 
-## Quyáº¿t Ä‘á»‹nh
+## Lý do
 
-Sá»­ dá»¥ng phÆ°Æ¡ng Ã¡n B:
+- Lưu lịch sử database.
+- Tái tạo môi trường dễ dàng.
+- Tích hợp với CI/CD.
+- Tránh sai lệch giữa local và production.
 
-- ThÃªm Ä‘Ãºng má»™t endpoint `POST /api/auth/forgot-password`.
-- Äáº·t láº¡i máº­t kháº©u má»›i thá»±c hiá»‡n báº±ng Supabase client-side `updateUser` táº¡i trang `/reset-password`, khÃ´ng cáº§n endpoint riÃªng.
+## Hệ quả
 
-## LÃ½ do
-
-- `docs/features.md` F-AUTH-04 yÃªu cáº§u "Æ¯u tiÃªn dÃ¹ng Supabase password reset flow" vÃ  "CÃ³ rate limit".
-- Endpoint `forgot-password` cáº§n tá»“n táº¡i phÃ­a server Ä‘á»ƒ Ã¡p dá»¥ng rate limit 5/IP/giá» vÃ  khÃ´ng lá»™ thÃ´ng tin user, nháº¥t quÃ¡n vá»›i cÃ¡c endpoint `/api/auth/*` hiá»‡n cÃ³.
-- BÆ°á»›c Ä‘áº·t máº­t kháº©u má»›i Ä‘Æ°á»£c Supabase xá»­ lÃ½ an toÃ n vá»›i recovery session tá»« link trong email; khÃ´ng cáº§n tá»± xÃ¢y endpoint, giáº£m bá» máº·t táº¥n cÃ´ng vÃ  khá»‘i lÆ°á»£ng code.
-- Giá»¯ tá»‘i giáº£n API trong khi váº«n nháº¥t quÃ¡n kiáº¿n trÃºc `Clientâ€“Server + Modular Monolith`.
-
-## Há»‡ quáº£
-
-TÃ­ch cá»±c:
-
-- CÃ³ má»™t endpoint server-side cho bÆ°á»›c gá»­i email khÃ´i phá»¥c, kiá»ƒm soÃ¡t rate limit.
-- BÆ°á»›c Ä‘áº·t máº­t kháº©u má»›i dÃ¹ng cÆ¡ cháº¿ recovery session chuáº©n cá»§a Supabase Auth.
-- PhÃ¹ há»£p yÃªu cáº§u F-AUTH-04.
-
-ÄÃ¡nh Ä‘á»•i:
-
-- Trang `/reset-password` pháº£i xá»­ lÃ½ recovery session phÃ­a client; pháº£i kiá»ƒm tra lá»—i `AuthSessionMissingError` vÃ  hiá»ƒn thá»‹ thÃ´ng bÃ¡o há»£p lÃ½.
-- KhÃ´ng cÃ³ endpoint riÃªng cho bÆ°á»›c Ä‘áº·t máº­t kháº©u má»›i nÃªn khÃ´ng Ã¡p dá»¥ng Ä‘Æ°á»£c rate limit server-side cho riÃªng bÆ°á»›c nÃ y (Ä‘Æ°á»£c Supabase quáº£n lÃ½).
-
-## KhÃ´ng chá»n
-
-- PhÆ°Æ¡ng Ã¡n A â€” thÃªm cáº£ `POST /api/auth/update-password`: thÃªm API khÃ´ng cáº§n thiáº¿t, láº·p chá»©c nÄƒng Supabase client-side.
-- PhÆ°Æ¡ng Ã¡n C â€” bá» háº³n endpoint server-side cho forgot-password: khÃ³ Ã¡p rate limit vÃ  thiáº¿u nháº¥t quÃ¡n vá»›i `/api/auth/*`.
-
-## Xem xÃ©t láº¡i khi
-
-- CÃ³ yÃªu cáº§u Ä‘áº·t máº­t kháº©u má»›i pháº£i qua server (vÃ­ dá»¥ kiá»ƒm tra policy máº­t kháº©u riÃªng, cháº·n password cÅ© trÃ¹ng).
-- Cáº§n ghi log hÃ nh vi Ä‘áº·t láº¡i máº­t kháº©u phÃ­a server.
-- CÃ³ yÃªu cáº§u tÃ­ch há»£p provider xÃ¡c thá»±c khÃ¡c ngoÃ i Supabase Auth.
+- Không sửa database thủ công.
+- Migration phải được commit.
+- Generate lại TypeScript types sau khi đổi schema.
 
 ---
 
-# ADR-025 â€” Exercise modality theo ná»™i dung Lesson
+# ADR-024 — Luồng khôi phục mật khẩu dùng Supabase Auth + một endpoint
 
-**Tráº¡ng thÃ¡i:** Accepted â€” supersedes ADR-010
+**Trạng thái:** Accepted
 
-## Quyáº¿t Ä‘á»‹nh
+## Bối cảnh
 
-Exercise dÃ¹ng discriminated contract vá»›i tÃ¡m modality tá»‘i thiá»ƒu:
+TASK-035 là giai đoạn 2 của Auth UI, bao gồm chức năng khôi phục mật khẩu (F-AUTH-04). Tại thời điểm chốt contract, `docs/api_contract.md` chưa định nghĩa endpoint nào cho luồng này và `docs/security.md` chưa có số liệu rate limit riêng cho forgot-password. Theo AGENTS.md, agent không được tự thêm endpoint/contract khi chưa có quyết định sản phẩm, nên task bị chặn để chốt phương án.
+
+## Quyết định
+
+Sử dụng phương án B:
+
+- Thêm đúng một endpoint `POST /api/auth/forgot-password`.
+- Đặt lại mật khẩu mới thực hiện bằng Supabase client-side `updateUser` tại trang `/reset-password`, không cần endpoint riêng.
+
+## Lý do
+
+- `docs/features.md` F-AUTH-04 yêu cầu "Ưu tiên dùng Supabase password reset flow" và "Có rate limit".
+- Endpoint `forgot-password` cần tồn tại phía server để áp dụng rate limit 5/IP/giờ và không lộ thông tin user, nhất quán với các endpoint `/api/auth/*` hiện có.
+- Bước đặt mật khẩu mới được Supabase xử lý an toàn với recovery session từ link trong email; không cần tự xây endpoint, giảm bề mặt tấn công và khối lượng code.
+- Giữ tối giản API trong khi vẫn nhất quán kiến trúc `Client–Server + Modular Monolith`.
+
+## Hệ quả
+
+Tích cực:
+
+- Có một endpoint server-side cho bước gửi email khôi phục, kiểm soát rate limit.
+- Bước đặt mật khẩu mới dùng cơ chế recovery session chuẩn của Supabase Auth.
+- Phù hợp yêu cầu F-AUTH-04.
+
+Đánh đổi:
+
+- Trang `/reset-password` phải xử lý recovery session phía client; phải kiểm tra lỗi `AuthSessionMissingError` và hiển thị thông báo hợp lý.
+- Không có endpoint riêng cho bước đặt mật khẩu mới nên không áp dụng được rate limit server-side cho riêng bước này (được Supabase quản lý).
+
+## Không chọn
+
+- Phương án A — thêm cả `POST /api/auth/update-password`: thêm API không cần thiết, lặp chức năng Supabase client-side.
+- Phương án C — bỏ hẳn endpoint server-side cho forgot-password: khó áp rate limit và thiếu nhất quán với `/api/auth/*`.
+
+## Xem xét lại khi
+
+- Có yêu cầu đặt mật khẩu mới phải qua server (ví dụ kiểm tra policy mật khẩu riêng, chặn password cũ trùng).
+- Cần ghi log hành vi đặt lại mật khẩu phía server.
+- Có yêu cầu tích hợp provider xác thực khác ngoài Supabase Auth.
+
+---
+
+# ADR-025 — Exercise modality theo nội dung Lesson
+
+**Trạng thái:** Accepted — supersedes ADR-010
+
+## Quyết định
+
+Exercise dùng discriminated contract với tám modality tối thiểu:
 
 ```text
 multiple_choice, true_false, short_answer, ordering,
 matching, scenario, predict_output, fix_the_bug
 ```
 
-Provider chá»n modality tá»« Lesson title, summary, learning objectives vÃ  content. Hai modality coding
-chá»‰ há»£p lá»‡ khi Lesson thá»±c sá»± dáº¡y láº­p trÃ¬nh hoáº·c suy luáº­n code; code khÃ´ng Ä‘Æ°á»£c dÃ¹ng lÃ m wrapper trang
-trÃ­ cho kiáº¿n thá»©c khÃ´ng-code.
+Provider chọn modality từ Lesson title, summary, learning objectives và content. Hai modality coding
+chỉ hợp lệ khi Lesson thực sự dạy lập trình hoặc suy luận code; code không được dùng làm wrapper trang
+trí cho kiến thức không-code.
 
-## LÃ½ do
+## Lý do
 
-LearningApp há»— trá»£ mÃ´n há»c tÃ¹y Ã½. Giá»›i háº¡n cÅ© á»Ÿ hai loáº¡i coding táº¡o bÃ i táº­p sai má»¥c tiÃªu sÆ° pháº¡m cho
-Lesson lÃ½ thuyáº¿t. JSONB hiá»‡n cÃ³ cho generated content, learner answer vÃ  solution cho phÃ©p má»Ÿ rá»™ng
-schema theo type mÃ  khÃ´ng táº¡o cá»™t giáº£.
+LearningApp hỗ trợ môn học tùy ý. Giới hạn cũ ở hai loại coding tạo bài tập sai mục tiêu sư phạm cho
+Lesson lý thuyết. JSONB hiện có cho generated content, learner answer và solution cho phép mở rộng
+schema theo type mà không tạo cột giả.
 
-## Há»‡ quáº£
+## Hệ quả
 
-- PostgreSQL enum `exercise_type` Ä‘Æ°á»£c má»Ÿ rá»™ng báº±ng migration tÆ°Æ¡ng thÃ­ch ngÆ°á»£c.
-- Parser/application validator vÃ  RPC validator Ä‘á»u kiá»ƒm tra exact fields theo type.
-- `exercise_solutions` tiáº¿p tá»¥c server-only; learner DTO khÃ´ng chá»©a Ä‘Ã¡p Ã¡n.
-- Existing `predict_output` vÃ  `fix_the_bug` rows, option IDs vÃ  `correctOptionId` váº«n há»£p lá»‡.
-
+- PostgreSQL enum `exercise_type` được mở rộng bằng migration tương thích ngược.
+- Parser/application validator và RPC validator đều kiểm tra exact fields theo type.
+- `exercise_solutions` tiếp tục server-only; learner DTO không chứa đáp án.
+- Existing `predict_output` và `fix_the_bug` rows, option IDs và `correctOptionId` vẫn hợp lệ.

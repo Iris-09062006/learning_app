@@ -1,6 +1,6 @@
 # API Contract
 
-## Topic research and multi-source Course-import API â€” implemented
+## Topic research and multi-source Course-import API — implemented
 
 All new/extended routes require an active Admin, use the existing `{ success, data|error }`
 envelope, and set `Cache-Control: no-store`. The surfaces are stateless
@@ -27,14 +27,14 @@ normative in `specs/001-topic-course-research/contracts/openapi.yaml`.
 - `DELETE /api/admin/courses/:courseId` requires an active Admin and atomically archives
   the course, returning `{ success: true, data: { courseId, archivedAt, auditLogId } }`.
 - `PATCH /api/admin/users/:userId/status` with `{ isActive: false }` remains the
-  authoritative learner-removal endpoint; the Admin UI presents it as â€œÄuá»•i há»c viÃªnâ€.
+  authoritative learner-removal endpoint; the Admin UI presents it as “Đuổi học viên”.
 - Invalid IDs return `400`, missing/already archived courses return `404`, unauthenticated
   callers return `401`, and non-Admin/inactive-Admin callers return `403`.
 
-## AI Course and AI Exercise contract â€” target behavior
+## AI Course and AI Exercise contract — target behavior
 
-Contract nÃ y thay tháº¿ semantics TASK-055 trong Ä‘Ã³ má»™t láº§n gá»i AI táº¡o Ä‘á»“ng thá»i Course
-metadata vÃ  full content cá»§a má»i Lesson. Hai pipeline khÃ´ng dÃ¹ng chung review action.
+Contract này thay thế semantics TASK-055 trong đó một lần gọi AI tạo đồng thời Course
+metadata và full content của mọi Lesson. Hai pipeline không dùng chung review action.
 
 ### Course import state
 
@@ -51,35 +51,35 @@ type CourseImportStatus =
   | "rejected";
 ```
 
-TÃªn lÆ°u trong database cÃ³ thá»ƒ khÃ¡c, nhÆ°ng API pháº£i map vá» Ä‘Ãºng semantics trÃªn. Má»i
-mutation tráº£ state Ä‘Ã£ persist; client khÃ´ng Ä‘Æ°á»£c tá»± chuyá»ƒn state hoáº·c tá»± loáº¡i item khá»i
-queue khi server chÆ°a resolve thÃ nh cÃ´ng.
+Tên lưu trong database có thể khác, nhưng API phải map về đúng semantics trên. Mọi
+mutation trả state đã persist; client không được tự chuyển state hoặc tự loại item khỏi
+queue khi server chưa resolve thành công.
 
 ### Course import endpoints
 
-- `POST /api/admin/content-sources` upload source riÃªng tÆ° vÃ  tráº£ source/import identity.
+- `POST /api/admin/content-sources` upload source riêng tư và trả source/import identity.
 - `POST /api/admin/content-sources/:id/extract` extract/normalize server-side.
-- `POST /api/admin/content-sources/:id/course-outline` chá»‰ sinh outline; response khÃ´ng
-  chá»©a full Lesson content hoáº·c exercise.
-- `GET /api/admin/course-drafts` máº·c Ä‘á»‹nh chá»‰ tráº£ actionable items á»Ÿ outline/content
-  review hoáº·c retryable `failed`; published/rejected khÃ´ng quay láº¡i pending queue sau reload.
-- `PATCH /api/admin/course-drafts/:jobId/outline` sá»­a Course metadata, add,
-  remove hoáº·c reorder Lesson outline. Server validate toÃ n outline sau mutation.
+- `POST /api/admin/content-sources/:id/course-outline` chỉ sinh outline; response không
+  chứa full Lesson content hoặc exercise.
+- `GET /api/admin/course-drafts` mặc định chỉ trả actionable items ở outline/content
+  review hoặc retryable `failed`; published/rejected không quay lại pending queue sau reload.
+- `PATCH /api/admin/course-drafts/:jobId/outline` sửa Course metadata, add,
+  remove hoặc reorder Lesson outline. Server validate toàn outline sau mutation.
 - `POST /api/admin/course-drafts/:jobId/outline/regenerate` regenerate outline
-  vÃ  táº¡o revision má»›i; khÃ´ng sinh Lesson content.
-- `POST /api/admin/course-drafts/:jobId/lessons/generate` lÃ  action Continue:
-  khÃ³a approved outline revision vÃ  sinh content cho cÃ¡c Lesson thuá»™c revision Ä‘Ã³.
-- `PATCH /api/admin/lesson-drafts/:id` sá»­a content cá»§a má»™t Lesson draft.
-- `POST /api/admin/course-drafts/:jobId/lessons/:outlineLessonId/regenerate` chá»‰ regenerate Lesson Ä‘Æ°á»£c chá»n tá»«
-  normalized source, Course metadata, approved outline vÃ  source references liÃªn quan.
-- `POST /api/admin/course-drafts/:jobId/reviews` nháº­n
-  `{ decision: "rejected" | "needs_revision", comment? }` Ä‘á»ƒ resolve/request revision,
-  hoáº·c `{ decision: "published", comment? }` Ä‘á»ƒ publish Course + Lessons atomically.
+  và tạo revision mới; không sinh Lesson content.
+- `POST /api/admin/course-drafts/:jobId/lessons/generate` là action Continue:
+  khóa approved outline revision và sinh content cho các Lesson thuộc revision đó.
+- `PATCH /api/admin/lesson-drafts/:id` sửa content của một Lesson draft.
+- `POST /api/admin/course-drafts/:jobId/lessons/:outlineLessonId/regenerate` chỉ regenerate Lesson được chọn từ
+  normalized source, Course metadata, approved outline và source references liên quan.
+- `POST /api/admin/course-drafts/:jobId/reviews` nhận
+  `{ decision: "rejected" | "needs_revision", comment? }` để resolve/request revision,
+  hoặc `{ decision: "published", comment? }` để publish Course + Lessons atomically.
 
-`published` chá»‰ há»£p lá»‡ tá»« `ready_to_publish`; response thÃ nh cÃ´ng tráº£
-`{ sourceDocumentId, courseId, status: "published", lessonIds }`. Náº¿u báº¥t ká»³ Course,
-Chapter, Lesson, publication marker hoáº·c audit write nÃ o lá»—i, request tháº¥t báº¡i vÃ  khÃ´ng
-record nÃ o Ä‘Æ°á»£c public.
+`published` chỉ hợp lệ từ `ready_to_publish`; response thành công trả
+`{ sourceDocumentId, courseId, status: "published", lessonIds }`. Nếu bất kỳ Course,
+Chapter, Lesson, publication marker hoặc audit write nào lỗi, request thất bại và không
+record nào được public.
 
 ### Outline DTO
 
@@ -98,21 +98,21 @@ interface CourseOutlineDraft {
 }
 ```
 
-`clientKey` lÃ  identity á»•n Ä‘á»‹nh trong má»™t outline revision Ä‘á»ƒ edit/reorder trÆ°á»›c khi
-official Lesson tá»“n táº¡i. Unknown fields, empty objective, duplicate key, invalid source
-reference vÃ  má»i field `exercise|quiz|answer|solution` Ä‘á»u bá»‹ tá»« chá»‘i.
+`clientKey` là identity ổn định trong một outline revision để edit/reorder trước khi
+official Lesson tồn tại. Unknown fields, empty objective, duplicate key, invalid source
+reference và mọi field `exercise|quiz|answer|solution` đều bị từ chối.
 
 ### Exercise endpoints
 
-`POST /api/ai/exercises/generate` nháº­n Ä‘Ãºng má»™t `lessonId`, difficulty vÃ  learning objective;
-Exercise type do provider chá»n tá»« Lesson title, summary, objectives vÃ  content,
-khÃ´ng do client Ã©p buá»™c. Server láº¥y Lesson title/summary/objectives/content lÃ m context
-chÃ­nh vÃ  tráº£ Ä‘Ãºng má»™t `generatedExercise` á»Ÿ tráº¡ng thÃ¡i `pending` cÃ³ cÃ¹ng `lessonId`.
-Provider JSON pháº£i chá»©a `type` Ä‘Ãºng má»™t láº§n vÃ  chá»‰ chá»©a cÃ¡c root field cá»§a nhÃ¡nh type Ä‘Ã£
-chá»n. Provider khÃ´ng Ä‘Æ°á»£c tráº£ `difficulty`: application sá»Ÿ há»¯u giÃ¡ trá»‹ request nÃ y vÃ  persist
-nÃ³ Ä‘á»™c láº­p, trong khi server persist `exercise_type` tá»« generated `content.type` Ä‘Ã£ validate.
-Review/edit/publish tiáº¿p tá»¥c dÃ¹ng `/api/moderation/generated-exercises/**`; Course draft
-API khÃ´ng Ä‘Æ°á»£c Ä‘á»c, approve hoáº·c publish generated exercise.
+`POST /api/ai/exercises/generate` nhận đúng một `lessonId`, difficulty và learning objective;
+Exercise type do provider chọn từ Lesson title, summary, objectives và content,
+không do client ép buộc. Server lấy Lesson title/summary/objectives/content làm context
+chính và trả đúng một `generatedExercise` ở trạng thái `pending` có cùng `lessonId`.
+Provider JSON phải chứa `type` đúng một lần và chỉ chứa các root field của nhánh type đã
+chọn. Provider không được trả `difficulty`: application sở hữu giá trị request này và persist
+nó độc lập, trong khi server persist `exercise_type` từ generated `content.type` đã validate.
+Review/edit/publish tiếp tục dùng `/api/moderation/generated-exercises/**`; Course draft
+API không được đọc, approve hoặc publish generated exercise.
 
 ### TASK-057 implementation status
 
@@ -130,7 +130,7 @@ After the source document has been uploaded, `POST /api/admin/content-curriculum
 accepts one of two explicit bodies:
 
 ```json
-{ "mode": "new", "courseTitle": "ToÃ¡n á»©ng dá»¥ng", "sourceDocumentId": 42 }
+{ "mode": "new", "courseTitle": "Toán ứng dụng", "sourceDocumentId": 42 }
 ```
 
 ```json
@@ -154,32 +154,32 @@ Admin only; no-store.
 `POST /api/admin/content-targets` accepts:
 
 ```json
-{ "chapterId": 12, "title": "VÃ²ng láº·p while" }
+{ "chapterId": 12, "title": "Vòng lặp while" }
 ```
 
 It returns `201` with a `ContentTarget`. The lesson is unpublished and receives the
 next available order in its chapter. Invalid input returns `400`; a missing chapter
 returns `404`.
 
-## 1. Má»¥c tiÃªu
+## 1. Mục tiêu
 
-TÃ i liá»‡u nÃ y quy Ä‘á»‹nh há»£p Ä‘á»“ng giao tiáº¿p giá»¯a giao diá»‡n, server vÃ  cÃ¡c module nghiá»‡p vá»¥ cá»§a há»‡ thá»‘ng.
+Tài liệu này quy định hợp đồng giao tiếp giữa giao diện, server và các module nghiệp vụ của hệ thống.
 
-Má»¥c tiÃªu:
+Mục tiêu:
 
-- Frontend vÃ  backend dÃ¹ng cÃ¹ng cáº¥u trÃºc dá»¯ liá»‡u.
-- AI agent khÃ´ng tá»± Ä‘oÃ¡n tÃªn field hoáº·c endpoint.
-- API cÃ³ cÃ¡ch tráº£ káº¿t quáº£ vÃ  lá»—i thá»‘ng nháº¥t.
-- Quyá»n truy cáº­p Ä‘Æ°á»£c kiá»ƒm tra rÃµ rÃ ng.
-- CÃ³ thá»ƒ má»Ÿ rá»™ng thÃªm khÃ³a há»c, dáº¡ng bÃ i táº­p vÃ  AI provider.
-- KhÃ´ng lÃ m API phá»©c táº¡p hÆ¡n má»©c cáº§n thiáº¿t cho MVP.
+- Frontend và backend dùng cùng cấu trúc dữ liệu.
+- AI agent không tự đoán tên field hoặc endpoint.
+- API có cách trả kết quả và lỗi thống nhất.
+- Quyền truy cập được kiểm tra rõ ràng.
+- Có thể mở rộng thêm khóa học, dạng bài tập và AI provider.
+- Không làm API phức tạp hơn mức cần thiết cho MVP.
 
-API Ä‘Æ°á»£c triá»ƒn khai báº±ng:
+API được triển khai bằng:
 
 - Next.js Route Handlers.
-- Next.js Server Actions cho má»™t sá»‘ form ná»™i bá»™.
-- Supabase Auth Ä‘á»ƒ xÃ¡c thá»±c.
-- Supabase PostgreSQL Ä‘á»ƒ lÆ°u dá»¯ liá»‡u.
+- Next.js Server Actions cho một số form nội bộ.
+- Supabase Auth để xác thực.
+- Supabase PostgreSQL để lưu dữ liệu.
 
 Base path:
 
@@ -189,66 +189,66 @@ Base path:
 
 ---
 
-## 1.1 Pháº¡m vi theo milestone
+## 1.1 Phạm vi theo milestone
 
-Contract Ä‘Æ°á»£c chia thÃ nh hai nhÃ³m:
+Contract được chia thành hai nhóm:
 
 ### Core Learning MVP
 
-- Auth vÃ  profile cÆ¡ báº£n.
-- Course list vÃ  course detail.
+- Auth và profile cơ bản.
+- Course list và course detail.
 - Enrollment.
 - Roadmap.
-- Lesson detail vÃ  start lesson.
+- Lesson detail và start lesson.
 - Exercise detail.
-- Submission, progress vÃ  unlock lesson.
+- Submission, progress và unlock lesson.
 - AI explanation.
 - Basic health check.
 
 ### P1 / Operations Extension
 
 - Course search.
-- Submission history Ä‘áº§y Ä‘á»§.
+- Submission history đầy đủ.
 - AI explanation history.
 - AI-generated exercise moderation.
 - Admin user management.
-- Audit log vÃ  monitoring nÃ¢ng cao.
+- Audit log và monitoring nâng cao.
 
-Endpoint P1 váº«n Ä‘Æ°á»£c Ä‘á»‹nh nghÄ©a Ä‘á»ƒ giá»¯ hÆ°á»›ng má»Ÿ rá»™ng, nhÆ°ng khÃ´ng Ä‘Æ°á»£c triá»ƒn khai trÆ°á»›c dependency trong `TASKS.md` vÃ  `ROADMAP.md`.
+Endpoint P1 vẫn được định nghĩa để giữ hướng mở rộng, nhưng không được triển khai trước dependency trong `TASKS.md` và `ROADMAP.md`.
 
 ---
 
-## 2. NguyÃªn táº¯c chung
+## 2. Nguyên tắc chung
 
-- API sá»­ dá»¥ng JSON.
-- TÃªn field dÃ¹ng `camelCase`.
-- Database dÃ¹ng `snake_case`.
-- Service hoáº·c mapper chá»‹u trÃ¡ch nhiá»‡m chuyá»ƒn Ä‘á»•i giá»¯a database vÃ  API.
-- KhÃ´ng tráº£ trá»±c tiáº¿p raw Supabase row náº¿u cáº¥u trÃºc Ä‘Ã³ khÃ´ng Ä‘Ãºng contract.
-- KhÃ´ng tráº£ secret, password, token hoáº·c service role key.
-- KhÃ´ng tráº£ `correctAnswer` trÆ°á»›c khi learner ná»™p bÃ i.
-- Má»i input pháº£i Ä‘Æ°á»£c validate á»Ÿ server.
-- Má»i endpoint riÃªng tÆ° pháº£i kiá»ƒm tra session.
-- Endpoint Moderator vÃ  Admin pháº£i kiá»ƒm tra role á»Ÿ server.
-- Route Handler hoáº·c Server Action chá»‰ lÃ m delivery logic má»ng: parse, validate, authentication, authorization, gá»i feature service vÃ  map response.
-- Business logic náº±m trong feature service; truy váº¥n Supabase náº±m trong feature repository hoáº·c RPC Ä‘Ã£ chá»‘t.
-- KhÃ´ng chá»‰ dá»±a vÃ o viá»‡c áº©n nÃºt trÃªn giao diá»‡n Ä‘á»ƒ phÃ¢n quyá»n.
+- API sử dụng JSON.
+- Tên field dùng `camelCase`.
+- Database dùng `snake_case`.
+- Service hoặc mapper chịu trách nhiệm chuyển đổi giữa database và API.
+- Không trả trực tiếp raw Supabase row nếu cấu trúc đó không đúng contract.
+- Không trả secret, password, token hoặc service role key.
+- Không trả `correctAnswer` trước khi learner nộp bài.
+- Mọi input phải được validate ở server.
+- Mọi endpoint riêng tư phải kiểm tra session.
+- Endpoint Moderator và Admin phải kiểm tra role ở server.
+- Route Handler hoặc Server Action chỉ làm delivery logic mỏng: parse, validate, authentication, authorization, gọi feature service và map response.
+- Business logic nằm trong feature service; truy vấn Supabase nằm trong feature repository hoặc RPC đã chốt.
+- Không chỉ dựa vào việc ẩn nút trên giao diện để phân quyền.
 
 ---
 
 ## 3. Authentication
 
-API sá»­ dá»¥ng Supabase Auth session.
+API sử dụng Supabase Auth session.
 
-Client gá»­i session thÃ´ng qua cookie do Supabase SSR quáº£n lÃ½.
+Client gửi session thông qua cookie do Supabase SSR quản lý.
 
-Server pháº£i láº¥y user tá»« session:
+Server phải lấy user từ session:
 
 ```ts
 const user = await requireUser();
 ```
 
-KhÃ´ng tin tÆ°á»Ÿng:
+Không tin tưởng:
 
 ```json
 {
@@ -256,20 +256,20 @@ KhÃ´ng tin tÆ°á»Ÿng:
 }
 ```
 
-User ID pháº£i Ä‘Æ°á»£c láº¥y tá»« session Ä‘Ã£ xÃ¡c thá»±c.
+User ID phải được lấy từ session đã xác thực.
 
-CÃ¡c tráº¡ng thÃ¡i:
+Các trạng thái:
 
-| Tráº¡ng thÃ¡i | Ã nghÄ©a |
+| Trạng thái | Ý nghĩa |
 |---|---|
-| Guest | ChÆ°a Ä‘Äƒng nháº­p |
-| Learner | NgÆ°á»i há»c |
-| Moderator | NgÆ°á»i kiá»ƒm duyá»‡t ná»™i dung |
-| Admin | NgÆ°á»i quáº£n trá»‹ |
+| Guest | Chưa đăng nhập |
+| Learner | Người học |
+| Moderator | Người kiểm duyệt nội dung |
+| Admin | Người quản trị |
 
 ---
 
-## 4. Kiá»ƒu dá»¯ liá»‡u dÃ¹ng chung
+## 4. Kiểu dữ liệu dùng chung
 
 ## 4.1 UserRole
 
@@ -292,10 +292,10 @@ type ProgressStatus =
 Database mapping:
 
 ```text
-locked       â†’ locked
-unlocked     â†’ unlocked
-inProgress   â†’ in_progress
-completed    â†’ completed
+locked       → locked
+unlocked     → unlocked
+inProgress   → in_progress
+completed    → completed
 ```
 
 ---
@@ -317,14 +317,14 @@ type ExerciseType =
 Database mapping:
 
 ```text
-fixTheBug      â†’ fix_the_bug
-predictOutput  â†’ predict_output
-multipleChoice â†’ multiple_choice
-trueFalse      â†’ true_false
-shortAnswer    â†’ short_answer
-ordering       â†’ ordering
-matching       â†’ matching
-scenario       â†’ scenario
+fixTheBug      → fix_the_bug
+predictOutput  → predict_output
+multipleChoice → multiple_choice
+trueFalse      → true_false
+shortAnswer    → short_answer
+ordering       → ordering
+matching       → matching
+scenario       → scenario
 ```
 
 ---
@@ -353,9 +353,9 @@ type GeneratedExerciseStatus =
 
 ---
 
-## 5. Cáº¥u trÃºc response chuáº©n
+## 5. Cấu trúc response chuẩn
 
-## 5.1 ThÃ nh cÃ´ng
+## 5.1 Thành công
 
 ```ts
 interface ApiSuccess<T> {
@@ -365,7 +365,7 @@ interface ApiSuccess<T> {
 }
 ```
 
-VÃ­ dá»¥:
+Ví dụ:
 
 ```json
 {
@@ -379,7 +379,7 @@ VÃ­ dá»¥:
 
 ---
 
-## 5.2 Tháº¥t báº¡i
+## 5.2 Thất bại
 
 ```ts
 interface ApiFailure {
@@ -391,17 +391,17 @@ interface ApiFailure {
   };
 }
 
-`details` chá»‰ chá»©a lá»—i validation an toÃ n hoáº·c metadata Ä‘Ã£ lá»c. KhÃ´ng Ä‘Æ°a raw Supabase error, SQL, stack trace, file path hoáº·c provider response vÃ o field nÃ y.
+`details` chỉ chứa lỗi validation an toàn hoặc metadata đã lọc. Không đưa raw Supabase error, SQL, stack trace, file path hoặc provider response vào field này.
 ```
 
-VÃ­ dá»¥:
+Ví dụ:
 
 ```json
 {
   "success": false,
   "error": {
     "code": "LESSON_LOCKED",
-    "message": "Báº¡n cáº§n hoÃ n thÃ nh bÃ i há»c trÆ°á»›c."
+    "message": "Bạn cần hoàn thành bài học trước."
   }
 }
 ```
@@ -456,19 +456,19 @@ HTTP mapping:
 | 500 | DATABASE_ERROR, INTERNAL_ERROR |
 | 502 | AI_PROVIDER_ERROR, AI_RESPONSE_INVALID |
 
-KhÃ´ng tráº£ stack trace cho client.
+Không trả stack trace cho client.
 
 ---
 
 ## 7. Pagination
 
-Danh sÃ¡ch lá»›n dÃ¹ng query:
+Danh sách lớn dùng query:
 
 ```text
 ?page=1&pageSize=20
 ```
 
-Giá»›i háº¡n:
+Giới hạn:
 
 ```text
 page >= 1
@@ -494,9 +494,9 @@ Response:
 
 # 8. Auth API
 
-Theo kiáº¿n trÃºc hiá»‡n táº¡i, cÃ¡c mutation Auth Ä‘Æ°á»£c triá»ƒn khai qua Next.js Route Handler hoáº·c Server Action Ä‘á»ƒ giá»¯ validation, error mapping vÃ  session handling thá»‘ng nháº¥t.
+Theo kiến trúc hiện tại, các mutation Auth được triển khai qua Next.js Route Handler hoặc Server Action để giữ validation, error mapping và session handling thống nhất.
 
-Browser SDK chá»‰ Ä‘Æ°á»£c dÃ¹ng cho thao tÃ¡c session-safe Ä‘Ã£ Ä‘Æ°á»£c task cho phÃ©p rÃµ. Khi endpoint trong contract nÃ y tá»“n táº¡i, frontend pháº£i dÃ¹ng endpoint Ä‘Ã³ thay vÃ¬ táº¡o má»™t auth flow song song.
+Browser SDK chỉ được dùng cho thao tác session-safe đã được task cho phép rõ. Khi endpoint trong contract này tồn tại, frontend phải dùng endpoint đó thay vì tạo một auth flow song song.
 
 ## 8.1 Register
 
@@ -520,7 +520,7 @@ interface RegisterRequest {
 }
 ```
 
-VÃ­ dá»¥:
+Ví dụ:
 
 ```json
 {
@@ -532,11 +532,11 @@ VÃ­ dá»¥:
 
 Validation:
 
-- Email há»£p lá»‡.
-- Username Ä‘Æ°á»£c trim vÃ  dÃ i tá»« 3 Ä‘áº¿n 50 kÃ½ tá»±.
-- Password tuÃ¢n theo policy cá»§a Supabase.
-- Username lÃ  display name vÃ  khÃ´ng báº¯t buá»™c unique trong MVP.
-- Email trÃ¹ng Ä‘Æ°á»£c xá»­ lÃ½ qua Supabase Auth vÃ  tráº£ thÃ´ng bÃ¡o an toÃ n, khÃ´ng lá»™ chi tiáº¿t ná»™i bá»™.
+- Email hợp lệ.
+- Username được trim và dài từ 3 đến 50 ký tự.
+- Password tuân theo policy của Supabase.
+- Username là display name và không bắt buộc unique trong MVP.
+- Email trùng được xử lý qua Supabase Auth và trả thông báo an toàn, không lộ chi tiết nội bộ.
 
 Response:
 
@@ -583,7 +583,7 @@ interface LoginResponse {
 }
 ```
 
-Cookie session pháº£i Ä‘Æ°á»£c thiáº¿t láº­p an toÃ n.
+Cookie session phải được thiết lập an toàn.
 
 ---
 
@@ -664,7 +664,7 @@ interface ForgotPasswordRequest {
 }
 ```
 
-VÃ­ dá»¥:
+Ví dụ:
 
 ```json
 {
@@ -674,9 +674,9 @@ VÃ­ dá»¥:
 
 Validation:
 
-- Email há»£p lá»‡.
+- Email hợp lệ.
 
-Response (luÃ´n tráº£ vá» ná»™i dung giá»‘ng nhau báº¥t ká»ƒ email cÃ³ tá»“n táº¡i hay khÃ´ng Ä‘á»ƒ chá»‘ng account enumeration):
+Response (luôn trả về nội dung giống nhau bất kể email có tồn tại hay không để chống account enumeration):
 
 ```ts
 interface ForgotPasswordResponse {
@@ -700,11 +700,11 @@ Error codes:
 | 400 | VALIDATION_ERROR |
 | 429 | RATE_LIMITED |
 
-Quy táº¯c:
+Quy tắc:
 
-- Server gá»i `supabase.auth.resetPasswordForEmail` vá»›i redirect URL lÃ  `<app origin>/reset-password` (origin láº¥y tá»« `NEXT_PUBLIC_SITE_URL`).
-- KhÃ´ng tráº£ vá» thÃ´ng tin email cÃ³ tá»“n táº¡i hay khÃ´ng; user bá»‹ vÃ´ hiá»‡u hÃ³a cÅ©ng nháº­n response generic giá»‘ng há»‡t.
-- KhÃ´ng cÃ³ endpoint server-side cho bÆ°á»›c Ä‘áº·t máº­t kháº©u má»›i. BÆ°á»›c Ä‘Ã³ dÃ¹ng Supabase recovery session vÃ  client-side `supabase.auth.updateUser` táº¡i `/reset-password` (xem ADR-024).
+- Server gọi `supabase.auth.resetPasswordForEmail` với redirect URL là `<app origin>/reset-password` (origin lấy từ `NEXT_PUBLIC_SITE_URL`).
+- Không trả về thông tin email có tồn tại hay không; user bị vô hiệu hóa cũng nhận response generic giống hệt.
+- Không có endpoint server-side cho bước đặt mật khẩu mới. Bước đó dùng Supabase recovery session và client-side `supabase.auth.updateUser` tại `/reset-password` (xem ADR-024).
 
 ---
 
@@ -756,12 +756,12 @@ interface UpdateProfileRequest {
 }
 ```
 
-KhÃ´ng cho phÃ©p client cáº­p nháº­t:
+Không cho phép client cập nhật:
 
 - role.
 - isActive.
 - id.
-- email náº¿u chÆ°a cÃ³ use case riÃªng.
+- email nếu chưa có use case riêng.
 
 Response:
 
@@ -786,7 +786,7 @@ GET /api/courses
 Access:
 
 ```text
-Guest hoáº·c authenticated user
+Guest hoặc authenticated user
 ```
 
 Query Core MVP:
@@ -795,13 +795,13 @@ Query Core MVP:
 ?page=1&pageSize=20
 ```
 
-Query P1 khi `F-COURSE-02` Ä‘Æ°á»£c triá»ƒn khai:
+Query P1 khi `F-COURSE-02` được triển khai:
 
 ```text
 ?search=python&page=1&pageSize=20
 ```
 
-Server khÃ´ng Ä‘Æ°á»£c tá»± báº­t search náº¿u feature vÃ  test tÆ°Æ¡ng á»©ng chÆ°a Ä‘Æ°á»£c triá»ƒn khai.
+Server không được tự bật search nếu feature và test tương ứng chưa được triển khai.
 
 Response item:
 
@@ -836,7 +836,7 @@ GET /api/courses/:courseId
 Access:
 
 ```text
-Guest hoáº·c authenticated user
+Guest hoặc authenticated user
 ```
 
 Response:
@@ -855,7 +855,7 @@ interface CourseDetail {
 }
 ```
 
-Chá»‰ tráº£ course Ä‘Ã£ published cho Guest vÃ  Learner.
+Chỉ trả course đã published cho Guest và Learner.
 
 ---
 
@@ -877,14 +877,14 @@ Request:
 {}
 ```
 
-Nghiá»‡p vá»¥:
+Nghiệp vụ:
 
-1. Kiá»ƒm tra course tá»“n táº¡i vÃ  published.
-2. Táº¡o `course_enrollments`.
-3. Táº¡o progress cho táº¥t cáº£ lesson Ä‘Ã£ publish cá»§a course.
-4. Lesson Ä‘áº§u tiÃªn theo `chapter_order` vÃ  `lesson_order` lÃ  `unlocked`.
-5. CÃ¡c lesson published cÃ²n láº¡i lÃ  `locked`.
-6. ToÃ n bá»™ enrollment vÃ  progress initialization cháº¡y trong má»™t transaction hoáº·c RPC an toÃ n.
+1. Kiểm tra course tồn tại và published.
+2. Tạo `course_enrollments`.
+3. Tạo progress cho tất cả lesson đã publish của course.
+4. Lesson đầu tiên theo `chapter_order` và `lesson_order` là `unlocked`.
+5. Các lesson published còn lại là `locked`.
+6. Toàn bộ enrollment và progress initialization chạy trong một transaction hoặc RPC an toàn.
 
 Response:
 
@@ -897,7 +897,7 @@ interface EnrollCourseResponse {
 }
 ```
 
-Náº¿u Ä‘Ã£ enroll:
+Nếu đã enroll:
 
 ```text
 409 CONFLICT
@@ -916,7 +916,7 @@ GET /api/courses/:courseId/roadmap
 Access:
 
 ```text
-Learner Ä‘Ã£ enroll
+Learner đã enroll
 ```
 
 Response:
@@ -947,7 +947,7 @@ interface RoadmapLesson {
 }
 ```
 
-KhÃ´ng tráº£ ná»™i dung Ä‘áº§y Ä‘á»§ cá»§a lesson trong roadmap.
+Không trả nội dung đầy đủ của lesson trong roadmap.
 
 ---
 
@@ -962,7 +962,7 @@ GET /api/lessons/:lessonId
 Access:
 
 ```text
-Learner Ä‘Ã£ enroll vÃ  lesson khÃ´ng locked
+Learner đã enroll và lesson không locked
 ```
 
 Response:
@@ -993,7 +993,7 @@ interface ExerciseSummary {
 }
 ```
 
-Náº¿u locked:
+Nếu locked:
 
 ```text
 423 LESSON_LOCKED
@@ -1019,14 +1019,14 @@ Request:
 {}
 ```
 
-Nghiá»‡p vá»¥:
+Nghiệp vụ:
 
-- Náº¿u `unlocked`, chuyá»ƒn thÃ nh `inProgress`.
-- Náº¿u Ä‘Ã£ `inProgress` hoáº·c `completed`, tráº£ tráº¡ng thÃ¡i hiá»‡n táº¡i.
-- Náº¿u `locked` nhÆ°ng lÃ  bÃ i published liá»n sau má»™t bÃ i mÃ  learner Ä‘Ã£ cÃ³ quyá»n truy cáº­p trong
-  cÃ¹ng course, cho phÃ©p chuyá»ƒn tháº³ng thÃ nh `inProgress`. ÄÃ¢y lÃ  thao tÃ¡c â€œTiáº¿p theoâ€; bÃ i trÆ°á»›c
-  khÃ´ng bá»‹ Ä‘Ã¡nh dáº¥u `completed`.
-- Náº¿u `locked` vÃ  khÃ´ng thá»a Ä‘iá»u kiá»‡n liá»n sau, tá»« chá»‘i Ä‘á»ƒ khÃ´ng cho phÃ©p nháº£y cÃ³c tÃ¹y Ã½.
+- Nếu `unlocked`, chuyển thành `inProgress`.
+- Nếu đã `inProgress` hoặc `completed`, trả trạng thái hiện tại.
+- Nếu `locked` nhưng là bài published liền sau một bài mà learner đã có quyền truy cập trong
+  cùng course, cho phép chuyển thẳng thành `inProgress`. Đây là thao tác “Tiếp theo”; bài trước
+  không bị đánh dấu `completed`.
+- Nếu `locked` và không thỏa điều kiện liền sau, từ chối để không cho phép nhảy cóc tùy ý.
 
 Response:
 
@@ -1051,7 +1051,7 @@ GET /api/exercises/:exerciseId
 Access:
 
 ```text
-Learner cÃ³ quyá»n truy cáº­p lesson chá»©a exercise
+Learner có quyền truy cập lesson chứa exercise
 ```
 
 Response chung:
@@ -1119,12 +1119,12 @@ interface ExerciseOption {
 }
 ```
 
-KhÃ´ng tráº£:
+Không trả:
 
 ```text
 correctAnswer
 solution
-isCorrect cá»§a option
+isCorrect của option
 ```
 
 ---
@@ -1162,9 +1162,9 @@ interface OrderingAnswer { orderedOptionIds: number[] }
 interface MatchingAnswer { matches: Array<{ optionId: number; answer: string }> }
 ```
 
-Server pháº£i validate answer theo exercise type.
+Server phải validate answer theo exercise type.
 
-Trong MVP, `fixTheBug` chá»‰ nháº­n `selectedOptionId`. TrÆ°á»ng `selectedSyntax` thuá»™c interaction kÃ©o-tháº£ P1 vÃ  chá»‰ Ä‘Æ°á»£c thÃªm sau khi `requirements.md`, `database.md`, contract vÃ  test Ä‘Æ°á»£c cáº­p nháº­t cÃ¹ng nhau.
+Trong MVP, `fixTheBug` chỉ nhận `selectedOptionId`. Trường `selectedSyntax` thuộc interaction kéo-thả P1 và chỉ được thêm sau khi `requirements.md`, `database.md`, contract và test được cập nhật cùng nhau.
 
 Response:
 
@@ -1187,9 +1187,9 @@ interface SubmitExerciseResponse {
 }
 ```
 
-KhÃ´ng tráº£ toÃ n bá»™ solution.
+Không trả toàn bộ solution.
 
-CÃ³ thá»ƒ tráº£ má»™t explanation tÄ©nh ngáº¯n sau khi ná»™p:
+Có thể trả một explanation tĩnh ngắn sau khi nộp:
 
 ```ts
 interface SubmitExerciseResponse {
@@ -1197,7 +1197,7 @@ interface SubmitExerciseResponse {
 }
 ```
 
-Chá»‰ tráº£ khi product requirement cho phÃ©p.
+Chỉ trả khi product requirement cho phép.
 
 ---
 
@@ -1232,7 +1232,7 @@ interface SubmissionSummary {
 }
 ```
 
-Chá»‰ tráº£ submission cá»§a user hiá»‡n táº¡i.
+Chỉ trả submission của user hiện tại.
 
 ---
 
@@ -1247,7 +1247,7 @@ GET /api/courses/:courseId/progress
 Access:
 
 ```text
-Learner Ä‘Ã£ enroll
+Learner đã enroll
 ```
 
 Response:
@@ -1288,9 +1288,9 @@ interface LessonProgressResponse {
 }
 ```
 
-Client khÃ´ng Ä‘Æ°á»£c cÃ³ endpoint tá»± Ä‘áº·t lesson thÃ nh completed.
+Client không được có endpoint tự đặt lesson thành completed.
 
-Tráº¡ng thÃ¡i completed chá»‰ Ä‘Æ°á»£c cáº­p nháº­t thÃ´ng qua business logic sau khi submit exercise.
+Trạng thái completed chỉ được cập nhật thông qua business logic sau khi submit exercise.
 
 ---
 
@@ -1319,13 +1319,13 @@ interface CreateAIExplanationRequest {
 
 Validation:
 
-- Submission pháº£i thuá»™c user hiá»‡n táº¡i.
-- Submission pháº£i tá»“n táº¡i.
-- Question tá»‘i Ä‘a theo giá»›i háº¡n há»‡ thá»‘ng.
-- CÃ³ thá»ƒ chá»‰ cho gá»i khi submission sai.
-- Ãp dá»¥ng rate limit.
+- Submission phải thuộc user hiện tại.
+- Submission phải tồn tại.
+- Question tối đa theo giới hạn hệ thống.
+- Có thể chỉ cho gọi khi submission sai.
+- Áp dụng rate limit.
 
-Server tá»± láº¥y:
+Server tự lấy:
 
 - Lesson content.
 - Exercise content.
@@ -1333,7 +1333,7 @@ Server tá»± láº¥y:
 - Correct solution.
 - Exercise type.
 
-Client khÃ´ng Ä‘Æ°á»£c gá»­i correct solution hoáº·c system prompt.
+Client không được gửi correct solution hoặc system prompt.
 
 Response:
 
@@ -1349,14 +1349,14 @@ interface AIExplanationResponse {
 }
 ```
 
-Náº¿u AI lá»—i:
+Nếu AI lỗi:
 
 ```json
 {
   "success": false,
   "error": {
     "code": "AI_PROVIDER_ERROR",
-    "message": "KhÃ´ng thá»ƒ táº¡o lá»i giáº£i thÃ­ch lÃºc nÃ y."
+    "message": "Không thể tạo lời giải thích lúc này."
   }
 }
 ```
@@ -1372,7 +1372,7 @@ GET /api/submissions/:submissionId/explanations
 Access:
 
 ```text
-Learner sá»Ÿ há»¯u submission
+Learner sở hữu submission
 ```
 
 Response item:
@@ -1388,7 +1388,7 @@ interface AIExplanationHistoryItem {
 }
 ```
 
-KhÃ´ng tráº£ raw prompt náº¿u khÃ´ng cáº§n.
+Không trả raw prompt nếu không cần.
 
 ---
 
@@ -1396,12 +1396,12 @@ KhÃ´ng tráº£ raw prompt náº¿u khÃ´ng cáº§n.
 
 **Scope:** P1 / Operations Extension.
 
-KhÃ´ng triá»ƒn khai pháº§n nÃ y trÆ°á»›c AI generation, moderation schema, RLS vÃ  task tÆ°Æ¡ng á»©ng trong `TASKS.md`.
+Không triển khai phần này trước AI generation, moderation schema, RLS và task tương ứng trong `TASKS.md`.
 
-Táº¥t cáº£ endpoint pháº§n nÃ y yÃªu cáº§u:
+Tất cả endpoint phần này yêu cầu:
 
 ```text
-role = moderator hoáº·c admin
+role = moderator hoặc admin
 ```
 
 ## 16.1 List generated exercises
@@ -1494,7 +1494,7 @@ interface ExerciseReviewSummary {
 }
 ```
 
-CÃ¡c field solution (`correctAnswer`, `expectedAnswer`, `correctOrder`, `pairs`) chá»‰ xuáº¥t hiá»‡n trong endpoint Moderator/Admin nÃ y sau khi server Ä‘Ã£ kiá»ƒm tra role. Khi publish, server Ã¡nh xáº¡ chÃºng sang `exercise_solutions` server-only. KhÃ´ng reuse DTO nÃ y cho Learner UI.
+Các field solution (`correctAnswer`, `expectedAnswer`, `correctOrder`, `pairs`) chỉ xuất hiện trong endpoint Moderator/Admin này sau khi server đã kiểm tra role. Khi publish, server ánh xạ chúng sang `exercise_solutions` server-only. Không reuse DTO này cho Learner UI.
 
 ---
 
@@ -1527,13 +1527,13 @@ interface ExerciseReviewResponse {
 }
 ```
 
-Nghiá»‡p vá»¥:
+Nghiệp vụ:
 
-- Chá»‰ review generated exercise chÆ°a `published`.
-- Náº¿u cÃ³ `editedDraft`, validate toÃ n bá»™ common fields, discriminator vÃ  Ä‘Ãºng cÃ¡c field riÃªng cá»§a modality; tá»« chá»‘i field thá»«a hoáº·c field coding trÃªn modality khÃ´ng-code.
-- Cáº­p nháº­t generated exercise thÃ nh snapshot má»›i trong cÃ¹ng transaction vá»›i review.
-- LÆ°u full edited snapshot vÃ o review history khi cÃ³ chá»‰nh sá»­a.
-- `approved` khÃ´ng Ä‘á»“ng nghÄ©a Ä‘Ã£ publish.
+- Chỉ review generated exercise chưa `published`.
+- Nếu có `editedDraft`, validate toàn bộ common fields, discriminator và đúng các field riêng của modality; từ chối field thừa hoặc field coding trên modality không-code.
+- Cập nhật generated exercise thành snapshot mới trong cùng transaction với review.
+- Lưu full edited snapshot vào review history khi có chỉnh sửa.
+- `approved` không đồng nghĩa đã publish.
 
 ---
 
@@ -1546,7 +1546,7 @@ POST /api/moderation/generated-exercises/:id/publish
 Access:
 
 ```text
-Moderator hoáº·c Admin
+Moderator hoặc Admin
 ```
 
 Request:
@@ -1555,13 +1555,13 @@ Request:
 {}
 ```
 
-Äiá»u kiá»‡n:
+Điều kiện:
 
-- Generated exercise pháº£i á»Ÿ tráº¡ng thÃ¡i `approved`.
-- ChÆ°a Ä‘Æ°á»£c publish trÆ°á»›c Ä‘Ã³.
-- Draft hiá»‡n táº¡i há»£p lá»‡.
-- Lesson vÃ  parent content Ä‘Ã£ publish.
-- Audit logging tá»‘i thiá»ƒu Ä‘Ã£ Ä‘Æ°á»£c cáº¥u hÃ¬nh cho action publish.
+- Generated exercise phải ở trạng thái `approved`.
+- Chưa được publish trước đó.
+- Draft hiện tại hợp lệ.
+- Lesson và parent content đã publish.
+- Audit logging tối thiểu đã được cấu hình cho action publish.
 
 Response:
 
@@ -1574,12 +1574,12 @@ interface PublishGeneratedExerciseResponse {
 }
 ```
 
-ToÃ n bá»™ thao tÃ¡c pháº£i cháº¡y trong transaction/RPC, táº¡o exercise, options, private solution, cáº­p nháº­t `publishedExerciseId`, `publishedAt` vÃ  audit record.
+Toàn bộ thao tác phải chạy trong transaction/RPC, tạo exercise, options, private solution, cập nhật `publishedExerciseId`, `publishedAt` và audit record.
 
-Náº¿u request bá»‹ gá»­i láº¡i sau khi Ä‘Ã£ publish:
+Nếu request bị gửi lại sau khi đã publish:
 
 ```text
-200 OK vá»›i cÃ¹ng `publishedExerciseId` (idempotent retry)
+200 OK với cùng `publishedExerciseId` (idempotent retry)
 ```
 
 ---
@@ -1587,15 +1587,15 @@ Náº¿u request bá»‹ gá»­i láº¡i sau khi Ä‘Ã£ publish:
 
 **Scope:** P1 / Operations Extension.
 
-CÃ¡c mutation Admin chá»‰ Ä‘Æ°á»£c báº­t sau khi audit log storage, server authorization vÃ  security tests Ä‘Ã£ hoÃ n thÃ nh.
+Các mutation Admin chỉ được bật sau khi audit log storage, server authorization và security tests đã hoàn thành.
 
-Táº¥t cáº£ endpoint yÃªu cáº§u:
+Tất cả endpoint yêu cầu:
 
 ```text
 role = admin
 ```
 
-Email Ä‘Æ°á»£c láº¥y tá»« Supabase Auth phÃ­a server. KhÃ´ng lÆ°u email hoáº·c password trong `profiles`.
+Email được lấy từ Supabase Auth phía server. Không lưu email hoặc password trong `profiles`.
 
 ## 17.1 List users
 
@@ -1640,9 +1640,9 @@ interface AdminUserDetail extends AdminUserSummary {
 }
 ```
 
-`lastActiveAt` lÃ  field dáº«n xuáº¥t tá»« dá»¯ liá»‡u hoáº¡t Ä‘á»™ng Ä‘Æ°á»£c contract hÃ³a, Æ°u tiÃªn `max(user_progress.last_accessed_at)`. KhÃ´ng tá»± thÃªm cá»™t database chá»‰ Ä‘á»ƒ phá»¥c vá»¥ field nÃ y.
+`lastActiveAt` là field dẫn xuất từ dữ liệu hoạt động được contract hóa, ưu tiên `max(user_progress.last_accessed_at)`. Không tự thêm cột database chỉ để phục vụ field này.
 
-KhÃ´ng tráº£ password, token, cookie hoáº·c raw auth metadata.
+Không trả password, token, cookie hoặc raw auth metadata.
 
 ---
 
@@ -1660,13 +1660,13 @@ interface ChangeUserRoleRequest {
 }
 ```
 
-Nghiá»‡p vá»¥:
+Nghiệp vụ:
 
-- KhÃ´ng cho Guest role.
-- KhÃ´ng nháº­n actor ID tá»« client.
-- Ghi `admin_logs` trong cÃ¹ng use case.
-- Cháº·n Admin tá»± háº¡ quyá»n náº¿u Ä‘Ã³ lÃ  active Admin cuá»‘i cÃ¹ng, khi rule nÃ y Ä‘Æ°á»£c triá»ƒn khai.
-- KhÃ´ng cho client update trá»±c tiáº¿p `profiles.role`.
+- Không cho Guest role.
+- Không nhận actor ID từ client.
+- Ghi `admin_logs` trong cùng use case.
+- Chặn Admin tự hạ quyền nếu đó là active Admin cuối cùng, khi rule này được triển khai.
+- Không cho client update trực tiếp `profiles.role`.
 
 Response:
 
@@ -1695,12 +1695,12 @@ interface ChangeUserStatusRequest {
 }
 ```
 
-Nghiá»‡p vá»¥:
+Nghiệp vụ:
 
-- Æ¯u tiÃªn deactivate thay vÃ¬ xÃ³a user.
-- KhÃ´ng cho Admin vÃ´ hiá»‡u hÃ³a active Admin cuá»‘i cÃ¹ng.
+- Ưu tiên deactivate thay vì xóa user.
+- Không cho Admin vô hiệu hóa active Admin cuối cùng.
 - Ghi `admin_logs`.
-- Session hiá»‡n cÃ³ cá»§a user bá»‹ vÃ´ hiá»‡u hÃ³a pháº£i bá»‹ tá»« chá»‘i á»Ÿ request riÃªng tÆ° tiáº¿p theo.
+- Session hiện có của user bị vô hiệu hóa phải bị từ chối ở request riêng tư tiếp theo.
 
 Response:
 
@@ -1768,7 +1768,7 @@ interface HealthResponse {
 }
 ```
 
-KhÃ´ng tráº£:
+Không trả:
 
 - Database URL.
 - Secret.
@@ -1779,9 +1779,9 @@ KhÃ´ng tráº£:
 
 # 19. Request validation schemas
 
-DÃ¹ng Zod hoáº·c cÃ´ng cá»¥ tÆ°Æ¡ng Ä‘Æ°Æ¡ng.
+Dùng Zod hoặc công cụ tương đương.
 
-Route pháº£i validate route params trÆ°á»›c, sau Ä‘Ã³ service táº£i exercise vÃ  chá»n answer schema theo `exercise_type`.
+Route phải validate route params trước, sau đó service tải exercise và chọn answer schema theo `exercise_type`.
 
 MVP:
 
@@ -1797,7 +1797,7 @@ export const submitExerciseRequestSchema = z.object({
 });
 ```
 
-Cáº£ `predictOutput` vÃ  `fixTheBug` P0 Ä‘á»u dÃ¹ng `selectedOptionId`. KhÃ´ng thÃªm `selectedSyntax` trÆ°á»›c contract P1.
+Cả `predictOutput` và `fixTheBug` P0 đều dùng `selectedOptionId`. Không thêm `selectedSyntax` trước contract P1.
 
 AI explanation:
 
@@ -1817,7 +1817,7 @@ export const paginationSchema = z.object({
 });
 ```
 
-Validation client khÃ´ng thay tháº¿ validation server.
+Validation client không thay thế validation server.
 
 ---
 # 20. API mapper
@@ -1838,9 +1838,9 @@ type
 isPublished
 ```
 
-Mapper pháº£i náº±m á»Ÿ service hoáº·c mapper file.
+Mapper phải nằm ở service hoặc mapper file.
 
-VÃ­ dá»¥:
+Ví dụ:
 
 ```ts
 function mapCourseRow(row: CourseRow): CourseSummary {
@@ -1857,26 +1857,26 @@ function mapCourseRow(row: CourseRow): CourseSummary {
 }
 ```
 
-KhÃ´ng tráº£ database row trá»±c tiáº¿p tá»« Route Handler.
+Không trả database row trực tiếp từ Route Handler.
 
 ---
 
 # 21. Idempotency
 
-CÃ¡c endpoint nÃªn xá»­ lÃ½ an toÃ n khi request bá»‹ gá»­i láº¡i.
+Các endpoint nên xử lý an toàn khi request bị gửi lại.
 
-VÃ­ dá»¥:
+Ví dụ:
 
 ## Enroll course
 
-Náº¿u Ä‘Ã£ enroll:
+Nếu đã enroll:
 
-- CÃ³ thá»ƒ tráº£ `409 CONFLICT`, hoáº·c
-- Tráº£ enrollment hiá»‡n cÃ³ náº¿u nhÃ³m chá»n idempotent behavior.
+- Có thể trả `409 CONFLICT`, hoặc
+- Trả enrollment hiện có nếu nhóm chọn idempotent behavior.
 
-Pháº£i chá»n má»™t cÃ¡ch vÃ  giá»¯ thá»‘ng nháº¥t.
+Phải chọn một cách và giữ thống nhất.
 
-Contract hiá»‡n táº¡i chá»n:
+Contract hiện tại chọn:
 
 ```text
 409 CONFLICT
@@ -1884,19 +1884,19 @@ Contract hiá»‡n táº¡i chá»n:
 
 ## Publish generated exercise
 
-Náº¿u Ä‘Ã£ publish:
+Nếu đã publish:
 
 ```text
 409 CONFLICT
 ```
 
-KhÃ´ng táº¡o exercise trÃ¹ng.
+Không tạo exercise trùng.
 
 ---
 
 # 22. Rate limiting
 
-Endpoint cáº§n rate limit:
+Endpoint cần rate limit:
 
 ```text
 POST /api/ai/explanations
@@ -1907,32 +1907,31 @@ POST /api/admin/users/:userId/recover
 POST /api/moderation/generated-exercises/:id/publish
 ```
 
-Giá»›i háº¡n cá»¥ thá»ƒ tá»«ng endpoint Ä‘Æ°á»£c ghi táº¡i `docs/security.md` â€” Má»¥c 9.
+Giới hạn cụ thể từng endpoint được ghi tại `docs/security.md` — Mục 9.
 # Admin PDF-to-Course API
 
-Má»i route dÆ°á»›i Ä‘Ã¢y yÃªu cáº§u active Admin, tráº£ envelope chuáº©n vÃ 
+Mọi route dưới đây yêu cầu active Admin, trả envelope chuẩn và
 `Cache-Control: no-store`.
 
 | Method | Route | Request | Success |
 |---|---|---|---|
 | `POST` | `/api/admin/content-sources` | multipart `file` | `201 SourceDocument` |
-| `POST` | `/api/admin/content-sources/:id/extract` | â€” | extraction summary |
-| `POST` | `/api/admin/content-sources/:id/course-outline` | â€” | `201 CourseOutlineDraft` |
+| `POST` | `/api/admin/content-sources/:id/extract` | — | extraction summary |
+| `POST` | `/api/admin/content-sources/:id/course-outline` | — | `201 CourseOutlineDraft` |
 | `GET` | `/api/admin/course-drafts` | unresolved filter | `{ items: CourseDraft[] }` |
 | `PATCH` | `/api/admin/course-drafts/:id/outline` | outline mutation | new outline revision |
-| `POST` | `/api/admin/course-drafts/:id/outline/regenerate` | â€” | new outline revision |
-| `POST` | `/api/admin/course-drafts/:id/lessons/generate` | â€” | per-Lesson generation states |
-| `GET` | `/api/admin/lesson-drafts/:id` | â€” | content draft + citations |
+| `POST` | `/api/admin/course-drafts/:id/outline/regenerate` | — | new outline revision |
+| `POST` | `/api/admin/course-drafts/:id/lessons/generate` | — | per-Lesson generation states |
+| `GET` | `/api/admin/lesson-drafts/:id` | — | content draft + citations |
 | `PATCH` | `/api/admin/lesson-drafts/:id` | structured draft | new revision/status |
-| `POST` | `/api/admin/lesson-drafts/:id/regenerate` | â€” | new content revision |
+| `POST` | `/api/admin/lesson-drafts/:id/regenerate` | — | new content revision |
 | `POST` | `/api/admin/course-drafts/:id/reviews` | Course decision | persisted state/publication |
 
-Upload giá»›i háº¡n 10 MiB vÃ  MIME theo `docs/document-to-lesson.md`. `409 INVALID_STATE`
-Ä‘Æ°á»£c dÃ¹ng khi gá»i sai thá»© tá»± pipeline; invalid input tráº£ `400`; authentication/
-authorization tráº£ `401`/`403`.
+Upload giới hạn 10 MiB và MIME theo `docs/document-to-lesson.md`. `409 INVALID_STATE`
+được dùng khi gọi sai thứ tự pipeline; invalid input trả `400`; authentication/
+authorization trả `401`/`403`.
 
-CÃ¡c endpoint `content-targets`, `content-curriculum`,
-`content-sources/:id/generate { targetLessonId }` vÃ  one-Lesson review/publish lÃ 
-compatibility surface lá»‹ch sá»­. ChÃºng khÃ´ng thuá»™c Admin PDF-to-Course default flow vÃ 
-khÃ´ng Ä‘Æ°á»£c dÃ¹ng Ä‘á»ƒ bá» qua outline review hoáº·c táº¡o official curriculum trÆ°á»›c Publish.
-
+Các endpoint `content-targets`, `content-curriculum`,
+`content-sources/:id/generate { targetLessonId }` và one-Lesson review/publish là
+compatibility surface lịch sử. Chúng không thuộc Admin PDF-to-Course default flow và
+không được dùng để bỏ qua outline review hoặc tạo official curriculum trước Publish.

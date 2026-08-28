@@ -2,7 +2,7 @@
 
 ## Targeted follow-up verdict
 
-`PASS / VERIFIED` â€” no open Critical, High, or Medium finding. The targeted provider/schema/API tests,
+`PASS / VERIFIED` — no open Critical, High, or Medium finding. The targeted provider/schema/API tests,
 full Vitest suite, lint, typecheck, production build, diff check, and secret review all pass.
 
 Static evidence confirms one ownership path: provider output supplies validated `content.type`,
@@ -12,7 +12,7 @@ extras such as `difficulty`.
 
 ## Historical TASK-097 verdict
 
-`PASS` â€” no open Critical, High, or Medium findings before the targeted follow-up.
+`PASS` — no open Critical, High, or Medium findings before the targeted follow-up.
 
 ## Review coverage
 
@@ -45,4 +45,3 @@ no application deployment or live AI call was performed. The earlier authorized 
 mutation remains migration `20260828054832_subject_agnostic_exercises`.
 
 Source commit: `6d08668f78b914d02fb6b1fed9edde8f7a855db2` on `production-test-2`.
-

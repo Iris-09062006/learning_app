@@ -49,26 +49,26 @@ function ExerciseDraftPreview({ content }: { content: GeneratedExerciseContent }
   const choiceOptions = "options" in content ? content.options : [];
   return (
     <section aria-labelledby="exercise-preview-heading" className="mt-4 rounded-xl border border-border bg-surface-subtle p-4">
-      <h2 id="exercise-preview-heading" className="text-sm font-semibold text-text-primary">Ná»™i dung theo Ä‘á»‹nh dáº¡ng</h2>
+      <h2 id="exercise-preview-heading" className="text-sm font-semibold text-text-primary">Nội dung theo định dạng</h2>
       {content.type === "scenario" && <p className="mt-3 whitespace-pre-wrap rounded-lg border border-border bg-surface p-4 text-sm leading-relaxed text-text-primary">{content.scenario}</p>}
       {(content.type === "predict_output" || content.type === "fix_the_bug") && (
-        <pre aria-label="Code cá»§a bÃ i táº­p" tabIndex={0} className="mt-3 max-w-full overflow-x-auto rounded-lg bg-code-background p-4 font-mono text-sm text-code-text focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring"><code>{content.codeSnippet}</code></pre>
+        <pre aria-label="Code của bài tập" tabIndex={0} className="mt-3 max-w-full overflow-x-auto rounded-lg bg-code-background p-4 font-mono text-sm text-code-text focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring"><code>{content.codeSnippet}</code></pre>
       )}
       {choiceOptions.length > 0 && (
         <ol className="mt-3 space-y-2">
           {choiceOptions.map((option) => <li key={option} className="rounded-lg border border-border bg-surface px-3 py-2 text-sm text-text-primary">{option}</li>)}
         </ol>
       )}
-      {content.type === "true_false" && <p className="mt-3 text-sm text-text-secondary">ÄÃ¡p Ã¡n mong Ä‘á»£i: <strong>{content.correctAnswer ? "ÄÃºng" : "Sai"}</strong></p>}
-      {content.type === "short_answer" && <p className="mt-3 whitespace-pre-wrap text-sm text-text-secondary">ÄÃ¡p Ã¡n mong Ä‘á»£i: <strong>{content.expectedAnswer}</strong></p>}
+      {content.type === "true_false" && <p className="mt-3 text-sm text-text-secondary">Đáp án mong đợi: <strong>{content.correctAnswer ? "Đúng" : "Sai"}</strong></p>}
+      {content.type === "short_answer" && <p className="mt-3 whitespace-pre-wrap text-sm text-text-secondary">Đáp án mong đợi: <strong>{content.expectedAnswer}</strong></p>}
       {content.type === "ordering" && (
         <ol className="mt-3 list-decimal space-y-2 pl-5 text-sm text-text-primary">{content.correctOrder.map((item) => <li key={item}>{item}</li>)}</ol>
       )}
       {content.type === "matching" && (
         <dl className="mt-3 grid gap-2 text-sm sm:grid-cols-2">{content.pairs.map((pair) => <div key={pair.prompt} className="rounded-lg border border-border bg-surface p-3"><dt className="font-medium text-text-primary">{pair.prompt}</dt><dd className="mt-1 text-text-secondary">{pair.answer}</dd></div>)}</dl>
       )}
-      {"correctAnswer" in content && typeof content.correctAnswer === "string" && <p className="mt-3 text-sm text-text-secondary">ÄÃ¡p Ã¡n Ä‘Ãºng: <strong>{content.correctAnswer}</strong></p>}
-      <p className="mt-3 whitespace-pre-wrap text-sm leading-relaxed text-text-secondary"><strong>Giáº£i thÃ­ch:</strong> {content.explanation}</p>
+      {"correctAnswer" in content && typeof content.correctAnswer === "string" && <p className="mt-3 text-sm text-text-secondary">Đáp án đúng: <strong>{content.correctAnswer}</strong></p>}
+      <p className="mt-3 whitespace-pre-wrap text-sm leading-relaxed text-text-secondary"><strong>Giải thích:</strong> {content.explanation}</p>
     </section>
   );
 }
@@ -89,9 +89,9 @@ export function ModerationDetailView({ id }: ModerationDetailViewProps) {
       const res = await fetch(`/api/moderation/generated-exercises/${id}`);
       if (!res.ok) {
         if (res.status === 404) {
-          throw new Error("BÃ i táº­p khÃ´ng tá»“n táº¡i");
+          throw new Error("Bài tập không tồn tại");
         }
-        throw new Error("KhÃ´ng thá»ƒ táº£i chi tiáº¿t bÃ i táº­p");
+        throw new Error("Không thể tải chi tiết bài tập");
       }
       const data: ModerationQueueItem = await res.json();
       setItem(data);
@@ -99,7 +99,7 @@ export function ModerationDetailView({ id }: ModerationDetailViewProps) {
       if (err instanceof Error) {
         setError(err.message);
       } else {
-        setError("ÄÃ£ xáº£y ra lá»—i");
+        setError("Đã xảy ra lỗi");
       }
     } finally {
       setLoading(false);
@@ -122,7 +122,7 @@ export function ModerationDetailView({ id }: ModerationDetailViewProps) {
 
       if (!res.ok) {
         const data = await res.json();
-        throw new Error(data.error || "KhÃ´ng thá»ƒ xuáº¥t báº£n bÃ i táº­p");
+        throw new Error(data.error || "Không thể xuất bản bài tập");
       }
 
       const result = await res.json();
@@ -134,7 +134,7 @@ export function ModerationDetailView({ id }: ModerationDetailViewProps) {
       if (err instanceof Error) {
         setPublishError(err.message);
       } else {
-        setPublishError("KhÃ´ng thá»ƒ xuáº¥t báº£n bÃ i táº­p");
+        setPublishError("Không thể xuất bản bài tập");
       }
     } finally {
       setPublishing(false);
@@ -144,7 +144,7 @@ export function ModerationDetailView({ id }: ModerationDetailViewProps) {
   if (loading) {
     return (
       <main aria-busy="true" className="space-y-6">
-        <span className="sr-only" role="status">Äang táº£i chi tiáº¿t kiá»ƒm duyá»‡tâ€¦</span>
+        <span className="sr-only" role="status">Đang tải chi tiết kiểm duyệt…</span>
         <div className="h-5 w-40 animate-pulse rounded bg-surface-container" />
         <div className="rounded-xl border border-border bg-surface p-6 shadow-sm">
           <div className="space-y-3">
@@ -166,10 +166,10 @@ export function ModerationDetailView({ id }: ModerationDetailViewProps) {
           href="/moderation"
           className="inline-flex items-center gap-1.5 text-sm font-medium text-primary transition hover:text-primary-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
         >
-          &larr; Quay láº¡i hÃ ng Ä‘á»£i kiá»ƒm duyá»‡t
+          &larr; Quay lại hàng đợi kiểm duyệt
         </Link>
-        <StatePanel variant="error" title="Lá»—i">
-          {error || "BÃ i táº­p khÃ´ng tá»“n táº¡i"}
+        <StatePanel variant="error" title="Lỗi">
+          {error || "Bài tập không tồn tại"}
         </StatePanel>
       </main>
     );
@@ -184,7 +184,7 @@ export function ModerationDetailView({ id }: ModerationDetailViewProps) {
           href="/moderation"
           className="inline-flex items-center gap-1.5 text-sm font-medium text-primary transition hover:text-primary-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
         >
-          &larr; Quay láº¡i hÃ ng Ä‘á»£i kiá»ƒm duyá»‡t
+          &larr; Quay lại hàng đợi kiểm duyệt
         </Link>
 
         {item.status === "approved" && (
@@ -223,7 +223,7 @@ export function ModerationDetailView({ id }: ModerationDetailViewProps) {
               {item.title}
             </h1>
             <p className="mt-1 break-words text-sm text-text-muted">
-              ID: #{item.id} | BÃ i há»c: {item.lessonTitle ?? `#${item.lessonId}`}
+              ID: #{item.id} | Bài học: {item.lessonTitle ?? `#${item.lessonId}`}
             </p>
           </div>
           <Badge className={`shrink-0 gap-1.5 font-semibold ${status.badge}`}>
@@ -239,7 +239,7 @@ export function ModerationDetailView({ id }: ModerationDetailViewProps) {
         <div className="mt-4 grid min-w-0 grid-cols-1 gap-4 border-y border-border py-4 text-sm sm:grid-cols-2 lg:grid-cols-4">
           <div>
             <span className="block text-xs font-semibold uppercase tracking-wide text-text-muted">
-              Loáº¡i
+              Loại
             </span>
             <span className="mt-1 block break-words font-medium capitalize text-text-primary">
               {item.exerciseType.replace("_", " ")}
@@ -247,7 +247,7 @@ export function ModerationDetailView({ id }: ModerationDetailViewProps) {
           </div>
           <div>
             <span className="block text-xs font-semibold uppercase tracking-wide text-text-muted">
-              Äá»™ khÃ³
+              Độ khó
             </span>
             <span className="mt-1 block break-words font-medium capitalize text-text-primary">
               {item.difficulty}
@@ -255,7 +255,7 @@ export function ModerationDetailView({ id }: ModerationDetailViewProps) {
           </div>
           <div>
             <span className="block text-xs font-semibold uppercase tracking-wide text-text-muted">
-              NhÃ  cung cáº¥p AI
+              Nhà cung cấp AI
             </span>
             <span className="mt-1 block break-words font-medium capitalize text-text-primary">
               {item.provider} ({item.model || "N/A"})
@@ -263,7 +263,7 @@ export function ModerationDetailView({ id }: ModerationDetailViewProps) {
           </div>
           <div>
             <span className="block text-xs font-semibold uppercase tracking-wide text-text-muted">
-              NgÃ y táº¡o
+              Ngày tạo
             </span>
             <span className="mt-1 block font-medium text-text-primary">
               {new Date(item.createdAt).toLocaleString()}
@@ -275,13 +275,13 @@ export function ModerationDetailView({ id }: ModerationDetailViewProps) {
 
         <details className="mt-4">
           <summary className="mb-2 flex cursor-pointer items-center justify-between text-sm font-semibold text-text-primary">
-            <span>Payload bÃ i táº­p (JSON)</span>
+            <span>Payload bài tập (JSON)</span>
             <span className="rounded-full bg-surface-container px-2.5 py-0.5 text-xs font-medium text-text-secondary">
               {JSON.stringify(item.content).length.toLocaleString()} bytes
             </span>
           </summary>
           <pre
-            aria-label="Payload bÃ i táº­p dáº¡ng JSON"
+            aria-label="Payload bài tập dạng JSON"
             tabIndex={0}
             className="max-h-96 max-w-full overflow-x-auto rounded-lg bg-code-background p-4 font-mono text-xs leading-relaxed text-code-text focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring"
           >
@@ -292,7 +292,7 @@ export function ModerationDetailView({ id }: ModerationDetailViewProps) {
 
       {item.reviews && item.reviews.length > 0 && (
         <section className="rounded-xl border border-border bg-surface p-6 shadow-sm">
-          <h2 className="text-lg font-semibold text-text-primary">Lá»‹ch sá»­ kiá»ƒm duyá»‡t</h2>
+          <h2 className="text-lg font-semibold text-text-primary">Lịch sử kiểm duyệt</h2>
           <ol className="mt-4 space-y-3">
             {item.reviews.map((review) => (
               <li key={review.id} className="rounded-lg border border-border bg-surface-subtle p-3 text-sm">
@@ -327,4 +327,3 @@ export function ModerationDetailView({ id }: ModerationDetailViewProps) {
     </main>
   );
 }
-

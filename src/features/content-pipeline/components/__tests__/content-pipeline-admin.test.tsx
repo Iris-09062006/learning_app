@@ -27,14 +27,14 @@ const contentDraft = {
   id: 81,
   outlineLessonId: 71,
   revision: 1,
-  title: "Biáº¿n Python",
-  summary: "Kiáº¿n thá»©c ná»n táº£ng vá» biáº¿n.",
+  title: "Biến Python",
+  summary: "Kiến thức nền tảng về biến.",
   estimatedMinutes: 12,
-  sections: [{ heading: "KhÃ¡i niá»‡m", bodyMarkdown: "Ná»™i dung", citationChunkIndexes: [0] }],
+  sections: [{ heading: "Khái niệm", bodyMarkdown: "Nội dung", citationChunkIndexes: [0] }],
   status: "ready" as const,
   provider: "9router",
   model: "model",
-  citations: [{ sectionIndex: 0, chunkIndex: 0, quote: "Nguá»“n" }],
+  citations: [{ sectionIndex: 0, chunkIndex: 0, quote: "Nguồn" }],
 };
 
 function importItem(status: CourseImportDraft["status"] = "outline_review"): CourseImportDraft {
@@ -63,12 +63,12 @@ function importItem(status: CourseImportDraft["status"] = "outline_review"): Cou
     errorCode: null,
     outlineRevision: 1,
     approvedOutlineRevision: status === "outline_review" ? null : 1,
-    title: "Python ná»n táº£ng",
-    description: "KhÃ³a há»c nháº­p mÃ´n.",
-    learningObjectives: ["Hiá»ƒu Python"],
+    title: "Python nền tảng",
+    description: "Khóa học nhập môn.",
+    learningObjectives: ["Hiểu Python"],
     lessons: [
-      { id: 71, clientKey: "lesson-1", lessonOrder: 1, title: "Biáº¿n Python", summary: "Biáº¿n", learningObjectives: ["Khai bÃ¡o biáº¿n"], sourceChunkIndexes: [0], contentDraft: status === "outline_review" ? null : contentDraft },
-      { id: 72, clientKey: "lesson-2", lessonOrder: 2, title: "HÃ m Python", summary: "HÃ m", learningObjectives: ["Äá»‹nh nghÄ©a hÃ m"], sourceChunkIndexes: [1], contentDraft: status === "outline_review" ? null : { ...contentDraft, id: 82, outlineLessonId: 72, title: "HÃ m Python" } },
+      { id: 71, clientKey: "lesson-1", lessonOrder: 1, title: "Biến Python", summary: "Biến", learningObjectives: ["Khai báo biến"], sourceChunkIndexes: [0], contentDraft: status === "outline_review" ? null : contentDraft },
+      { id: 72, clientKey: "lesson-2", lessonOrder: 2, title: "Hàm Python", summary: "Hàm", learningObjectives: ["Định nghĩa hàm"], sourceChunkIndexes: [1], contentDraft: status === "outline_review" ? null : { ...contentDraft, id: 82, outlineLessonId: 72, title: "Hàm Python" } },
     ],
     publishedCourseId: null,
     createdAt: "2026-08-10T00:00:00Z",
@@ -102,7 +102,7 @@ function multiImportItem(status: CourseImportDraft["status"] = "outline_review")
         citations: [{
           sectionIndex: 0,
           chunkIndex: 0,
-          quote: index === 0 ? "Nguá»“n PDF" : "Nguá»“n web",
+          quote: index === 0 ? "Nguồn PDF" : "Nguồn web",
           documentChunkId: index === 0 ? 101 : 202,
           sourceDocumentId: index === 0 ? 9 : 10,
           sourceTitle: index === 0 ? "python.pdf" : "Python docs",
@@ -145,7 +145,7 @@ describe("content pipeline Admin", () => {
   it("does not expose JSON parser errors for an HTML gateway timeout", async () => {
     vi.spyOn(globalThis, "fetch").mockResolvedValue(new Response("<html>timeout</html>", { status: 504 }));
     await expect(requestPipelineApi("/api/admin/course-drafts")).rejects.toThrow(
-      "Dá»‹ch vá»¥ táº¡m thá»i quÃ¡ táº£i hoáº·c háº¿t thá»i gian chá». Vui lÃ²ng thá»­ láº¡i."
+      "Dịch vụ tạm thời quá tải hoặc hết thời gian chờ. Vui lòng thử lại."
     );
   });
 
@@ -156,7 +156,7 @@ describe("content pipeline Admin", () => {
     }));
 
     const request = requestPipelineApi("/api/admin/course-drafts/61/lessons/generate", { method: "POST" }, 50);
-    const rejection = expect(request).rejects.toThrow("YÃªu cáº§u sinh Lesson máº¥t quÃ¡ nhiá»u thá»i gian");
+    const rejection = expect(request).rejects.toThrow("Yêu cầu sinh Lesson mất quá nhiều thời gian");
     await vi.advanceTimersByTimeAsync(50);
     await rejection;
   });
@@ -178,7 +178,7 @@ describe("content pipeline Admin", () => {
       const url = String(input);
       if (url === "/api/admin/course-drafts") return json({ success: true, data: { items: [] } });
       if (url === "/api/admin/course-research") return json({ success: true, data: {
-        topic: "Python async", queries: ["Python async hÆ°á»›ng dáº«n há»c táº­p tiáº¿ng Viá»‡t"],
+        topic: "Python async", queries: ["Python async hướng dẫn học tập tiếng Việt"],
         results: Array.from({ length: 9 }, (_, index) => researchCandidate(index)), cursor: null, hasMore: false,
       } });
       if (url === "/api/admin/content-sources/url") {
@@ -193,16 +193,16 @@ describe("content pipeline Admin", () => {
       throw new Error(`Unexpected request: ${url}`);
     });
     render(<ContentPipelineAdmin />);
-    fireEvent.change(await screen.findByLabelText("Chá»§ Ä‘á» Course"), { target: { value: "Python async" } });
-    fireEvent.click(screen.getByRole("button", { name: "NghiÃªn cá»©u" }));
-    const heading = await screen.findByRole("heading", { name: "á»¨ng viÃªn nguá»“n nghiÃªn cá»©u" });
+    fireEvent.change(await screen.findByLabelText("Chủ đề Course"), { target: { value: "Python async" } });
+    fireEvent.click(screen.getByRole("button", { name: "Nghiên cứu" }));
+    const heading = await screen.findByRole("heading", { name: "Ứng viên nguồn nghiên cứu" });
     await waitFor(() => expect(heading).toHaveFocus());
     expect(heading).toHaveClass("focus-visible:ring-focus-ring");
     expect(ingestBodies).toHaveLength(0);
 
     const checkboxes = screen.getAllByRole("checkbox");
     for (const checkbox of checkboxes.slice(0, 8)) fireEvent.click(checkbox);
-    expect(screen.getAllByText(/8\/8 nguá»“n Ä‘Ã£ chá»n/u).length).toBeGreaterThan(0);
+    expect(screen.getAllByText(/8\/8 nguồn đã chọn/u).length).toBeGreaterThan(0);
     expect(checkboxes[8]).toBeDisabled();
     fireEvent.click(checkboxes[0]);
     expect(ingestBodies).toHaveLength(0);
@@ -210,7 +210,7 @@ describe("content pipeline Admin", () => {
     fireEvent.click(checkboxes[8]);
     expect(ingestBodies).toHaveLength(0);
 
-    fireEvent.click(screen.getByRole("button", { name: "XÃ¡c nháº­n vÃ  ingest nguá»“n Ä‘Ã£ chá»n" }));
+    fireEvent.click(screen.getByRole("button", { name: "Xác nhận và ingest nguồn đã chọn" }));
     await waitFor(() => expect(ingestBodies).toHaveLength(8));
     expect(ingestBodies.every((body) => body.discovery === "discovered" && typeof body.idempotencyKey === "string")).toBe(true);
     expect(ingestBodies.some((body) => body.url === researchCandidate(0).url)).toBe(false);
@@ -237,12 +237,12 @@ describe("content pipeline Admin", () => {
       throw new Error(`Unexpected request: ${url}`);
     });
     render(<ContentPipelineAdmin />);
-    fireEvent.change(await screen.findByLabelText("Chá»§ Ä‘á» Course"), { target: { value: "Python" } });
-    fireEvent.click(screen.getByRole("button", { name: "NghiÃªn cá»©u" }));
+    fireEvent.change(await screen.findByLabelText("Chủ đề Course"), { target: { value: "Python" } });
+    fireEvent.click(screen.getByRole("button", { name: "Nghiên cứu" }));
     const selected = await screen.findByRole("checkbox", { name: /Research Source 14/u });
     fireEvent.click(selected);
-    fireEvent.click(screen.getByRole("button", { name: "NghiÃªn cá»©u thÃªm" }));
-    await waitFor(() => expect(screen.getByText(/20\/20 á»©ng viÃªn Ä‘ang hiá»ƒn thá»‹/u)).toBeInTheDocument());
+    fireEvent.click(screen.getByRole("button", { name: "Nghiên cứu thêm" }));
+    await waitFor(() => expect(screen.getByText(/20\/20 ứng viên đang hiển thị/u)).toBeInTheDocument());
     expect(selected).toBeChecked();
     expect(screen.getAllByRole("checkbox")).toHaveLength(20);
     expect(screen.getAllByText("Research Source 10")).toHaveLength(1);
@@ -292,20 +292,20 @@ describe("content pipeline Admin", () => {
       throw new Error(`Unexpected request: ${url}`);
     });
     render(<ContentPipelineAdmin />);
-    const topicInput = await screen.findByLabelText("Chá»§ Ä‘á» Course");
+    const topicInput = await screen.findByLabelText("Chủ đề Course");
     fireEvent.change(topicInput, { target: { value: "Python" } });
-    fireEvent.click(screen.getByRole("button", { name: "NghiÃªn cá»©u" }));
+    fireEvent.click(screen.getByRole("button", { name: "Nghiên cứu" }));
     const candidate = await screen.findByRole("checkbox", { name: /Research Source 1/u });
     fireEvent.click(candidate);
-    const manualUrl = screen.getByLabelText("URL thá»§ cÃ´ng");
-    const optionalFile = screen.getByLabelText("TÃ i liá»‡u tÃ¹y chá»n");
+    const manualUrl = screen.getByLabelText("URL thủ công");
+    const optionalFile = screen.getByLabelText("Tài liệu tùy chọn");
     fireEvent.change(manualUrl, { target: { value: "https://manual.example/guide" } });
     fireEvent.change(optionalFile, { target: { files: [new File(["guide"], "guide.md", { type: "text/markdown" })] } });
-    fireEvent.click(screen.getByRole("button", { name: "NghiÃªn cá»©u thÃªm" }));
+    fireEvent.click(screen.getByRole("button", { name: "Nghiên cứu thêm" }));
     const alert = await screen.findByRole("alert");
     expect(alert).toHaveFocus();
     expect(alert).toHaveClass("focus-visible:ring-focus-ring");
-    expect(within(alert).getByRole("button", { name: "Thá»­ láº¡i nghiÃªn cá»©u" })).toBeEnabled();
+    expect(within(alert).getByRole("button", { name: "Thử lại nghiên cứu" })).toBeEnabled();
     expect(topicInput).toHaveValue("Python");
     expect(candidate).toBeChecked();
     expect(screen.getByText("Research Source 1")).toBeInTheDocument();
@@ -323,8 +323,8 @@ describe("content pipeline Admin", () => {
       throw new Error(`Unexpected request: ${url}`);
     });
     render(<ContentPipelineAdmin />);
-    expect(await screen.findByDisplayValue("Python ná»n táº£ng")).toBeInTheDocument();
-    expect(screen.getByDisplayValue("HÃ m Python")).toBeInTheDocument();
+    expect(await screen.findByDisplayValue("Python nền tảng")).toBeInTheDocument();
+    expect(screen.getByDisplayValue("Hàm Python")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Continue: sinh Lesson contents" })).toBeInTheDocument();
     expect(screen.queryByRole("heading", { name: "Lesson content review" })).not.toBeInTheDocument();
   });
@@ -342,10 +342,10 @@ describe("content pipeline Admin", () => {
       throw new Error(`Unexpected request: ${url}`);
     });
     render(<ContentPipelineAdmin />);
-    await screen.findByText("KhÃ´ng cÃ³ Course import Ä‘ang chá» xá»­ lÃ½.");
-    fireEvent.change(screen.getByLabelText("TÃ i liá»‡u nguá»“n"), { target: { files: [new File(["pdf"], "python.pdf", { type: "application/pdf" })] } });
-    fireEvent.click(screen.getByRole("button", { name: "Táº¡o Course outline" }));
-    expect(await screen.findByText("Course outline Ä‘Ã£ Ä‘Æ°á»£c lÆ°u Ä‘á»ƒ Admin review.")).toBeInTheDocument();
+    await screen.findByText("Không có Course import đang chờ xử lý.");
+    fireEvent.change(screen.getByLabelText("Tài liệu nguồn"), { target: { files: [new File(["pdf"], "python.pdf", { type: "application/pdf" })] } });
+    fireEvent.click(screen.getByRole("button", { name: "Tạo Course outline" }));
+    expect(await screen.findByText("Course outline đã được lưu để Admin review.")).toBeInTheDocument();
     expect(calls).toContain("/api/admin/content-sources/9/course-outline");
     expect(calls.some((url) => url.endsWith("/generate"))).toBe(false);
     expect(calls.some((url) => url.includes("/api/ai/exercises"))).toBe(false);
@@ -363,7 +363,7 @@ describe("content pipeline Admin", () => {
         const body = JSON.parse(String(init?.body)) as { url: string };
         return body.url.includes("good")
           ? json({ success: true, data: { sourceDocumentId: 21, status: "extracted", chunkCount: 2 } }, 201)
-          : json({ success: false, error: { message: "Trang khÃ´ng Ä‘á»c Ä‘Æ°á»£c.", sourceDocumentId: 22 } }, 422);
+          : json({ success: false, error: { message: "Trang không đọc được.", sourceDocumentId: 22 } }, 422);
       }
       if (url === "/api/admin/content-sources/22" && init?.method === "DELETE") {
         removedSources.push(url);
@@ -376,19 +376,19 @@ describe("content pipeline Admin", () => {
       throw new Error(`Unexpected request: ${url}`);
     });
     render(<ContentPipelineAdmin />);
-    const input = await screen.findByLabelText("URL thá»§ cÃ´ng");
+    const input = await screen.findByLabelText("URL thủ công");
     fireEvent.change(input, { target: { value: "https://good.example/article" } });
     fireEvent.click(screen.getByRole("button", { name: "Ingest URL" }));
-    expect(await screen.findByText(/Nguá»“n URL Ä‘Ã£ sáºµn sÃ ng/)).toBeInTheDocument();
+    expect(await screen.findByText(/Nguồn URL đã sẵn sàng/)).toBeInTheDocument();
     fireEvent.change(input, { target: { value: "https://bad.example/article" } });
     fireEvent.click(screen.getByRole("button", { name: "Ingest URL" }));
-    expect(await screen.findByText("Trang khÃ´ng Ä‘á»c Ä‘Æ°á»£c.")).toBeInTheDocument();
+    expect(await screen.findByText("Trang không đọc được.")).toBeInTheDocument();
     expect(screen.getByText("https://good.example/article")).toBeInTheDocument();
     const failedSource = screen.getByText("https://bad.example/article").closest("li");
     expect(failedSource).not.toBeNull();
     fireEvent.click(within(failedSource!).getByRole("button", { name: "Remove" }));
     await waitFor(() => expect(removedSources).toEqual(["/api/admin/content-sources/22"]));
-    fireEvent.click(screen.getByRole("button", { name: "Khá»Ÿi táº¡o Course import" }));
+    fireEvent.click(screen.getByRole("button", { name: "Khởi tạo Course import" }));
     await waitFor(() => expect(initializedBody).toBeDefined());
     expect(initializedBody).toMatchObject({ sources: [{ sourceDocumentId: 21 }] });
   });
@@ -404,7 +404,7 @@ describe("content pipeline Admin", () => {
     });
     render(<ContentPipelineAdmin />);
     fireEvent.click(await screen.findByRole("button", { name: "Continue: sinh Lesson contents" }));
-    expect(await screen.findByText("Ná»™i dung Lesson Ä‘Ã£ sáºµn sÃ ng Ä‘á»ƒ review.")).toBeInTheDocument();
+    expect(await screen.findByText("Nội dung Lesson đã sẵn sàng để review.")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Publish Course" })).toBeInTheDocument();
   });
 
@@ -435,11 +435,11 @@ describe("content pipeline Admin", () => {
 
     render(<ContentPipelineAdmin />);
     fireEvent.click(await screen.findByRole("button", { name: "Continue: sinh Lesson contents" }));
-    expect(await screen.findByRole("button", { name: "Thá»­ láº¡i bÆ°á»›c bá»‹ lá»—i" })).toBeInTheDocument();
-    expect(screen.getByRole("alert")).toHaveTextContent("Dá»‹ch vá»¥ táº¡m thá»i quÃ¡ táº£i hoáº·c háº¿t thá»i gian chá»");
+    expect(await screen.findByRole("button", { name: "Thử lại bước bị lỗi" })).toBeInTheDocument();
+    expect(screen.getByRole("alert")).toHaveTextContent("Dịch vụ tạm thời quá tải hoặc hết thời gian chờ");
 
-    fireEvent.click(screen.getByRole("button", { name: "Thá»­ láº¡i bÆ°á»›c bá»‹ lá»—i" }));
-    expect(await screen.findByText("Ná»™i dung Lesson Ä‘Ã£ sáºµn sÃ ng Ä‘á»ƒ review.")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Thử lại bước bị lỗi" }));
+    expect(await screen.findByText("Nội dung Lesson đã sẵn sàng để review.")).toBeInTheDocument();
     expect(generationAttempts).toBe(2);
   });
 
@@ -463,15 +463,15 @@ describe("content pipeline Admin", () => {
 
     render(<ContentPipelineAdmin />);
     expect(await screen.findByDisplayValue("Python async")).toBeInTheDocument();
-    fireEvent.click(screen.getByRole("button", { name: "Báº¯t Ä‘áº§u workflow má»›i" }));
+    fireEvent.click(screen.getByRole("button", { name: "Bắt đầu workflow mới" }));
 
-    expect(screen.getByLabelText("Chá»§ Ä‘á» Course")).toHaveValue("");
+    expect(screen.getByLabelText("Chủ đề Course")).toHaveValue("");
     expect(
-      screen.getByText("Chá»n má»™t Course import.").closest("[data-state]"),
+      screen.getByText("Chọn một Course import.").closest("[data-state]"),
     ).toHaveAttribute("data-state", "empty");
-    expect(screen.getByText("ÄÃ£ má»Ÿ workflow má»›i. CÃ¡c Course import Ä‘Ã£ lÆ°u váº«n cÃ²n trong hÃ ng chá».")).toBeInTheDocument();
+    expect(screen.getByText("Đã mở workflow mới. Các Course import đã lưu vẫn còn trong hàng chờ.")).toBeInTheDocument();
     expect(sessionStorage.getItem("learningapp.course-outline-generation")).toBeNull();
-    expect(screen.getByRole("button", { name: /Python ná»n táº£ng/ })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Python nền tảng/ })).toBeInTheDocument();
   });
 
   it("publishes atomically and removes the resolved item after refresh", async () => {
@@ -507,16 +507,16 @@ describe("content pipeline Admin", () => {
     });
     render(<ContentPipelineAdmin />);
     expect(await screen.findByText("Attached Python source")).toBeInTheDocument();
-    expect(screen.getByLabelText("Chá»§ Ä‘á» Course")).toHaveValue("Python async");
+    expect(screen.getByLabelText("Chủ đề Course")).toHaveValue("Python async");
     fireEvent.click(await screen.findByRole("button", { name: "Publish Course" }));
     expect(
-      (await screen.findByText("HÃ ng chá» trá»‘ng.")).closest("[data-state]"),
+      (await screen.findByText("Hàng chờ trống.")).closest("[data-state]"),
     ).toHaveAttribute("data-state", "empty");
-    expect(screen.getByRole("link", { name: "Má»Ÿ Course" })).toHaveAttribute("href", "/courses/31");
+    expect(screen.getByRole("link", { name: "Mở Course" })).toHaveAttribute("href", "/courses/31");
     await waitFor(() => {
       expect(screen.queryByText("Attached Python source")).not.toBeInTheDocument();
       expect(screen.queryByText("Research Source 1")).not.toBeInTheDocument();
-      expect(screen.getByLabelText("Chá»§ Ä‘á» Course")).toHaveValue("");
+      expect(screen.getByLabelText("Chủ đề Course")).toHaveValue("");
       expect(sessionStorage.getItem("learningapp.course-outline-generation")).toBeNull();
     });
   });
@@ -548,7 +548,7 @@ describe("content pipeline Admin", () => {
       if (url === "/api/admin/course-drafts") return json({ success: true, data: { items: [importItem("content_review")] } });
       if (url === "/api/admin/content-targets") return json({ success: true, data: { items: [] } });
       if (url === "/api/admin/course-drafts/61/reviews") {
-        return json({ success: false, error: { message: "KhÃ´ng thá»ƒ publish Course." } }, 500);
+        return json({ success: false, error: { message: "Không thể publish Course." } }, 500);
       }
       throw new Error(`Unexpected request: ${url}`);
     });
@@ -557,9 +557,9 @@ describe("content pipeline Admin", () => {
     expect(await screen.findByText("Recoverable Python source")).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "Publish Course" }));
 
-    expect(await screen.findByText("KhÃ´ng thá»ƒ publish Course.")).toBeInTheDocument();
+    expect(await screen.findByText("Không thể publish Course.")).toBeInTheDocument();
     expect(screen.getByText("Recoverable Python source")).toBeInTheDocument();
-    expect(screen.getByLabelText("Chá»§ Ä‘á» Course")).toHaveValue("Python errors");
+    expect(screen.getByLabelText("Chủ đề Course")).toHaveValue("Python errors");
     expect(decodePipelineCheckpoint(sessionStorage.getItem("learningapp.course-outline-generation")))
       .toMatchObject({ jobId: 61, topic: "Python errors" });
   });
@@ -571,7 +571,7 @@ describe("content pipeline Admin", () => {
       throw new Error(`Unexpected request: ${url}`);
     });
     render(<ContentPipelineAdmin />);
-    expect(await screen.findByRole("link", { name: "Má»Ÿ danh sÃ¡ch Lesson" })).toHaveAttribute("href", "/moderation/lessons");
+    expect(await screen.findByRole("link", { name: "Mở danh sách Lesson" })).toHaveAttribute("href", "/moderation/lessons");
     expect(screen.queryByLabelText("Lesson")).not.toBeInTheDocument();
     expect(fetchSpy).not.toHaveBeenCalledWith("/api/ai/exercises/generate", expect.anything());
   });
@@ -588,17 +588,17 @@ describe("content pipeline Admin", () => {
       throw new Error(`Unexpected request: ${url}`);
     });
     render(<ContentPipelineAdmin />);
-    const firstLessonTitle = await screen.findByDisplayValue("Biáº¿n Python");
+    const firstLessonTitle = await screen.findByDisplayValue("Biến Python");
     const firstLesson = firstLessonTitle.closest("li");
     expect(firstLesson).not.toBeNull();
-    const webRef = within(firstLesson!).getByLabelText("Python docs Â· chunk 0");
+    const webRef = within(firstLesson!).getByLabelText("Python docs · chunk 0");
     webRef.focus();
     expect(webRef).toHaveFocus();
     fireEvent.click(webRef);
     expect(webRef).toBeChecked();
-    fireEvent.click(screen.getByRole("button", { name: "ThÃªm Lesson" }));
-    expect(screen.getByRole("textbox", { name: "Lesson 3 title" })).toHaveValue("Lesson má»›i");
-    fireEvent.click(screen.getByRole("button", { name: "LÆ°u outline" }));
+    fireEvent.click(screen.getByRole("button", { name: "Thêm Lesson" }));
+    expect(screen.getByRole("textbox", { name: "Lesson 3 title" })).toHaveValue("Lesson mới");
+    fireEvent.click(screen.getByRole("button", { name: "Lưu outline" }));
     await waitFor(() => expect(savedBody).toBeDefined());
     expect(savedBody).toMatchObject({ lessons: [
       expect.objectContaining({ sourceRefs: [
@@ -615,7 +615,7 @@ describe("content pipeline Admin", () => {
   });
 
   it("reconciles a renamed Course from uncached server truth without a browser reload", async () => {
-    let serverTitle = "Python ná»n táº£ng";
+    let serverTitle = "Python nền tảng";
     const fetchSpy = vi.spyOn(globalThis, "fetch").mockImplementation(async (input, init) => {
       const url = String(input);
       if (url === "/api/admin/course-drafts") {
@@ -630,12 +630,12 @@ describe("content pipeline Admin", () => {
 
     render(<ContentPipelineAdmin />);
     const title = await screen.findByRole("textbox", { name: "Course title" });
-    fireEvent.change(title, { target: { value: "TÃªn Course má»›i" } });
-    fireEvent.click(screen.getByRole("button", { name: "LÆ°u outline" }));
+    fireEvent.change(title, { target: { value: "Tên Course mới" } });
+    fireEvent.click(screen.getByRole("button", { name: "Lưu outline" }));
 
-    expect(await screen.findByText("ÄÃ£ lÆ°u outline revision má»›i.")).toBeInTheDocument();
-    expect(screen.getByRole("textbox", { name: "Course title" })).toHaveValue("TÃªn Course má»›i");
-    expect(screen.getByRole("button", { name: /TÃªn Course má»›i/ })).toBeInTheDocument();
+    expect(await screen.findByText("Đã lưu outline revision mới.")).toBeInTheDocument();
+    expect(screen.getByRole("textbox", { name: "Course title" })).toHaveValue("Tên Course mới");
+    expect(screen.getByRole("button", { name: /Tên Course mới/ })).toBeInTheDocument();
     expect(fetchSpy.mock.calls.filter(([input]) => String(input) === "/api/admin/course-drafts"))
       .toEqual(expect.arrayContaining([
         ["/api/admin/course-drafts", { cache: "no-store" }],
@@ -649,23 +649,23 @@ describe("content pipeline Admin", () => {
         return json({ success: true, data: { items: [importItem()] } });
       }
       if (url === "/api/admin/course-drafts/61/outline" && init?.method === "PATCH") {
-        return json({ success: false, error: { message: "KhÃ´ng thá»ƒ lÆ°u tÃªn Course." } }, 500);
+        return json({ success: false, error: { message: "Không thể lưu tên Course." } }, 500);
       }
       throw new Error(`Unexpected request: ${url}`);
     });
 
     render(<ContentPipelineAdmin />);
     const title = await screen.findByRole("textbox", { name: "Course title" });
-    fireEvent.change(title, { target: { value: "TÃªn cáº§n thá»­ láº¡i" } });
-    fireEvent.click(screen.getByRole("button", { name: "LÆ°u outline" }));
+    fireEvent.change(title, { target: { value: "Tên cần thử lại" } });
+    fireEvent.click(screen.getByRole("button", { name: "Lưu outline" }));
 
-    expect(await screen.findByRole("alert")).toHaveTextContent("KhÃ´ng thá»ƒ lÆ°u tÃªn Course.");
-    expect(title).toHaveValue("TÃªn cáº§n thá»­ láº¡i");
-    expect(screen.getByRole("button", { name: "LÆ°u outline" })).toBeEnabled();
+    expect(await screen.findByRole("alert")).toHaveTextContent("Không thể lưu tên Course.");
+    expect(title).toHaveValue("Tên cần thử lại");
+    expect(screen.getByRole("button", { name: "Lưu outline" })).toBeEnabled();
   });
 
   it("reloads canonical Lesson content immediately after a successful save", async () => {
-    let lessonTitle = "Biáº¿n Python";
+    let lessonTitle = "Biến Python";
     vi.spyOn(globalThis, "fetch").mockImplementation(async (input, init) => {
       const url = String(input);
       if (url === "/api/admin/course-drafts") {
@@ -686,21 +686,21 @@ describe("content pipeline Admin", () => {
     });
 
     render(<ContentPipelineAdmin />);
-    fireEvent.click((await screen.findAllByRole("button", { name: /Biáº¿n Python/ }))[0]);
-    const title = screen.getByRole("textbox", { name: "TiÃªu Ä‘á»" });
-    fireEvent.change(title, { target: { value: "Biáº¿n vÃ  kiá»ƒu dá»¯ liá»‡u" } });
-    fireEvent.click(screen.getByRole("button", { name: "LÆ°u Lesson content" }));
+    fireEvent.click((await screen.findAllByRole("button", { name: /Biến Python/ }))[0]);
+    const title = screen.getByRole("textbox", { name: "Tiêu đề" });
+    fireEvent.change(title, { target: { value: "Biến và kiểu dữ liệu" } });
+    fireEvent.click(screen.getByRole("button", { name: "Lưu Lesson content" }));
 
-    expect(await screen.findByText("ÄÃ£ lÆ°u Lesson content revision má»›i.")).toBeInTheDocument();
-    expect(screen.getByRole("textbox", { name: "TiÃªu Ä‘á»" }))
-      .toHaveValue("Biáº¿n vÃ  kiá»ƒu dá»¯ liá»‡u (server)");
+    expect(await screen.findByText("Đã lưu Lesson content revision mới.")).toBeInTheDocument();
+    expect(screen.getByRole("textbox", { name: "Tiêu đề" }))
+      .toHaveValue("Biến và kiểu dữ liệu (server)");
   });
 
   it("resets completed multi-source creation state and keeps the new import selected", async () => {
     let generated = false;
     sessionStorage.setItem("learningapp.course-outline-generation", JSON.stringify({
       version: 2,
-      topic: "TypeScript nÃ¢ng cao",
+      topic: "TypeScript nâng cao",
       selectedCandidateKeys: [],
       candidates: [],
       researchCursor: null,
@@ -724,7 +724,7 @@ describe("content pipeline Admin", () => {
       if (url === "/api/admin/course-drafts") {
         return json({ success: true, data: { items: [{
           ...importItem(generated ? "outline_review" : "processing"),
-          title: generated ? "TypeScript nÃ¢ng cao" : "Course import Ä‘ang chuáº©n bá»‹",
+          title: generated ? "TypeScript nâng cao" : "Course import đang chuẩn bị",
         }] } });
       }
       if (url === "/api/admin/course-drafts/61/outline" && init?.method === "POST") {
@@ -735,14 +735,14 @@ describe("content pipeline Admin", () => {
     });
 
     render(<ContentPipelineAdmin />);
-    expect(await screen.findByDisplayValue("TypeScript nÃ¢ng cao")).toBeInTheDocument();
+    expect(await screen.findByDisplayValue("TypeScript nâng cao")).toBeInTheDocument();
     expect(screen.getByText("TypeScript handbook")).toBeInTheDocument();
-    fireEvent.click(screen.getByRole("button", { name: "Táº¡o outline tá»« evidence Ä‘Ã£ review" }));
+    fireEvent.click(screen.getByRole("button", { name: "Tạo outline từ evidence đã review" }));
 
-    expect(await screen.findByText("Course outline má»›i Ä‘Ã£ sáºµn sÃ ng Ä‘á»ƒ review. Workflow táº¡o má»›i Ä‘Ã£ Ä‘Æ°á»£c Ä‘áº·t láº¡i.")).toBeInTheDocument();
-    expect(screen.getByLabelText("Chá»§ Ä‘á» Course")).toHaveValue("");
+    expect(await screen.findByText("Course outline mới đã sẵn sàng để review. Workflow tạo mới đã được đặt lại.")).toBeInTheDocument();
+    expect(screen.getByLabelText("Chủ đề Course")).toHaveValue("");
     expect(screen.queryByText("TypeScript handbook")).not.toBeInTheDocument();
-    expect(screen.getByRole("textbox", { name: "Course title" })).toHaveValue("TypeScript nÃ¢ng cao");
+    expect(screen.getByRole("textbox", { name: "Course title" })).toHaveValue("TypeScript nâng cao");
     expect(sessionStorage.getItem("learningapp.course-outline-generation")).toBeNull();
   });
 
@@ -750,15 +750,15 @@ describe("content pipeline Admin", () => {
     const stale = { ...multiImportItem("outline_review"), outlineStale: true };
     vi.spyOn(globalThis, "fetch").mockResolvedValue(json({ success: true, data: { items: [stale] } }));
     render(<ContentPipelineAdmin />);
-    expect(await screen.findByRole("alert")).toHaveTextContent("Evidence Ä‘Ã£ thay Ä‘á»•i");
+    expect(await screen.findByRole("alert")).toHaveTextContent("Evidence đã thay đổi");
     expect(screen.getByRole("button", { name: "Continue: sinh Lesson contents" })).toBeDisabled();
 
     const contentItem = multiImportItem("content_review");
     vi.restoreAllMocks();
     vi.spyOn(globalThis, "fetch").mockResolvedValue(json({ success: true, data: { items: [contentItem] } }));
     render(<ContentPipelineAdmin />);
-    fireEvent.click((await screen.findAllByRole("button", { name: /Biáº¿n Python/ }))[0]);
-    expect(await screen.findByText(/python\.pdf.*chunk 0: Nguá»“n PDF/u)).toBeInTheDocument();
+    fireEvent.click((await screen.findAllByRole("button", { name: /Biến Python/ }))[0]);
+    expect(await screen.findByText(/python\.pdf.*chunk 0: Nguồn PDF/u)).toBeInTheDocument();
   });
 
   it("renders with the shared Stitch tokens and no legacy or dark-hardcoded palette", async () => {
@@ -773,19 +773,19 @@ describe("content pipeline Admin", () => {
     const first = render(<ContentPipelineAdmin />);
     containers.push(first.container);
 
-    expect(await screen.findByDisplayValue("Python ná»n táº£ng")).toBeInTheDocument();
+    expect(await screen.findByDisplayValue("Python nền tảng")).toBeInTheDocument();
 
-    const courseCard = screen.getByRole("heading", { name: "PDF â†’ Course outline â†’ Lesson contents" }).closest("section") as HTMLElement | null;
+    const courseCard = screen.getByRole("heading", { name: "PDF → Course outline → Lesson contents" }).closest("section") as HTMLElement | null;
     expect(courseCard).not.toBeNull();
     expect(courseCard!).toHaveClass("rounded-xl", "border-border", "bg-surface", "shadow-sm");
 
     expect(screen.getByRole("button", { name: "Continue: sinh Lesson contents" })).toHaveClass("bg-primary", "text-on-primary", "rounded-xl");
-    expect(screen.getByText("outline_review Â· outline r1")).toHaveClass("bg-primary-soft", "text-primary");
+    expect(screen.getByText("outline_review · outline r1")).toHaveClass("bg-primary-soft", "text-primary");
 
     for (const field of [
       screen.getByLabelText("Course title"),
       screen.getByLabelText("Description"),
-      screen.getByLabelText("Course learning objectives (má»—i dÃ²ng má»™t má»¥c tiÃªu)"),
+      screen.getByLabelText("Course learning objectives (mỗi dòng một mục tiêu)"),
     ]) {
       expect(field).toHaveClass("border-border", "bg-surface", "rounded-xl");
     }
@@ -813,4 +813,3 @@ describe("content pipeline Admin", () => {
     }
   });
 });
-

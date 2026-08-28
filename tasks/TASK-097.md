@@ -1,6 +1,6 @@
-# TASK-097 â€” Subject-Agnostic Lesson Exercises
+# TASK-097 — Subject-Agnostic Lesson Exercises
 
-- **Status:** `DONE` â€” `production-test-2` commit `6d08668f78b914d02fb6b1fed9edde8f7a855db2`
+- **Status:** `DONE` — `production-test-2` commit `6d08668f78b914d02fb6b1fed9edde8f7a855db2`
 - **Owner / Reviewer:** Codex
 - **Starting HEAD:** `dce587004fdcde228020a9ab4146187e687b0ba7`
 
@@ -69,4 +69,3 @@ No Course/Lesson generation, 9Router routing, TASK-090 checkpointing, TASK-091 s
 publication workflow state changes, authentication/RBAC, dependency, deploy, or live AI call. The
 original no-push/no-commit exclusion was superseded by the user's 2026-08-28 request to release the
 verified work to `production-test-2` through GitHub MCP.
-

@@ -16,19 +16,19 @@ function queueItem(
   return {
     id,
     lessonId: 101,
-    lessonTitle: "BÃ i há»c máº«u",
+    lessonTitle: "Bài học mẫu",
     exerciseType: "predict_output",
     difficulty: "easy",
-    title: `BÃ i táº­p kiá»ƒm duyá»‡t ${id}`,
-    description: `MÃ´ táº£ bÃ i táº­p ${id}`,
+    title: `Bài tập kiểm duyệt ${id}`,
+    description: `Mô tả bài tập ${id}`,
     content: {
       type: "predict_output",
-      title: `BÃ i táº­p kiá»ƒm duyá»‡t ${id}`,
-      description: `MÃ´ táº£ bÃ i táº­p ${id}`,
+      title: `Bài tập kiểm duyệt ${id}`,
+      description: `Mô tả bài tập ${id}`,
       codeSnippet: "let x = 1;",
       options: ["A", "B"],
       correctAnswer: "A",
-      explanation: "Giáº£i thÃ­ch Ä‘Ã¡p Ã¡n.",
+      explanation: "Giải thích đáp án.",
     },
     status,
     provider: "9router",
@@ -46,7 +46,7 @@ function queueItem(
               generatedExerciseId: id,
               reviewerId: "00000000-0000-4000-8000-000000000002",
               status: status === "approved" ? "approved" : "rejected",
-              feedback: "Ná»™i dung phÃ¹ há»£p.",
+              feedback: "Nội dung phù hợp.",
               createdAt: "2026-08-11T00:00:00Z",
             },
           ]
@@ -89,7 +89,7 @@ describe("ModerationDetailView", () => {
 
     expect(screen.getByRole("main")).toHaveAttribute("aria-busy", "true");
     expect(screen.getByRole("status")).toHaveTextContent(
-      "Äang táº£i chi tiáº¿t kiá»ƒm duyá»‡t",
+      "Đang tải chi tiết kiểm duyệt",
     );
   });
 
@@ -98,15 +98,15 @@ describe("ModerationDetailView", () => {
     const { container } = render(<ModerationDetailView id={5} />);
 
     expect(
-      await screen.findByRole("heading", { level: 1, name: "BÃ i táº­p kiá»ƒm duyá»‡t 5" }),
+      await screen.findByRole("heading", { level: 1, name: "Bài tập kiểm duyệt 5" }),
     ).toBeInTheDocument();
-    expect(screen.getByText("MÃ´ táº£ bÃ i táº­p 5")).toBeInTheDocument();
+    expect(screen.getByText("Mô tả bài tập 5")).toBeInTheDocument();
     expect(screen.getByText("predict output")).toBeInTheDocument();
     expect(screen.getByText("easy")).toBeInTheDocument();
     expect(screen.getByText("9router (gpt-4o)")).toBeInTheDocument();
-    expect(screen.getByText(/ID: #5 \| BÃ i há»c: BÃ i há»c máº«u/u)).toBeInTheDocument();
+    expect(screen.getByText(/ID: #5 \| Bài học: Bài học mẫu/u)).toBeInTheDocument();
 
-    const backLink = screen.getByRole("link", { name: /Quay láº¡i hÃ ng Ä‘á»£i kiá»ƒm duyá»‡t/u });
+    const backLink = screen.getByRole("link", { name: /Quay lại hàng đợi kiểm duyệt/u });
     expect(backLink).toHaveAttribute("href", "/moderation");
     expect(backLink).toHaveClass("text-primary");
 
@@ -121,10 +121,10 @@ describe("ModerationDetailView", () => {
       { selector: "pre" },
     );
     expect(payload.textContent).toContain("let x = 1;");
-    expect(payload).toHaveAttribute("aria-label", "Payload bÃ i táº­p dáº¡ng JSON");
+    expect(payload).toHaveAttribute("aria-label", "Payload bài tập dạng JSON");
     expect(payload).toHaveAttribute("tabindex", "0");
     expect(
-      screen.getByRole("heading", { name: "Kiá»ƒm duyá»‡t bÃ i táº­p" }),
+      screen.getByRole("heading", { name: "Kiểm duyệt bài tập" }),
     ).toBeInTheDocument();
     expect(container.querySelector("main")).toHaveClass("min-w-0", "pb-16", "lg:pb-0");
     expect(screen.getByRole("heading", { level: 1 })).toHaveClass("break-words");
@@ -149,7 +149,7 @@ describe("ModerationDetailView", () => {
     render(<ModerationDetailView id={15} />);
     expect(await screen.findByText("A team discovers new customer evidence midway through delivery.")).toBeInTheDocument();
     expect(screen.getByText("Discuss and adapt", { selector: "li" })).toBeInTheDocument();
-    expect(screen.queryByLabelText("Code cá»§a bÃ i táº­p")).not.toBeInTheDocument();
+    expect(screen.queryByLabelText("Code của bài tập")).not.toBeInTheDocument();
   });
 
   it("publishes an approved item and shows the success state while re-fetching", async () => {
@@ -206,11 +206,11 @@ describe("ModerationDetailView", () => {
     render(<ModerationDetailView id={999} />);
 
     const alert = await screen.findByRole("alert");
-    expect(alert).toHaveTextContent("Lá»—i");
-    expect(alert).toHaveTextContent("BÃ i táº­p khÃ´ng tá»“n táº¡i");
+    expect(alert).toHaveTextContent("Lỗi");
+    expect(alert).toHaveTextContent("Bài tập không tồn tại");
     expect(alert).toHaveClass("border-danger", "bg-danger-soft");
     expect(
-      screen.getByRole("link", { name: /Quay láº¡i hÃ ng Ä‘á»£i kiá»ƒm duyá»‡t/u }),
+      screen.getByRole("link", { name: /Quay lại hàng đợi kiểm duyệt/u }),
     ).toHaveAttribute("href", "/moderation");
   });
 
@@ -219,9 +219,9 @@ describe("ModerationDetailView", () => {
     render(<ModerationDetailView id={8} />);
 
     expect(
-      await screen.findByRole("heading", { name: "Lá»‹ch sá»­ kiá»ƒm duyá»‡t" }),
+      await screen.findByRole("heading", { name: "Lịch sử kiểm duyệt" }),
     ).toBeInTheDocument();
-    expect(screen.getByText("Ná»™i dung phÃ¹ há»£p.")).toBeInTheDocument();
+    expect(screen.getByText("Nội dung phù hợp.")).toBeInTheDocument();
     expect(screen.getAllByRole("list").length).toBeGreaterThanOrEqual(1);
     expect(screen.getAllByText("rejected").length).toBeGreaterThanOrEqual(1);
   });
@@ -251,4 +251,3 @@ describe("ModerationDetailView", () => {
     }
   });
 });
-

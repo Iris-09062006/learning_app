@@ -97,4 +97,3 @@ export async function submitExercise(
     nextLesson,
   };
 }
-

@@ -60,7 +60,7 @@ describe("Lesson-scoped AI exercise generation", () => {
     await expect(generateExercise({
       lessonId: 51,
       difficulty: "easy",
-      learningObjective: "Hiá»ƒu phÃ©p gÃ¡n",
+      learningObjective: "Hiểu phép gán",
     }, provider)).rejects.toEqual(expect.objectContaining({ code: "FORBIDDEN" }) satisfies Partial<AiServiceError>);
     expect(mocks.fetchLessonContextForGeneration).not.toHaveBeenCalled();
     expect(provider.generateExercise).not.toHaveBeenCalled();
@@ -71,11 +71,11 @@ describe("Lesson-scoped AI exercise generation", () => {
     mocks.createServerSupabaseClient.mockResolvedValue(serverClient({ role: "admin", is_active: true }));
     mocks.fetchLessonContextForGeneration.mockResolvedValue({
       lessonId: 51,
-      lessonTitle: "Biáº¿n",
+      lessonTitle: "Biến",
       lessonContent: "x = 1",
-      learningObjectives: ["Hiá»ƒu phÃ©p gÃ¡n"],
-      courseTitle: "Python cÆ¡ báº£n",
-      courseDescription: "Nháº­p mÃ´n Python",
+      learningObjectives: ["Hiểu phép gán"],
+      courseTitle: "Python cơ bản",
+      courseDescription: "Nhập môn Python",
     });
     mocks.createGeneratedExerciseRecord.mockResolvedValue({ id: 88, lessonId: 51 });
     const provider: AIProvider = {
@@ -83,12 +83,12 @@ describe("Lesson-scoped AI exercise generation", () => {
       generateExercise: vi.fn().mockResolvedValue({
         content: {
           type: "predict_output",
-          title: "Dá»± Ä‘oÃ¡n",
-          description: "Káº¿t quáº£ lÃ  gÃ¬?",
+          title: "Dự đoán",
+          description: "Kết quả là gì?",
           codeSnippet: "x = 1\nprint(x)",
           options: ["1", "2"],
           correctAnswer: "1",
-          explanation: "x nháº­n 1",
+          explanation: "x nhận 1",
         },
         provider: "mock",
         model: null,
@@ -98,15 +98,15 @@ describe("Lesson-scoped AI exercise generation", () => {
     await generateExercise({
       lessonId: 51,
       difficulty: "easy",
-      learningObjective: "Hiá»ƒu phÃ©p gÃ¡n",
+      learningObjective: "Hiểu phép gán",
     }, provider);
 
     expect(provider.generateExercise).toHaveBeenCalledWith(expect.objectContaining({
-      lessonTitle: "Biáº¿n",
+      lessonTitle: "Biến",
       lessonContent: "x = 1",
-      lessonLearningObjectives: ["Hiá»ƒu phÃ©p gÃ¡n"],
-      courseTitle: "Python cÆ¡ báº£n",
-      courseDescription: "Nháº­p mÃ´n Python",
+      lessonLearningObjectives: ["Hiểu phép gán"],
+      courseTitle: "Python cơ bản",
+      courseDescription: "Nhập môn Python",
     }));
     expect(mocks.createGeneratedExerciseRecord).toHaveBeenCalledWith(expect.objectContaining({
       lesson_id: 51,
@@ -201,10 +201,9 @@ describe("Lesson-scoped AI exercise generation", () => {
     await expect(generateExercise({
       lessonId: 51,
       difficulty: "easy",
-      learningObjective: "Hiá»ƒu phÃ©p gÃ¡n",
+      learningObjective: "Hiểu phép gán",
     }, provider)).rejects.toEqual(expect.objectContaining({ code: "RATE_LIMITED" }) satisfies Partial<AiServiceError>);
     expect(mocks.fetchLessonContextForGeneration).not.toHaveBeenCalled();
     expect(provider.generateExercise).not.toHaveBeenCalled();
   });
 });
-

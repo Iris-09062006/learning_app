@@ -273,7 +273,7 @@ begin
     if v_correct_option_id is null then raise exception 'CORRECT_OPTION_MISSING' using errcode = 'P0001'; end if;
     v_solution := jsonb_build_object('correctOptionId', v_correct_option_id);
   elsif v_draft.exercise_type = 'true_false' then
-    insert into public.exercise_options (exercise_id, content, option_order, metadata) values (v_exercise_id, 'ÄÃºng', 1, '{}'::jsonb)
+    insert into public.exercise_options (exercise_id, content, option_order, metadata) values (v_exercise_id, 'Đúng', 1, '{}'::jsonb)
     returning id into v_option_id; if (v_draft.content->>'correctAnswer')::boolean then v_correct_option_id := v_option_id; end if;
     insert into public.exercise_options (exercise_id, content, option_order, metadata) values (v_exercise_id, 'Sai', 2, '{}'::jsonb)
     returning id into v_option_id; if not (v_draft.content->>'correctAnswer')::boolean then v_correct_option_id := v_option_id; end if;
@@ -436,4 +436,3 @@ grant execute on function public.create_generated_exercise_draft(bigint, public.
 grant execute on function public.review_generated_exercise_draft(bigint, public.review_status, text, jsonb) to authenticated;
 grant execute on function public.publish_generated_exercise(bigint) to authenticated;
 grant execute on function public.submit_exercise(bigint, jsonb) to authenticated;
-
