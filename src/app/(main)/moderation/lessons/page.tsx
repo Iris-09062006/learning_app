@@ -14,11 +14,47 @@ export default async function ExerciseLessonListPage() {
     throw error;
   }
 
-  return <div className="space-y-6">
-    <div className="flex flex-wrap items-end justify-between gap-3">
-      <div><h1 className="text-2xl font-bold">Lesson → Exercise</h1><p className="mt-1 text-sm text-slate-600">Chọn đúng một Lesson đã publish để tạo Exercise draft.</p></div>
-      <Link href="/moderation" className="text-sm font-semibold text-indigo-700">Hàng moderation →</Link>
+  return (
+    <div className="space-y-6">
+      <div className="flex flex-wrap items-end justify-between gap-3">
+        <div>
+          <h1 className="text-2xl font-bold text-text-primary">Lesson → Exercise</h1>
+          <p className="mt-1 text-sm text-text-secondary">
+            Chọn đúng một Lesson đã publish để tạo Exercise draft.
+          </p>
+        </div>
+        <Link
+          href="/moderation"
+          className="rounded-md text-sm font-semibold text-primary transition-colors hover:text-primary-hover"
+        >
+          Hàng moderation →
+        </Link>
+      </div>
+      {lessons.length === 0 ? (
+        <p className="rounded-lg border border-border bg-surface p-4 text-sm text-text-primary">
+          Chưa có Lesson đã publish.
+        </p>
+      ) : (
+        <ul className="grid gap-4 md:grid-cols-2">
+          {lessons.map((lesson) => (
+            <li
+              key={lesson.lessonId}
+              className="rounded-xl border border-border bg-surface p-5 text-text-primary shadow-sm transition-colors hover:border-primary/35"
+            >
+              <p className="text-xs font-semibold uppercase tracking-wide text-primary">
+                {lesson.courseTitle}
+              </p>
+              <h2 className="mt-1 font-bold text-text-primary">{lesson.lessonTitle}</h2>
+              <Link
+                href={`/moderation/lessons/${lesson.lessonId}/exercises/new`}
+                className="mt-4 inline-flex min-h-10 items-center justify-center rounded-lg bg-primary px-3 py-2 text-sm font-semibold text-on-primary transition-colors hover:bg-primary-hover active:bg-primary-active focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+              >
+                Tạo Exercise
+              </Link>
+            </li>
+          ))}
+        </ul>
+      )}
     </div>
-    {lessons.length === 0 ? <p className="rounded-lg border p-4 text-sm">Chưa có Lesson đã publish.</p> : <ul className="grid gap-4 md:grid-cols-2">{lessons.map((lesson) => <li key={lesson.lessonId} className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm"><p className="text-xs font-semibold uppercase tracking-wide text-indigo-700">{lesson.courseTitle}</p><h2 className="mt-1 font-bold">{lesson.lessonTitle}</h2><Link href={`/moderation/lessons/${lesson.lessonId}/exercises/new`} className="mt-4 inline-flex rounded-md bg-slate-900 px-3 py-2 text-sm font-semibold text-white">Tạo Exercise</Link></li>)}</ul>}
-  </div>;
+  );
 }

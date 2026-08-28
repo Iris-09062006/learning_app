@@ -11,6 +11,11 @@
 
 ## Active Task
 
+`TASK-098` is verified locally: the Lesson → Exercise listing now uses the existing dark semantic
+surface/foreground tokens instead of a light-only card utility plus inherited dark text. Chromium,
+installed Chrome, and installed Edge computed-style regressions pass at 1920×1080 and 1366×768;
+Firefox is unavailable. Full local gates and review pass; no commit occurred.
+
 `TASK-097` is done and released to `production-test-2` in
 `4a4fa6c3eb9fe23e028f14b1a3ded37b209bb510`. The programming-only Lesson Exercise model is replaced by a strict
 subject-agnostic discriminated contract across generation, moderation, learner rendering, and
