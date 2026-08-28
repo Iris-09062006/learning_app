@@ -8,6 +8,30 @@ import {
 } from "./auth.types";
 import { ForgotPasswordInput, LoginInput, RegisterInput } from "./auth.schema";
 
+export type ForgotPasswordDiagnostic = {
+  stage:
+    | "resolve_env"
+    | "build_redirect"
+    | "create_supabase_client"
+    | "reset_password_for_email";
+  next_public_supabase_url_configured?: "yes" | "no";
+  next_public_supabase_anon_key_configured?: "yes" | "no";
+  next_public_supabase_publishable_key_configured?: "yes" | "no";
+  next_public_site_url_configured?: "yes" | "no";
+  resolved_site_origin?: string;
+  resolved_reset_password_path?: string;
+  resolved_redirect_url?: string;
+  supabase_reset_call_attempted?: "yes" | "no";
+  supabase_error_code?: string;
+  supabase_error_message?: string;
+  supabase_error_status?: number;
+  supabase_error_name?: string;
+};
+
+type ForgotPasswordDiagnosticLogger = (
+  diagnostic: ForgotPasswordDiagnostic,
+) => void;
+
 type ProfileLookupResult = {
   data: {
     username: string;
@@ -197,15 +221,68 @@ export class AuthService {
   }
 
   async forgotPassword(
-    input: ForgotPasswordInput
+    input: ForgotPasswordInput,
+    logDiagnostic?: ForgotPasswordDiagnosticLogger,
   ): Promise<ForgotPasswordResponse> {
+    logDiagnostic?.({
+      stage: "resolve_env",
+      next_public_supabase_url_configured: process.env.NEXT_PUBLIC_SUPABASE_URL
+        ? "yes"
+        : "no",
+      next_public_supabase_anon_key_configured: process.env
+        .NEXT_PUBLIC_SUPABASE_ANON_KEY
+        ? "yes"
+        : "no",
+      next_public_supabase_publishable_key_configured: process.env
+        .NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY
+        ? "yes"
+        : "no",
+      next_public_site_url_configured: process.env.NEXT_PUBLIC_SITE_URL
+        ? "yes"
+        : "no",
+    });
+
+    logDiagnostic?.({
+      stage: "create_supabase_client",
+      supabase_reset_call_attempted: "no",
+    });
     const supabase = await createServerSupabaseClient();
 
-    const redirectTo = `${getAuthRedirectOrigin()}/reset-password`;
+    const resolvedSiteOrigin = getAuthRedirectOrigin();
+    const resolvedResetPasswordPath = "/reset-password";
+    const redirectTo = `${resolvedSiteOrigin}${resolvedResetPasswordPath}`;
+
+    logDiagnostic?.({
+      stage: "build_redirect",
+      resolved_site_origin: resolvedSiteOrigin,
+      resolved_reset_password_path: resolvedResetPasswordPath,
+      resolved_redirect_url: redirectTo,
+      supabase_reset_call_attempted: "no",
+    });
+
+    logDiagnostic?.({
+      stage: "reset_password_for_email",
+      supabase_reset_call_attempted: "yes",
+    });
 
     const { error } = await supabase.auth.resetPasswordForEmail(input.email, {
       redirectTo,
     });
+
+    if (error) {
+      logDiagnostic?.({
+        stage: "reset_password_for_email",
+        supabase_reset_call_attempted: "yes",
+        ...(typeof error.code === "string"
+          ? { supabase_error_code: error.code }
+          : {}),
+        supabase_error_message: error.message,
+        ...(typeof error.status === "number"
+          ? { supabase_error_status: error.status }
+          : {}),
+        supabase_error_name: error.name,
+      });
+    }
 
     // Luôn trả response generic để không lộ email có tồn tại hay không.
     if (error) {

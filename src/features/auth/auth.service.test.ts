@@ -323,11 +323,20 @@ describe("AuthService Unit Tests", () => {
   });
 
   it("forgotPassword propagates Supabase errors", async () => {
+    const diagnostic = vi.fn();
+    const resetError = Object.assign(
+      new Error("email rate limit exceeded"),
+      {
+        code: "over_email_send_rate_limit",
+        status: 429,
+        name: "AuthApiError",
+      },
+    );
     const mockSupabase = {
       auth: {
         resetPasswordForEmail: vi.fn().mockResolvedValue({
           data: {},
-          error: new Error("Rate limit exceeded"),
+          error: resetError,
         }),
       },
     };
@@ -336,7 +345,18 @@ describe("AuthService Unit Tests", () => {
     );
 
     await expect(
-      service.forgotPassword({ email: "test@example.com" }),
-    ).rejects.toThrow("Rate limit exceeded");
+      service.forgotPassword({ email: "test@example.com" }, diagnostic),
+    ).rejects.toThrow("email rate limit exceeded");
+    expect(diagnostic).toHaveBeenLastCalledWith({
+      stage: "reset_password_for_email",
+      supabase_reset_call_attempted: "yes",
+      supabase_error_code: "over_email_send_rate_limit",
+      supabase_error_message: "email rate limit exceeded",
+      supabase_error_status: 429,
+      supabase_error_name: "AuthApiError",
+    });
+    expect(JSON.stringify(diagnostic.mock.calls)).not.toContain(
+      "test@example.com",
+    );
   });
 });
