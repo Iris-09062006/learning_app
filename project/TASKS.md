@@ -12,7 +12,7 @@
 ## Active Task
 
 `TASK-097` is done and released to `production-test-2` in
-`cf303a25929ef12b004cb7b53b983b14e31e6309`. The programming-only Lesson Exercise model is replaced by a strict
+`4a4fa6c3eb9fe23e028f14b1a3ded37b209bb510`. The programming-only Lesson Exercise model is replaced by a strict
 subject-agnostic discriminated contract across generation, moderation, learner rendering, and
 server-side evaluation while existing coding Exercises remain compatible. The provider owns `type`;
 application request metadata owns `difficulty`. Provider prompt/schema and request types are aligned;
@@ -20,7 +20,7 @@ parser/validator and persistence boundaries match the intended ownership. Target
 the full Vitest suite (1,211 passed, 1 skipped), lint, typecheck, build, diff, and secret checks pass.
 
 `TASK-096` is done and included in `production-test-2` commit
-`cf303a25929ef12b004cb7b53b983b14e31e6309`: successful Course/content/review mutations reconcile with uncached,
+`4a4fa6c3eb9fe23e028f14b1a3ded37b209bb510`: successful Course/content/review mutations reconcile with uncached,
 latest-response server truth, completed transient Course-import creation state resets without losing
 failed input, and the public landing uses the existing server-resolved Supabase session. Focused/full
 tests, Playwright auth/workflow smoke, accessibility, lint, typecheck, build, diff and secret checks

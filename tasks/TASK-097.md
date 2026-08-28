@@ -1,6 +1,6 @@
 # TASK-097 — Subject-Agnostic Lesson Exercises
 
-- **Status:** `DONE` — `production-test-2` commit `cf303a25929ef12b004cb7b53b983b14e31e6309`
+- **Status:** `DONE` — `production-test-2` commit `4a4fa6c3eb9fe23e028f14b1a3ded37b209bb510`
 - **Owner / Reviewer:** Codex
 - **Starting HEAD:** `dce587004fdcde228020a9ab4146187e687b0ba7`
 

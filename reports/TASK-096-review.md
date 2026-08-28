@@ -28,4 +28,4 @@
 The original no-commit/no-push constraint was superseded by the user's 2026-08-28 request to release
 the verified work to `production-test-2` through GitHub MCP.
 
-Source commit: `cf303a25929ef12b004cb7b53b983b14e31e6309`.
+Source commit: `4a4fa6c3eb9fe23e028f14b1a3ded37b209bb510`.

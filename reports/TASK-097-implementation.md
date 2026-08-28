@@ -5,7 +5,7 @@
 Status: `VERIFIED` for the targeted contract follow-up and authorized for release to
 `production-test-2` through GitHub MCP.
 
-Release outcome: `DONE` in source commit `cf303a25929ef12b004cb7b53b983b14e31e6309`.
+Release outcome: `DONE` in source commit `4a4fa6c3eb9fe23e028f14b1a3ded37b209bb510`.
 
 The targeted follow-up confirms that AI owns generated `type`, while application request metadata
 owns `difficulty`. The provider request no longer exposes an external `exerciseType`; every strict

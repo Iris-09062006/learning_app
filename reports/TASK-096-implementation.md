@@ -8,7 +8,7 @@
 - AI provider calls and application deployment: none. Push/commit remained absent until the current
   explicit release request.
 - Release outcome: `DONE` in `production-test-2` source commit
-  `cf303a25929ef12b004cb7b53b983b14e31e6309`.
+  `4a4fa6c3eb9fe23e028f14b1a3ded37b209bb510`.
 
 ## Root causes and fixes
 
