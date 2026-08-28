@@ -44,4 +44,4 @@ No open review findings or secrets. Release to `production-test-2` through GitHu
 no application deployment or live AI call was performed. The earlier authorized remote database
 mutation remains migration `20260828054832_subject_agnostic_exercises`.
 
-Source commit: `6d08668f78b914d02fb6b1fed9edde8f7a855db2` on `production-test-2`.
+Source commit: `cf303a25929ef12b004cb7b53b983b14e31e6309` on `production-test-2`.
