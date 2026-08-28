@@ -213,7 +213,16 @@ function tableRows(table) {
         lesson_order: 1,
         estimated_minutes: 8,
         is_published: true,
-        chapters: { course_id: 1, is_published: true },
+        chapters: {
+          course_id: 1,
+          is_published: true,
+          courses: {
+            id: 1,
+            title: "Python cÄƒn báº£n",
+            is_published: true,
+            archived_at: null,
+          },
+        },
       },
       {
         id: 102,
@@ -223,7 +232,16 @@ function tableRows(table) {
         lesson_order: 2,
         estimated_minutes: 10,
         is_published: true,
-        chapters: { course_id: 1, is_published: true },
+        chapters: {
+          course_id: 1,
+          is_published: true,
+          courses: {
+            id: 1,
+            title: "Python cÄƒn báº£n",
+            is_published: true,
+            archived_at: null,
+          },
+        },
       },
     ],
     exercises: [
