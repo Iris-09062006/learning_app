@@ -1,6 +1,6 @@
 # TASK-096 â€” UI Workflow Continuity and Auth-Aware Navigation
 
-- **Status:** `VERIFIED` (release to `production-test-2` authorized)
+- **Status:** `DONE` â€” `production-test-2` commit `6d08668f78b914d02fb6b1fed9edde8f7a855db2`
 - **Owner / Reviewer:** Codex
 - **Starting HEAD:** `dce587004fdcde228020a9ab4146187e687b0ba7`
 

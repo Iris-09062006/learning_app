@@ -1,7 +1,7 @@
 # Active Task Queue
 
 - **Active task:** `TASK-097` â€” Subject-Agnostic Lesson Exercises
-- **Status:** `VERIFIED` (release to `production-test-2` authorized)
+- **Status:** `DONE` â€” pushed to `production-test-2` at `6d08668f78b914d02fb6b1fed9edde8f7a855db2`
 - **Owner / Reviewer:** Codex
 - **Deferred design task:** `TASK-047` (`DRAFT`)
 - **Previous blocked task:** `TASK-044` â€” external Supabase Redirect URL verification
