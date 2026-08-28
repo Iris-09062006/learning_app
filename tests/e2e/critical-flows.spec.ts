@@ -21,42 +21,64 @@ test("registers, logs in, and reaches the learner dashboard", async ({ page }) =
   await expectNoSeriousA11yViolations(page);
 
   await page.keyboard.press("Tab");
-  await expect(page.getByRole("link", { name: "Về trang chủ LearningApp" })).toBeFocused();
+  await expect(page.getByRole("link", { name: "Vá» trang chá»§ LearningApp" })).toBeFocused();
   await expectVisibleKeyboardFocus(page);
   await page.keyboard.press("Tab");
-  await expect(page.getByLabel("Tên hiển thị")).toBeFocused();
+  await expect(page.getByLabel("TÃªn hiá»ƒn thá»‹")).toBeFocused();
   await page.keyboard.type("New E2E Learner");
   await page.keyboard.press("Tab");
   await expect(page.getByLabel("Email")).toBeFocused();
   await page.keyboard.type(email);
   await page.keyboard.press("Tab");
-  await expect(page.getByLabel("Mật khẩu")).toBeFocused();
+  await expect(page.getByLabel("Máº­t kháº©u")).toBeFocused();
   await page.keyboard.type(E2E_PASSWORD);
   await page.keyboard.press("Tab");
-  await expect(page.getByRole("button", { name: "Tạo tài khoản" })).toBeFocused();
+  await expect(page.getByRole("button", { name: "Táº¡o tÃ i khoáº£n" })).toBeFocused();
   await expectVisibleKeyboardFocus(page);
   await page.keyboard.press("Enter");
 
   await expect(page).toHaveURL(/\/login\?registered=1$/u);
-  await expect(page.getByRole("status")).toContainText("Tài khoản đã được tạo");
+  await expect(page.getByRole("status")).toContainText("TÃ i khoáº£n Ä‘Ã£ Ä‘Æ°á»£c táº¡o");
 
   await focusWithTab(page, page.getByLabel("Email"));
   await page.keyboard.type(email);
   await page.keyboard.press("Tab");
-  await expect(page.getByLabel("Mật khẩu")).toBeFocused();
+  await expect(page.getByLabel("Máº­t kháº©u")).toBeFocused();
   await page.keyboard.type(E2E_PASSWORD);
   await page.keyboard.press("Tab");
-  await expect(page.getByRole("link", { name: "Quên mật khẩu?" })).toBeFocused();
+  await expect(page.getByRole("link", { name: "QuÃªn máº­t kháº©u?" })).toBeFocused();
   await page.keyboard.press("Tab");
-  await expect(page.getByRole("button", { name: "Đăng nhập" })).toBeFocused();
+  await expect(page.getByRole("button", { name: "ÄÄƒng nháº­p" })).toBeFocused();
   await expectVisibleKeyboardFocus(page);
   await page.keyboard.press("Enter");
 
   await expect(page).toHaveURL(/\/dashboard$/u);
   await expect(
-    page.getByRole("heading", { name: /Chào mừng trở lại, New E2E Learner/u }),
+    page.getByRole("heading", { name: /ChÃ o má»«ng trá»Ÿ láº¡i, New E2E Learner/u }),
   ).toBeVisible();
   await expectNoSeriousA11yViolations(page);
+});
+
+test("keeps landing navigation aligned with the authenticated session", async ({ page }) => {
+  await page.goto("/");
+  await expect(page.locator("header").getByRole("link", { name: "ÄÄƒng nháº­p" })).toBeVisible();
+  await expect(page.locator("header").getByRole("link", { name: /Báº¯t Ä‘áº§u há»c/ })).toBeVisible();
+  await expectNoSeriousA11yViolations(page);
+
+  await loginAs(page);
+  await page.locator('aside a[href="/"]').click();
+
+  await expect(page).toHaveURL(/\/$/u);
+  const header = page.locator("header");
+  await expect(header.getByRole("link", { name: "ÄÄƒng nháº­p" })).toHaveCount(0);
+  await expect(header.getByRole("link", { name: /Báº¯t Ä‘áº§u há»c|ÄÄƒng kÃ½/ })).toHaveCount(0);
+  await expect(header.getByRole("link", { name: "Tá»•ng quan" })).toHaveAttribute("href", "/dashboard");
+  await expect(page.getByRole("link", { name: /Tiáº¿p tá»¥c há»c/ })).toHaveAttribute("href", "/dashboard");
+  await expectNoSeriousA11yViolations(page);
+
+  await page.reload();
+  await expect(header.getByRole("link", { name: "ÄÄƒng nháº­p" })).toHaveCount(0);
+  await expect(header.getByRole("link", { name: "Tá»•ng quan" })).toBeVisible();
 });
 
 test("enrolls, completes the first lesson exercise, and unlocks the next lesson", async ({ page }) => {
@@ -67,7 +89,7 @@ test("enrolls, completes the first lesson exercise, and unlocks the next lesson"
   await expect(page.getByTestId("lesson-102-status")).toHaveAttribute("data-status", "locked");
   await expectNoSeriousA11yViolations(page);
 
-  await page.getByRole("link", { name: "Học tiếp" }).click();
+  await page.getByRole("link", { name: "Há»c tiáº¿p" }).click();
   await expect(page).toHaveURL(/\/lessons\/101$/u);
   for (const privateResearchLabel of [
     "Authority score",
@@ -78,14 +100,14 @@ test("enrolls, completes the first lesson exercise, and unlocks the next lesson"
   ]) {
     await expect(page.getByText(privateResearchLabel, { exact: false })).toHaveCount(0);
   }
-  await expect(page.getByRole("heading", { name: "Biến và phép gán" })).toBeVisible();
-  await page.getByRole("button", { name: "Bắt đầu bài học" }).click();
-  await page.getByRole("link", { name: "Làm bài" }).click();
+  await expect(page.getByRole("heading", { name: "Biáº¿n vÃ  phÃ©p gÃ¡n" })).toBeVisible();
+  await page.getByRole("button", { name: "Báº¯t Ä‘áº§u bÃ i há»c" }).click();
+  await page.getByRole("link", { name: "LÃ m bÃ i" }).click();
 
   await expect(page).toHaveURL(/\/exercises\/1001$/u);
   await page.getByRole("button", { name: "5" }).click();
-  await page.getByRole("button", { name: "Nộp bài" }).click();
-  await expect(page.getByRole("status")).toContainText("Chính xác!");
+  await page.getByRole("button", { name: "Ná»™p bÃ i" }).click();
+  await expect(page.getByRole("status")).toContainText("ChÃ­nh xÃ¡c!");
 
   await page.goto("/courses/1/roadmap");
   await expect(page.getByTestId("lesson-101-status")).toHaveAttribute("data-status", "completed");
@@ -96,18 +118,18 @@ test("enrolls, completes the first lesson exercise, and unlocks the next lesson"
 test("shows mock AI loading and explanation after a wrong submission", async ({ page }) => {
   await loginAs(page);
   await enrollInSeedCourse(page);
-  await page.getByRole("link", { name: "Học tiếp" }).click();
-  await page.getByRole("button", { name: "Bắt đầu bài học" }).click();
-  await page.getByRole("link", { name: "Làm bài" }).click();
+  await page.getByRole("link", { name: "Há»c tiáº¿p" }).click();
+  await page.getByRole("button", { name: "Báº¯t Ä‘áº§u bÃ i há»c" }).click();
+  await page.getByRole("link", { name: "LÃ m bÃ i" }).click();
 
   await page.getByRole("button", { name: "4" }).click();
-  await page.getByRole("button", { name: "Nộp bài" }).click();
-  await expect(page.getByRole("status")).toContainText("Chưa chính xác");
+  await page.getByRole("button", { name: "Ná»™p bÃ i" }).click();
+  await expect(page.getByRole("status")).toContainText("ChÆ°a chÃ­nh xÃ¡c");
 
-  await page.getByRole("button", { name: /Hỏi AI Mentor giải thích/u }).click();
-  await expect(page.getByText("AI Mentor đang suy nghĩ...")).toBeVisible();
-  await expect(page.getByText("Giải thích từ AI Mentor")).toBeVisible();
-  await expect(page.getByText("Nội dung do AI tạo — có thể chứa sai sót.")).toBeVisible();
+  await page.getByRole("button", { name: /Há»i AI Mentor giáº£i thÃ­ch/u }).click();
+  await expect(page.getByText("AI Mentor Ä‘ang suy nghÄ©...")).toBeVisible();
+  await expect(page.getByText("Giáº£i thÃ­ch tá»« AI Mentor")).toBeVisible();
+  await expect(page.getByText("Ná»™i dung do AI táº¡o â€” cÃ³ thá»ƒ chá»©a sai sÃ³t.")).toBeVisible();
   await expectNoSeriousA11yViolations(page);
 });
 
@@ -118,7 +140,7 @@ test("provides role-route smoke coverage for moderator and admin", async ({ brow
   await loginAs(moderatorPage, "moderator");
   await moderatorPage.goto("/moderation");
   await expect(
-    moderatorPage.getByRole("heading", { name: "Hàng đợi kiểm duyệt bài tập" }),
+    moderatorPage.getByRole("heading", { name: "HÃ ng Ä‘á»£i kiá»ƒm duyá»‡t bÃ i táº­p" }),
   ).toBeVisible();
   await expectNoSeriousA11yViolations(moderatorPage);
   await moderatorContext.close();
@@ -127,7 +149,7 @@ test("provides role-route smoke coverage for moderator and admin", async ({ brow
   const adminPage = await adminContext.newPage();
   await loginAs(adminPage, "admin");
   await adminPage.goto("/admin/users");
-  await expect(adminPage.getByRole("heading", { name: "Quản lý người dùng" })).toBeVisible();
+  await expect(adminPage.getByRole("heading", { name: "Quáº£n lÃ½ ngÆ°á»i dÃ¹ng" })).toBeVisible();
   await expectNoSeriousA11yViolations(adminPage);
   await adminContext.close();
 });
@@ -155,13 +177,14 @@ test("generates, moderates, and publishes an Exercise for one published Lesson",
 
 test("reviews an outline, generates Lesson contents, and atomically publishes a Course", async ({ page }) => {
   let stage: "empty" | "outline" | "content" | "published" = "empty";
+  let courseTitle = "PhÆ°Æ¡ng phÃ¡p tÃ­nh";
   let tavilySearchCalls = 0;
   let tavilyExtractCalls = 0;
   const content = (id: number, outlineLessonId: number, title: string) => ({
-    id, outlineLessonId, revision: 1, title, summary: "Nội dung có trích dẫn.", estimatedMinutes: 12,
-    sections: [{ heading: "Mở đầu", bodyMarkdown: "Nội dung bài học", citationChunkIndexes: [0] }],
+    id, outlineLessonId, revision: 1, title, summary: "Ná»™i dung cÃ³ trÃ­ch dáº«n.", estimatedMinutes: 12,
+    sections: [{ heading: "Má»Ÿ Ä‘áº§u", bodyMarkdown: "Ná»™i dung bÃ i há»c", citationChunkIndexes: [0] }],
     status: "ready", provider: "9router", model: "e2e-model",
-    citations: [{ sectionIndex: 0, chunkIndex: 0, quote: "Nguồn kiểm thử" }],
+    citations: [{ sectionIndex: 0, chunkIndex: 0, quote: "Nguá»“n kiá»ƒm thá»­" }],
   });
   const job = () => ({
     jobId: 61, sourceDocumentId: 9, sourceFilename: "lagrange.pdf",
@@ -171,10 +194,10 @@ test("reviews an outline, generates Lesson contents, and atomically publishes a 
       errorCode: null, chunkCount: 1 }], outlineStale: false,
     status: stage === "outline" ? "outline_review" : "content_review",
     errorCode: null, outlineRevision: 1, approvedOutlineRevision: stage === "outline" ? null : 1,
-    title: "Phương pháp tính", description: "Khóa học nội suy.", learningObjectives: ["Hiểu nội suy"],
+    title: courseTitle, description: "KhÃ³a há»c ná»™i suy.", learningObjectives: ["Hiá»ƒu ná»™i suy"],
     lessons: [
-      { id: 71, clientKey: "lagrange", lessonOrder: 1, title: "Nội suy Lagrange", summary: "Lagrange", learningObjectives: ["Áp dụng Lagrange"], sourceChunkIndexes: [0], contentDraft: stage === "content" ? content(81, 71, "Nội suy Lagrange") : null },
-      { id: 72, clientKey: "newton", lessonOrder: 2, title: "Nội suy Newton", summary: "Newton", learningObjectives: ["Áp dụng Newton"], sourceChunkIndexes: [0], contentDraft: stage === "content" ? content(82, 72, "Nội suy Newton") : null },
+      { id: 71, clientKey: "lagrange", lessonOrder: 1, title: "Ná»™i suy Lagrange", summary: "Lagrange", learningObjectives: ["Ãp dá»¥ng Lagrange"], sourceChunkIndexes: [0], contentDraft: stage === "content" ? content(81, 71, "Ná»™i suy Lagrange") : null },
+      { id: 72, clientKey: "newton", lessonOrder: 2, title: "Ná»™i suy Newton", summary: "Newton", learningObjectives: ["Ãp dá»¥ng Newton"], sourceChunkIndexes: [0], contentDraft: stage === "content" ? content(82, 72, "Ná»™i suy Newton") : null },
     ],
     publishedCourseId: null, createdAt: "2026-08-10T00:00:00.000Z", updatedAt: "2026-08-10T00:00:00.000Z",
   });
@@ -198,6 +221,10 @@ test("reviews an outline, generates Lesson contents, and atomically publishes a 
       stage = "outline";
       return respond({ jobId: 61, sourceDocumentId: 9, outlineRevision: 1, status: "outline_review" }, 201);
     }
+    if (pathname === "/api/admin/course-drafts/61/outline" && request.method() === "PATCH") {
+      courseTitle = (request.postDataJSON() as { title: string }).title;
+      return respond({ jobId: 61, sourceDocumentId: 9, outlineRevision: 2, status: "outline_review" });
+    }
     if (pathname === "/api/admin/course-drafts/61/lessons/generate") {
       stage = "content";
       return respond({ jobId: 61, status: "content_review" }, 201);
@@ -216,24 +243,29 @@ test("reviews an outline, generates Lesson contents, and atomically publishes a 
 
   await loginAs(page, "admin");
   await page.goto("/admin/content");
-  await expect(page.getByRole("link", { name: "Duyệt bài tập" })).toBeVisible();
-  await expect(page.getByRole("link", { name: "Tạo & duyệt bài học" })).toBeVisible();
+  await expect(page.getByRole("link", { name: "Duyá»‡t bÃ i táº­p" })).toBeVisible();
+  await expect(page.getByRole("link", { name: "Táº¡o & duyá»‡t bÃ i há»c" })).toBeVisible();
 
   await page.locator('input[name="source"]').setInputFiles({
     name: "lagrange.pdf",
     mimeType: "application/pdf",
     buffer: Buffer.from("%PDF-1.4 E2E fixture"),
   });
-  await page.getByRole("button", { name: "Tạo Course outline" }).click();
+  await page.getByRole("button", { name: "Táº¡o Course outline" }).click();
 
-  await expect(page.getByRole("textbox", { name: "Course title" })).toHaveValue("Phương pháp tính");
-  await expect(page.getByRole("textbox", { name: "Lesson 1 title" })).toHaveValue("Nội suy Lagrange");
+  await expect(page.locator('input[name="source"]')).toHaveValue("");
+  await expect(page.getByRole("textbox", { name: "Course title" })).toHaveValue("PhÆ°Æ¡ng phÃ¡p tÃ­nh");
+  await expect(page.getByRole("textbox", { name: "Lesson 1 title" })).toHaveValue("Ná»™i suy Lagrange");
+  await page.getByRole("textbox", { name: "Course title" }).fill("PhÆ°Æ¡ng phÃ¡p tÃ­nh hiá»‡n Ä‘áº¡i");
+  await page.getByRole("button", { name: "LÆ°u outline" }).click();
+  await expect(page.getByRole("textbox", { name: "Course title" })).toHaveValue("PhÆ°Æ¡ng phÃ¡p tÃ­nh hiá»‡n Ä‘áº¡i");
+  await expect(page.getByRole("button", { name: /PhÆ°Æ¡ng phÃ¡p tÃ­nh hiá»‡n Ä‘áº¡i/ })).toBeVisible();
   await page.getByRole("button", { name: "Continue: sinh Lesson contents" }).click();
   await expect(page.getByRole("button", { name: "Publish Course" })).toBeVisible();
   await page.getByRole("button", { name: "Publish Course" }).click();
 
-  await expect(page.getByText("Hàng chờ trống.")).toBeVisible();
-  await expect(page.getByRole("link", { name: "Mở Course" })).toHaveAttribute("href", "/courses/31");
+  await expect(page.getByText("HÃ ng chá» trá»‘ng.")).toBeVisible();
+  await expect(page.getByRole("link", { name: "Má»Ÿ Course" })).toHaveAttribute("href", "/courses/31");
   expect(tavilySearchCalls).toBe(0);
   expect(tavilyExtractCalls).toBe(0);
   await expectNoSeriousA11yViolations(page);
@@ -318,22 +350,22 @@ test("recovers a partial Tavily-unavailable manual URL with stored file evidence
     outlineStale: stage === "stale", status: stage === "outline" ? "outline_review"
       : stage === "content" ? "content_review" : "processing",
     errorCode: null, outlineRevision: revision, approvedOutlineRevision: stage === "content" ? revision : null,
-    title: revision ? "Course nguồn review" : "Course import đang chuẩn bị",
-    description: revision ? "Course từ evidence bất biến." : "Đang chuẩn bị evidence.",
-    learningObjectives: revision ? ["Hiểu evidence"] : [],
+    title: revision ? "Course nguá»“n review" : "Course import Ä‘ang chuáº©n bá»‹",
+    description: revision ? "Course tá»« evidence báº¥t biáº¿n." : "Äang chuáº©n bá»‹ evidence.",
+    learningObjectives: revision ? ["Hiá»ƒu evidence"] : [],
     lessons: revision ? [
-      { id: 71, clientKey: "lesson-a", lessonOrder: 1, title: "Evidence cơ bản", summary: "A",
-        learningObjectives: ["Hiểu A"], sourceChunkIndexes: [0],
+      { id: 71, clientKey: "lesson-a", lessonOrder: 1, title: "Evidence cÆ¡ báº£n", summary: "A",
+        learningObjectives: ["Hiá»ƒu A"], sourceChunkIndexes: [0],
         sourceRefs: [{ sourceDocumentId: 22, chunkIndex: 0 }], contentDraft: stage === "content" ? {
-          id: 81, outlineLessonId: 71, revision: 1, title: "Evidence cơ bản", summary: "Nội dung",
-          estimatedMinutes: 10, sections: [{ heading: "Mở đầu", bodyMarkdown: "Nội dung", citationChunkIndexes: [0] }],
+          id: 81, outlineLessonId: 71, revision: 1, title: "Evidence cÆ¡ báº£n", summary: "Ná»™i dung",
+          estimatedMinutes: 10, sections: [{ heading: "Má»Ÿ Ä‘áº§u", bodyMarkdown: "Ná»™i dung", citationChunkIndexes: [0] }],
           status: "ready", provider: "e2e", model: "e2e", citations: [{ sectionIndex: 0, chunkIndex: 0, quote: "Evidence" }],
         } : null },
-      { id: 72, clientKey: "lesson-b", lessonOrder: 2, title: "Evidence nâng cao", summary: "B",
-        learningObjectives: ["Hiểu B"], sourceChunkIndexes: [0],
+      { id: 72, clientKey: "lesson-b", lessonOrder: 2, title: "Evidence nÃ¢ng cao", summary: "B",
+        learningObjectives: ["Hiá»ƒu B"], sourceChunkIndexes: [0],
         sourceRefs: [{ sourceDocumentId: 22, chunkIndex: 0 }], contentDraft: stage === "content" ? {
-          id: 82, outlineLessonId: 72, revision: 1, title: "Evidence nâng cao", summary: "Nội dung",
-          estimatedMinutes: 10, sections: [{ heading: "Mở đầu", bodyMarkdown: "Nội dung", citationChunkIndexes: [0] }],
+          id: 82, outlineLessonId: 72, revision: 1, title: "Evidence nÃ¢ng cao", summary: "Ná»™i dung",
+          estimatedMinutes: 10, sections: [{ heading: "Má»Ÿ Ä‘áº§u", bodyMarkdown: "Ná»™i dung", citationChunkIndexes: [0] }],
           status: "ready", provider: "e2e", model: "e2e", citations: [{ sectionIndex: 0, chunkIndex: 0, quote: "Evidence" }],
         } : null },
     ] : [],
@@ -362,29 +394,29 @@ test("recovers a partial Tavily-unavailable manual URL with stored file evidence
   });
 
   await loginAs(page, "admin"); await page.goto("/admin/content");
-  await page.getByLabel("URL thủ công").fill("https://failed.example/article");
+  await page.getByLabel("URL thá»§ cÃ´ng").fill("https://failed.example/article");
   await page.getByRole("button", { name: "Ingest URL" }).click();
-  await expect(page.getByText("Dịch vụ tạm thời quá tải hoặc hết thời gian chờ. Vui lòng thử lại.")).toBeVisible();
-  await page.getByLabel("Tài liệu tùy chọn").setInputFiles({ name: "guide.md", mimeType: "text/markdown", buffer: Buffer.from("Evidence") });
+  await expect(page.getByText("Dá»‹ch vá»¥ táº¡m thá»i quÃ¡ táº£i hoáº·c háº¿t thá»i gian chá». Vui lÃ²ng thá»­ láº¡i.")).toBeVisible();
+  await page.getByLabel("TÃ i liá»‡u tÃ¹y chá»n").setInputFiles({ name: "guide.md", mimeType: "text/markdown", buffer: Buffer.from("Evidence") });
   await page.getByRole("button", { name: "Ingest file" }).click();
-  await expect(page.getByText(/Tài liệu đã sẵn sàng/u)).toBeVisible();
+  await expect(page.getByText(/TÃ i liá»‡u Ä‘Ã£ sáºµn sÃ ng/u)).toBeVisible();
   await page.getByRole("button", { name: "Remove" }).first().click();
   await page.reload();
   await expect(page.getByText("guide.md").first()).toBeVisible();
-  await page.getByRole("button", { name: "Khởi tạo Course import" }).click();
-  await page.getByLabel("URL thủ công").fill("https://manual.example/reference");
+  await page.getByRole("button", { name: "Khá»Ÿi táº¡o Course import" }).click();
+  await page.getByLabel("URL thá»§ cÃ´ng").fill("https://manual.example/reference");
   await page.getByRole("button", { name: "Ingest URL" }).click();
-  await page.getByRole("button", { name: "Attach nguồn usable" }).click();
-  await page.getByRole("button", { name: "Tạo outline từ evidence đã review" }).click();
-  await expect(page.getByRole("textbox", { name: "Course title" })).toHaveValue("Course nguồn review");
+  await page.getByRole("button", { name: "Attach nguá»“n usable" }).click();
+  await page.getByRole("button", { name: "Táº¡o outline tá»« evidence Ä‘Ã£ review" }).click();
+  await expect(page.getByRole("textbox", { name: "Course title" })).toHaveValue("Course nguá»“n review");
   const manualSource = page.getByText(/Manual reference.*manual\.example/u).locator("..");
   await manualSource.getByRole("button", { name: "Detach" }).click();
-  await expect(page.getByText(/Evidence đã thay đổi/u)).toBeVisible();
+  await expect(page.getByText(/Evidence Ä‘Ã£ thay Ä‘á»•i/u)).toBeVisible();
   await expect(page.getByRole("button", { name: "Continue: sinh Lesson contents" })).toBeDisabled();
-  await page.getByRole("button", { name: "Tạo outline thay thế" }).click();
+  await page.getByRole("button", { name: "Táº¡o outline thay tháº¿" }).click();
   await page.getByRole("button", { name: "Continue: sinh Lesson contents" }).click();
   await page.getByRole("button", { name: "Publish Course" }).click();
-  await expect(page.getByRole("link", { name: "Mở Course" })).toHaveAttribute("href", "/courses/41");
+  await expect(page.getByRole("link", { name: "Má»Ÿ Course" })).toHaveAttribute("href", "/courses/41");
   expect(revision).toBe(2); expect(attachedIds).toEqual([22]);
   await expectNoSeriousA11yViolations(page);
 });
@@ -404,8 +436,8 @@ test("researches a topic, preserves Research More selection, and ingests only co
   const extractCalls = new Map<string, number>();
   let initializedSources: Array<{ sourceDocumentId: number; relevanceScore?: number }> = [];
   const sourceMetadata = new Map<number, { title: string; ingestionMethod: "uploaded" | "manual_url" | "discovered"; url: string | null; domain: string | null; authority: number | null }>([
-    [fixture.sourceIds.researchA, { title: "Nguồn nghiên cứu A", ingestionMethod: "discovered", url: "https://a.example/guide", domain: "a.example", authority: 0.7 }],
-    [fixture.sourceIds.researchC, { title: "Nguồn nghiên cứu C", ingestionMethod: "discovered", url: "https://c.example/reference", domain: "c.example", authority: 0.8 }],
+    [fixture.sourceIds.researchA, { title: "Nguá»“n nghiÃªn cá»©u A", ingestionMethod: "discovered", url: "https://a.example/guide", domain: "a.example", authority: 0.7 }],
+    [fixture.sourceIds.researchC, { title: "Nguá»“n nghiÃªn cá»©u C", ingestionMethod: "discovered", url: "https://c.example/reference", domain: "c.example", authority: 0.8 }],
     [fixture.sourceIds.manual, { title: "Manual reference", ingestionMethod: "manual_url", url: "https://manual.example/reference", domain: "manual.example", authority: null }],
     [fixture.sourceIds.file, { title: "notes.md", ingestionMethod: "uploaded", url: null, domain: null, authority: null }],
   ]);
@@ -421,8 +453,8 @@ test("researches a topic, preserves Research More selection, and ingests only co
     };
   });
   const content = (id: number, outlineLessonId: number) => ({
-    id, outlineLessonId, revision: 1, title: `Lesson ${outlineLessonId}`, summary: "Nội dung có nguồn.",
-    estimatedMinutes: 10, sections: [{ heading: "Mở đầu", bodyMarkdown: "Nội dung", citationChunkIndexes: [0] }],
+    id, outlineLessonId, revision: 1, title: `Lesson ${outlineLessonId}`, summary: "Ná»™i dung cÃ³ nguá»“n.",
+    estimatedMinutes: 10, sections: [{ heading: "Má»Ÿ Ä‘áº§u", bodyMarkdown: "Ná»™i dung", citationChunkIndexes: [0] }],
     status: "ready", provider: "e2e", model: "e2e",
     citations: [{ sectionIndex: 0, chunkIndex: 0, quote: "Evidence" }],
   });
@@ -432,12 +464,12 @@ test("researches a topic, preserves Research More selection, and ingests only co
     status: stage === "outline" ? "outline_review" : stage === "content" ? "content_review" : "processing",
     errorCode: null, outlineRevision: stage === "processing" ? 0 : 1,
     approvedOutlineRevision: stage === "content" ? 1 : null,
-    title: stage === "processing" ? "Course đang chuẩn bị" : "Course nghiên cứu chủ đề",
-    description: stage === "processing" ? "Đang chuẩn bị evidence." : "Course từ nguồn được chọn.",
-    learningObjectives: stage === "processing" ? [] : ["Hiểu evidence"],
+    title: stage === "processing" ? "Course Ä‘ang chuáº©n bá»‹" : "Course nghiÃªn cá»©u chá»§ Ä‘á»",
+    description: stage === "processing" ? "Äang chuáº©n bá»‹ evidence." : "Course tá»« nguá»“n Ä‘Æ°á»£c chá»n.",
+    learningObjectives: stage === "processing" ? [] : ["Hiá»ƒu evidence"],
     lessons: stage === "processing" ? [] : [
-      { id: 71, clientKey: "lesson-a", lessonOrder: 1, title: "Nghiên cứu cơ bản", summary: "A", learningObjectives: ["Hiểu A"], sourceChunkIndexes: [0], sourceRefs: [{ sourceDocumentId: initializedSources[0].sourceDocumentId, chunkIndex: 0 }], contentDraft: stage === "content" ? content(81, 71) : null },
-      { id: 72, clientKey: "lesson-b", lessonOrder: 2, title: "Nghiên cứu nâng cao", summary: "B", learningObjectives: ["Hiểu B"], sourceChunkIndexes: [0], sourceRefs: [{ sourceDocumentId: initializedSources[1].sourceDocumentId, chunkIndex: 0 }], contentDraft: stage === "content" ? content(82, 72) : null },
+      { id: 71, clientKey: "lesson-a", lessonOrder: 1, title: "NghiÃªn cá»©u cÆ¡ báº£n", summary: "A", learningObjectives: ["Hiá»ƒu A"], sourceChunkIndexes: [0], sourceRefs: [{ sourceDocumentId: initializedSources[0].sourceDocumentId, chunkIndex: 0 }], contentDraft: stage === "content" ? content(81, 71) : null },
+      { id: 72, clientKey: "lesson-b", lessonOrder: 2, title: "NghiÃªn cá»©u nÃ¢ng cao", summary: "B", learningObjectives: ["Hiá»ƒu B"], sourceChunkIndexes: [0], sourceRefs: [{ sourceDocumentId: initializedSources[1].sourceDocumentId, chunkIndex: 0 }], contentDraft: stage === "content" ? content(82, 72) : null },
     ],
     publishedCourseId: null, createdAt: "2026-08-13T00:00:00.000Z", updatedAt: "2026-08-13T00:00:00.000Z",
   });
@@ -449,7 +481,7 @@ test("researches a topic, preserves Research More selection, and ingests only co
     if (pathname === "/api/admin/course-research") {
       researchRound += 1;
       if (researchRound === 3) return route.fulfill({ status: 503, contentType: "application/json", body: JSON.stringify({ success: false, error: { code: "SEARCH_PROVIDER_TIMEOUT", message: "Search provider unavailable" } }) });
-      return respond({ topic: "Python concurrency", queries: ["Python concurrency hướng dẫn học tập tiếng Việt"],
+      return respond({ topic: "Python concurrency", queries: ["Python concurrency hÆ°á»›ng dáº«n há»c táº­p tiáº¿ng Viá»‡t"],
         results: fixture.rounds[researchRound - 1], cursor: `opaque-${researchRound}`, hasMore: true });
     }
     if (pathname === "/api/admin/content-sources/url") {
@@ -474,51 +506,51 @@ test("researches a topic, preserves Research More selection, and ingests only co
   });
 
   await loginAs(page, "admin"); await page.goto("/admin/content");
-  await page.getByLabel("Chủ đề Course").fill("Python concurrency");
-  await page.getByRole("button", { name: "Nghiên cứu" }).click();
+  await page.getByLabel("Chá»§ Ä‘á» Course").fill("Python concurrency");
+  await page.getByRole("button", { name: "NghiÃªn cá»©u" }).click();
   expect(extractCalls.size).toBe(0);
-  const sourceA = page.getByRole("checkbox", { name: /Nguồn nghiên cứu A/u });
+  const sourceA = page.getByRole("checkbox", { name: /Nguá»“n nghiÃªn cá»©u A/u });
   await sourceA.focus(); await page.keyboard.press("Space");
   await expect(sourceA).toBeChecked();
   expect(extractCalls.size).toBe(0);
-  await page.getByRole("button", { name: "Nghiên cứu thêm" }).click();
+  await page.getByRole("button", { name: "NghiÃªn cá»©u thÃªm" }).click();
   await expect(sourceA).toBeChecked();
   expect(extractCalls.size).toBe(0);
-  const sourceB = page.getByRole("checkbox", { name: /Nguồn nghiên cứu B/u });
+  const sourceB = page.getByRole("checkbox", { name: /Nguá»“n nghiÃªn cá»©u B/u });
   await sourceB.check(); await sourceB.uncheck();
-  await page.getByRole("checkbox", { name: /Nguồn nghiên cứu C/u }).check();
+  await page.getByRole("checkbox", { name: /Nguá»“n nghiÃªn cá»©u C/u }).check();
   expect(extractCalls.size).toBe(0);
   await expectNoSeriousA11yViolations(page);
 
-  await page.getByRole("button", { name: "Nghiên cứu thêm" }).click();
-  await expect(page.getByRole("alert").filter({ hasText: "Dịch vụ tạm thời" })).toBeFocused();
+  await page.getByRole("button", { name: "NghiÃªn cá»©u thÃªm" }).click();
+  await expect(page.getByRole("alert").filter({ hasText: "Dá»‹ch vá»¥ táº¡m thá»i" })).toBeFocused();
   await expect(sourceA).toBeChecked();
-  await expect(page.getByLabel("URL thủ công")).toBeEnabled();
-  await expect(page.getByLabel("Tài liệu tùy chọn")).toBeEnabled();
+  await expect(page.getByLabel("URL thá»§ cÃ´ng")).toBeEnabled();
+  await expect(page.getByLabel("TÃ i liá»‡u tÃ¹y chá»n")).toBeEnabled();
   expect(extractCalls.size).toBe(0);
 
-  await page.getByLabel("URL thủ công").fill("https://manual.example/reference");
+  await page.getByLabel("URL thá»§ cÃ´ng").fill("https://manual.example/reference");
   await page.getByRole("button", { name: "Ingest URL" }).click();
   expect(extractCalls.get("https://manual.example/reference")).toBe(1);
   expect(extractCalls.get("https://a.example/guide") ?? 0).toBe(0);
   expect(extractCalls.get("https://b.example/guide") ?? 0).toBe(0);
   expect(extractCalls.get("https://c.example/reference") ?? 0).toBe(0);
-  await page.getByLabel("Tài liệu tùy chọn").setInputFiles({ name: "notes.md", mimeType: "text/markdown", buffer: Buffer.from("Evidence") });
+  await page.getByLabel("TÃ i liá»‡u tÃ¹y chá»n").setInputFiles({ name: "notes.md", mimeType: "text/markdown", buffer: Buffer.from("Evidence") });
   await page.getByRole("button", { name: "Ingest file" }).click();
-  await page.getByRole("button", { name: "Xác nhận và ingest nguồn đã chọn" }).click();
-  await expect(page.getByText("Đã chuyển sang source review")).toHaveCount(2);
+  await page.getByRole("button", { name: "XÃ¡c nháº­n vÃ  ingest nguá»“n Ä‘Ã£ chá»n" }).click();
+  await expect(page.getByText("ÄÃ£ chuyá»ƒn sang source review")).toHaveCount(2);
   expect(discoveredIngestions.sort()).toEqual(["https://a.example/guide", "https://c.example/reference"]);
   expect(extractCalls.get("https://a.example/guide")).toBe(1);
   expect(extractCalls.get("https://b.example/guide") ?? 0).toBe(0);
   expect(extractCalls.get("https://c.example/reference")).toBe(1);
 
-  await page.getByRole("button", { name: "Khởi tạo Course import" }).click();
+  await page.getByRole("button", { name: "Khá»Ÿi táº¡o Course import" }).click();
   expect(initializedSources).toHaveLength(4);
-  await page.getByRole("button", { name: "Tạo outline từ evidence đã review" }).click();
-  await expect(page.getByRole("textbox", { name: "Course title" })).toHaveValue("Course nghiên cứu chủ đề");
+  await page.getByRole("button", { name: "Táº¡o outline tá»« evidence Ä‘Ã£ review" }).click();
+  await expect(page.getByRole("textbox", { name: "Course title" })).toHaveValue("Course nghiÃªn cá»©u chá»§ Ä‘á»");
   await page.getByRole("button", { name: "Continue: sinh Lesson contents" }).click();
   await page.getByRole("button", { name: "Publish Course" }).click();
-  await expect(page.getByRole("link", { name: "Mở Course" })).toHaveAttribute("href", "/courses/51");
+  await expect(page.getByRole("link", { name: "Má»Ÿ Course" })).toHaveAttribute("href", "/courses/51");
   await expectNoSeriousA11yViolations(page);
 });
 
@@ -543,24 +575,24 @@ test("regenerates and publishes a stored multi-source Course while Tavily is una
   };
   const { sources } = fixture;
   const content = (id: number, outlineLessonId: number, source: typeof sources[number], documentChunkId: number) => ({
-    id, outlineLessonId, revision: 1, title: `Lesson ${outlineLessonId}`, summary: "Nội dung đa nguồn.",
+    id, outlineLessonId, revision: 1, title: `Lesson ${outlineLessonId}`, summary: "Ná»™i dung Ä‘a nguá»“n.",
     estimatedMinutes: 12,
-    sections: [{ heading: "Mở đầu", bodyMarkdown: "Nội dung bài học", citationChunkIndexes: [0],
+    sections: [{ heading: "Má»Ÿ Ä‘áº§u", bodyMarkdown: "Ná»™i dung bÃ i há»c", citationChunkIndexes: [0],
       citationSourceRefs: [{ sourceDocumentId: source.sourceDocumentId, chunkIndex: 0 }] }],
     status: "ready", provider: "9router", model: "e2e-model",
     citations: [{ sectionIndex: 0, chunkIndex: 0, documentChunkId,
       sourceDocumentId: source.sourceDocumentId, sourceOrder: source.sourceOrder,
       sourceTitle: source.title, sourceDomain: source.domain, sourceUrl: source.canonicalUrl,
-      quote: `Trích dẫn ${source.title}` }],
+      quote: `TrÃ­ch dáº«n ${source.title}` }],
   });
   const lessons = () => [
-    { id: 71, clientKey: "source-a", lessonOrder: 1, title: "Lesson nguồn A", summary: "A",
-      learningObjectives: ["Hiểu A"], sourceChunkIndexes: [0],
+    { id: 71, clientKey: "source-a", lessonOrder: 1, title: "Lesson nguá»“n A", summary: "A",
+      learningObjectives: ["Hiá»ƒu A"], sourceChunkIndexes: [0],
       sourceRefs: [{ sourceDocumentId: 9, chunkIndex: 0 }],
       sourceChunks: [fixture.chunks[0]],
       contentDraft: stage === "content" ? content(81, 71, sources[0], fixture.chunks[0].documentChunkId) : null },
-    { id: 72, clientKey: "source-b", lessonOrder: 2, title: "Lesson nguồn B", summary: "B",
-      learningObjectives: ["Hiểu B"], sourceChunkIndexes: [0],
+    { id: 72, clientKey: "source-b", lessonOrder: 2, title: "Lesson nguá»“n B", summary: "B",
+      learningObjectives: ["Hiá»ƒu B"], sourceChunkIndexes: [0],
       sourceRefs: [{ sourceDocumentId: 10, chunkIndex: 0 }],
       sourceChunks: [fixture.chunks[1]],
       contentDraft: stage === "content" ? content(82, 72, sources[1], fixture.chunks[1].documentChunkId) : null },
@@ -569,7 +601,7 @@ test("regenerates and publishes a stored multi-source Course while Tavily is una
     jobId: 61, sourceDocumentId: 9, sourceFilename: "a.md", sources, outlineStale: false,
     status: stage === "outline" ? "outline_review" : "content_review", errorCode: null,
     outlineRevision: revision, approvedOutlineRevision: stage === "outline" ? null : revision,
-    title: "Course đa nguồn", description: "Khóa học từ hai nguồn.", learningObjectives: ["Đối chiếu"],
+    title: "Course Ä‘a nguá»“n", description: "KhÃ³a há»c tá»« hai nguá»“n.", learningObjectives: ["Äá»‘i chiáº¿u"],
     lessons: lessons(), publishedCourseId: null,
     createdAt: "2026-08-13T00:00:00.000Z", updatedAt: "2026-08-13T00:00:00.000Z",
   });
@@ -625,26 +657,27 @@ test("regenerates and publishes a stored multi-source Course while Tavily is una
 
   await loginAs(page, "admin");
   await page.goto("/admin/content");
-  await expect(page.getByText("Nguồn evidence (2)")).toBeVisible();
+  await expect(page.getByText("Nguá»“n evidence (2)")).toBeVisible();
   await page.getByRole("button", { name: "Regenerate outline" }).click();
   await expect.poll(() => outlineRegenerations).toBe(1);
-  await page.getByRole("button", { name: "Di chuyển xuống" }).first().click();
-  await page.getByRole("button", { name: "Thêm Lesson" }).click();
-  await expect(page.getByRole("textbox", { name: "Lesson 3 title" })).toHaveValue("Lesson mới");
-  await page.getByRole("button", { name: "Lưu outline" }).click();
+  await page.getByRole("button", { name: "Di chuyá»ƒn xuá»‘ng" }).first().click();
+  await page.getByRole("button", { name: "ThÃªm Lesson" }).click();
+  await expect(page.getByRole("textbox", { name: "Lesson 3 title" })).toHaveValue("Lesson má»›i");
+  await page.getByRole("button", { name: "LÆ°u outline" }).click();
   await expect.poll(() => savedOutline).not.toBeNull();
   expect(JSON.stringify(savedOutline)).toContain('"sourceDocumentId":9');
   expect(JSON.stringify(savedOutline)).toContain('"sourceDocumentId":10');
   expect(JSON.stringify(savedOutline)).not.toContain("sourceChunkIndexes");
   await page.getByRole("button", { name: "Continue: sinh Lesson contents" }).click();
-  await page.getByRole("button", { name: /Lesson nguồn B/u }).click();
-  await expect(page.getByText(/Nguồn B · b\.test · chunk 0: Trích dẫn Nguồn B/u)).toBeVisible();
-  await page.getByRole("button", { name: "Regenerate Lesson này" }).click();
+  await page.getByRole("button", { name: /Lesson nguá»“n B/u }).click();
+  await expect(page.getByText(/Nguá»“n B Â· b\.test Â· chunk 0: TrÃ­ch dáº«n Nguá»“n B/u)).toBeVisible();
+  await page.getByRole("button", { name: "Regenerate Lesson nÃ y" }).click();
   await expect.poll(() => lessonRegenerations).toBe(1);
   await page.getByRole("button", { name: "Publish Course" }).click();
-  await expect(page.getByText("Hàng chờ trống.")).toBeVisible();
-  await expect(page.getByRole("link", { name: "Mở Course" })).toHaveAttribute("href", "/courses/31");
+  await expect(page.getByText("HÃ ng chá» trá»‘ng.")).toBeVisible();
+  await expect(page.getByRole("link", { name: "Má»Ÿ Course" })).toHaveAttribute("href", "/courses/31");
   expect(tavilySearchCalls).toBe(0);
   expect(tavilyExtractCalls).toBe(0);
   await expectNoSeriousA11yViolations(page);
 });
+

@@ -116,5 +116,22 @@ describe("exercise-service", () => {
         },
       });
     });
+
+    it.each([
+      ["short_answer" as const, { answerText: "Agile values" }, { answerText: "Agile values" }],
+      ["ordering" as const, { orderedOptionIds: [2, 1] }, { orderedOptionIds: [2, 1] }],
+      ["matching" as const, { matches: [{ optionId: 1, answer: "A" }, { optionId: 2, answer: "B" }] }, { matches: [{ optionId: 1, answer: "A" }, { optionId: 2, answer: "B" }] }],
+    ])("validates and forwards a %s answer to the authoritative RPC", async (type, answer, expected) => {
+      vi.mocked(repository.fetchExerciseForSubmission).mockResolvedValue({
+        id: 7, lessonId: 10, type, isRequired: true, isPublished: true, courseId: 100,
+      });
+      vi.mocked(repository.fetchExerciseSolutionAdmin).mockResolvedValue({ solution: {}, explanation: "Feedback" });
+      vi.mocked(repository.submitExerciseRpc).mockResolvedValue({
+        submissionId: 1, isCorrect: true, score: 100, lessonCompleted: false, nextLessonUnlockedId: null, attemptNumber: 1,
+      });
+      await submitExercise(7, { answer });
+      expect(repository.submitExerciseRpc).toHaveBeenCalledWith(7, expected);
+    });
   });
 });
+

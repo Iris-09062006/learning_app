@@ -87,7 +87,7 @@ export async function fetchExerciseData(exerciseId: number): Promise<{
 
   const { data: optionRows, error: optionsError } = await supabase
     .from("exercise_options")
-    .select("id, content, option_order")
+    .select("id, content, option_order, metadata")
     .eq("exercise_id", exerciseId)
     .order("option_order", { ascending: true });
 
@@ -95,27 +95,41 @@ export async function fetchExerciseData(exerciseId: number): Promise<{
     throw new Error(`Failed to fetch exercise options: ${optionsError.message}`);
   }
 
+  const options = optionRows.map((option) => {
+    const rawMetadata = option.metadata && typeof option.metadata === "object" && !Array.isArray(option.metadata)
+      ? option.metadata as Record<string, unknown>
+      : {};
+    const answerOptions = exercise.exercise_type === "matching" && Array.isArray(rawMetadata.answerOptions)
+      ? rawMetadata.answerOptions.filter((item): item is string => typeof item === "string")
+      : [];
+    return {
+      id: option.id,
+      content: option.content,
+      order: option.option_order,
+      ...(answerOptions.length > 0 ? { metadata: { answerOptions } } : {}),
+    };
+  });
+  const base = {
+    id: exercise.id,
+    lessonId: exercise.lesson_id,
+    title: exercise.title,
+    description: exercise.description,
+    difficulty: exercise.difficulty,
+    order: exercise.exercise_order,
+    isRequired: exercise.is_required,
+  };
+  const mappedExercise: GetExerciseResponse = exercise.exercise_type === "short_answer"
+    ? { ...base, type: "short_answer" }
+    : exercise.exercise_type === "predict_output" || exercise.exercise_type === "fix_the_bug"
+      ? { ...base, type: exercise.exercise_type, codeSnippet: exercise.code_snippet, options }
+      : { ...base, type: exercise.exercise_type, options };
+
   return {
     exerciseExists: true,
     isPublished: exercise.is_published,
     isAuthenticated: true,
     isEnrolled: true,
-    exercise: {
-      id: exercise.id,
-      lessonId: exercise.lesson_id,
-      title: exercise.title,
-      description: exercise.description,
-      type: exercise.exercise_type,
-      difficulty: exercise.difficulty,
-      order: exercise.exercise_order,
-      codeSnippet: exercise.code_snippet,
-      isRequired: exercise.is_required,
-      options: optionRows.map((option) => ({
-        id: option.id,
-        content: option.content,
-        order: option.option_order,
-      })),
-    },
+    exercise: mappedExercise,
   };
 }
 
@@ -257,4 +271,5 @@ export async function fetchLearnerSubmissions(
     submittedAt: submission.submitted_at,
   }));
 }
+
 

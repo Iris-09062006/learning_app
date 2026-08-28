@@ -6,10 +6,23 @@
 - `VERIFIED`: Implementation, required tests, and review evidence pass.
 - `READY`: Packet is defined and ready to implement.
 - `IN_PROGRESS`: Currently being implemented.
-- `PLANNED`: Packet đã được định nghĩa nhưng chưa thể bắt đầu vì dependency/order.
-- `DRAFT`: Packet đã có nhưng còn thiếu contract, quyết định sản phẩm hoặc dependency.
+- `PLANNED`: Packet Ä‘Ã£ Ä‘Æ°á»£c Ä‘á»‹nh nghÄ©a nhÆ°ng chÆ°a thá»ƒ báº¯t Ä‘áº§u vÃ¬ dependency/order.
+- `DRAFT`: Packet Ä‘Ã£ cÃ³ nhÆ°ng cÃ²n thiáº¿u contract, quyáº¿t Ä‘á»‹nh sáº£n pháº©m hoáº·c dependency.
 
 ## Active Task
+
+`TASK-097` is verified after a targeted generated-contract fix: the programming-only Lesson Exercise model is replaced by a strict
+subject-agnostic discriminated contract across generation, moderation, learner rendering, and
+server-side evaluation while existing coding Exercises remain compatible. The provider owns `type`;
+application request metadata owns `difficulty`. Provider prompt/schema and request types are aligned;
+parser/validator and persistence boundaries match the intended ownership. Targeted tests (52/52),
+the full Vitest suite (1,211 passed, 1 skipped), lint, typecheck, build, diff, and secret checks pass.
+
+`TASK-096` is verified locally: successful Course/content/review mutations reconcile with uncached,
+latest-response server truth, completed transient Course-import creation state resets without losing
+failed input, and the public landing uses the existing server-resolved Supabase session. Focused/full
+tests, Playwright auth/workflow smoke, accessibility, lint, typecheck, build, diff and secret checks
+pass; no auth semantic, RBAC, AI, database, publication, visual-system, deploy, push, or commit change.
 
 `TASK-095` is verified locally: UI/UX Pro Max drives a visual-only redesign of the public landing,
 subject-neutral brand mark, authenticated navigation, and Course catalog/detail surfaces. Product
@@ -68,22 +81,22 @@ gates pass without database mutation, push, or deployment.
 internal zero-based contract, repairing the deterministic `AI_RESPONSE_INVALID` behind job 25's
 Lesson-generation 502. Full local gates pass without database mutation, push, or deployment.
 
-`TASK-083` is verified for only T026–T036 of pedagogical Lesson generation: active Continue and
+`TASK-083` is verified for only T026â€“T036 of pedagogical Lesson generation: active Continue and
 Lesson-wide regeneration integration, bounded three-pipeline scheduling, deadline/partial-failure retry,
 and compatibility verification without migrations or external contract changes.
 
-`TASK-082` is verified for only T017–T025 of pedagogical Lesson generation: independent semantic
+`TASK-082` is verified for only T017â€“T025 of pedagogical Lesson generation: independent semantic
 Quality Review, one targeted correction, independent re-review, and exact three/five-call budgets.
 Focused tests, lint, typecheck, diff review, and protected-scope checks pass. Phase D, persistence,
 scheduling, migrations, push, and deployment remain out of scope.
 
-`TASK-081` is verified for only T009–T016 of pedagogical Lesson generation: purpose-aware
+`TASK-081` is verified for only T009â€“T016 of pedagogical Lesson generation: purpose-aware
 all-section generation, exact blueprint adherence, structural citation ownership, and transient
 normalization to the unchanged final draft contract. Quality review/correction, integration,
 persistence, migration, push, and deployment are out of scope. The focused Phase A/B gate, lint,
 typecheck, diff review, and protected-scope checks pass.
 
-`TASK-080` is verified for only T001–T008 of pedagogical Lesson generation: transient approved
+`TASK-080` is verified for only T001â€“T008 of pedagogical Lesson generation: transient approved
 evidence, synthesis and blueprint contracts plus the single locked-model first stage. No final prose,
 quality review, integration, persistence, migration, push, or deployment is in scope.
 
@@ -93,7 +106,7 @@ jobs or evidence. No database, deployment, push, or remote-data change occurred.
 
 `TASK-078` is verified: the T039 failure was isolated to a Vitest `jsdom`/native-fetch
 `AbortSignal` realm mismatch, the server-only smoke now runs under Node, and one final real Basic
-Markdown Extract passed normalization/snapshot/chunk checks. T001–T047 are complete and T047's
+Markdown Extract passed normalization/snapshot/chunk checks. T001â€“T047 are complete and T047's
 final non-live gate passes. Deployment readiness is CONDITIONAL GO: Vercel Production still
 requires the server-only key, redeploy, and production smoke under separate authorization; no
 push, deployment, migration, or remote mutation occurred.
@@ -117,13 +130,13 @@ Recently verified supporting hotfixes:
 | Task ID | Title | Status | Phase | Dependency |
 |---|---|---|---|---|
 | `TASK-079` | Recover Failed Lesson Content Generation | VERIFIED | Content operations hotfix | Existing retryable Course-import state machine |
-| `TASK-075` | Tavily Web Ingestion Phase A Provider Boundary | VERIFIED | Tavily web ingestion Phase A | T001–T009 and Phase A gate pass |
+| `TASK-075` | Tavily Web Ingestion Phase A Provider Boundary | VERIFIED | Tavily web ingestion Phase A | T001â€“T009 and Phase A gate pass |
 | `TASK-045` | Reduce Page Navigation Latency | VERIFIED | Performance hotfix | None |
 | `TASK-046` | Stabilize AI Content Pipeline and New Lesson Targets | VERIFIED | Content operations hotfix | `TASK-043` |
 
 `TASK-045` and `TASK-046` passed review and all required local gates. The prior task below remains externally blocked.
 
-`TASK-044` — Fix Supabase Auth Email Redirects on Preview (`BLOCKED`). Code, tests,
+`TASK-044` â€” Fix Supabase Auth Email Redirects on Preview (`BLOCKED`). Code, tests,
 push and Preview deployment pass; final email-link verification requires the
 Supabase Auth Redirect URLs wildcard and a fresh confirmation email.
 
@@ -206,7 +219,7 @@ Supabase Auth Redirect URLs wildcard and a fresh confirmation email.
 
 | Task ID | Title | Status | Phase | Dependency |
 |---|---|---|---|---|
-| `TASK-071` | Topic-Based Multi-Source Course Creation: Phase 5 | IN_PROGRESS | Course research Phase 5 | Verified Phases 1–4 |
+| `TASK-071` | Topic-Based Multi-Source Course Creation: Phase 5 | IN_PROGRESS | Course research Phase 5 | Verified Phases 1â€“4 |
 | `TASK-066` | Normalize Single-Chunk Lesson Citations | IN_PROGRESS | Content operations hotfix | CI and production verification |
 
 ## Active Epic
@@ -225,16 +238,17 @@ Supabase Auth Redirect URLs wildcard and a fresh confirmation email.
 
 | Phase | Scope |
 |---|---|
-| Phase 4 | `TASK-025`–`TASK-027` verified: lesson content/start flow, exercises/submissions/grading, and progress engine |
-| Phase 5 | `TASK-028`–`TASK-031` verified: AI explanations, rule-based learning recommendations, controlled AI exercise generation, and content moderation |
-| Phase 6 | `TASK-031`–`TASK-033` verified: moderation, learner dashboard/profile, user administration, and system health |
-| Feature completion | `TASK-034`–`TASK-037`: search course, password recovery, accessible drag-and-drop, and optional Admin reset |
-| Phase 7 | `TASK-038`–`TASK-041`: security/RLS regression, critical E2E + accessibility, performance/release readiness, then explicitly authorized preview deployment |
+| Phase 4 | `TASK-025`â€“`TASK-027` verified: lesson content/start flow, exercises/submissions/grading, and progress engine |
+| Phase 5 | `TASK-028`â€“`TASK-031` verified: AI explanations, rule-based learning recommendations, controlled AI exercise generation, and content moderation |
+| Phase 6 | `TASK-031`â€“`TASK-033` verified: moderation, learner dashboard/profile, user administration, and system health |
+| Feature completion | `TASK-034`â€“`TASK-037`: search course, password recovery, accessible drag-and-drop, and optional Admin reset |
+| Phase 7 | `TASK-038`â€“`TASK-041`: security/RLS regression, critical E2E + accessibility, performance/release readiness, then explicitly authorized preview deployment |
 
 ## Retired Task IDs
 
-The former `TASK-010`–`TASK-014` packets were overlapping database subtasks and are retired. Their verified database scope is represented by `TASK-015`.
+The former `TASK-010`â€“`TASK-014` packets were overlapping database subtasks and are retired. Their verified database scope is represented by `TASK-015`.
 
-The former `TASK-101`–`TASK-105` packets were duplicate or obsolete authentication planning packets and are retired. Their relevant completed work is represented by `TASK-020` and `TASK-021`.
+The former `TASK-101`â€“`TASK-105` packets were duplicate or obsolete authentication planning packets and are retired. Their relevant completed work is represented by `TASK-020` and `TASK-021`.
 
 Retired task IDs must not be reintroduced unless a new packet is explicitly created with a distinct scope and acceptance criteria.
+

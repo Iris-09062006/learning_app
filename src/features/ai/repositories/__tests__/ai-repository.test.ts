@@ -207,6 +207,7 @@ describe("ai repository", () => {
       exercise_type: "predict_output" as const,
       difficulty: "easy" as const,
       content: {
+        type: "predict_output" as const,
         title: "SECRET_TITLE",
         description: "SECRET_DESCRIPTION",
         codeSnippet: "SECRET_CODE",
@@ -218,45 +219,61 @@ describe("ai repository", () => {
       model: "test-model",
     };
 
+    const expectedDiagnosticContext = {
+      stage: "exercise_persistence",
+      supabaseProjectHost: "project.supabase.co",
+      rpcName: "create_generated_exercise_draft",
+      exerciseType: "predict_output",
+      difficulty: "easy",
+      rpcArgumentPresence: {
+        p_lesson_id: "yes",
+        p_exercise_type: "yes",
+        p_difficulty: "yes",
+        p_content: "yes",
+        p_provider: "yes",
+        p_model: "yes",
+      },
+    };
+
     it("logs persistence start and success without Exercise content", async () => {
+      vi.stubEnv("NEXT_PUBLIC_SUPABASE_URL", "https://project.supabase.co");
       const infoSpy = vi.spyOn(console, "info").mockImplementation(() => undefined);
       mockRpc.mockResolvedValue({ data: { id: 88 }, error: null });
 
       await createGeneratedExerciseRecord(payload);
 
       expect(infoSpy).toHaveBeenNthCalledWith(1, "[exercise-generation-diagnostic]", {
-        stage: "exercise_generation",
+        ...expectedDiagnosticContext,
         event: "exercise_persistence_started",
-        rpcFunction: "create_generated_exercise_draft",
       });
       expect(infoSpy).toHaveBeenNthCalledWith(2, "[exercise-generation-diagnostic]", {
-        stage: "exercise_generation",
+        ...expectedDiagnosticContext,
         event: "exercise_persistence_success",
-        rpcFunction: "create_generated_exercise_draft",
       });
       expect(JSON.stringify(infoSpy.mock.calls)).not.toMatch(/SECRET_/);
     });
 
     it("logs only safe Supabase metadata on persistence failure", async () => {
+      vi.stubEnv("NEXT_PUBLIC_SUPABASE_URL", "https://project.supabase.co/path?key=SECRET_URL_VALUE");
       const infoSpy = vi.spyOn(console, "info").mockImplementation(() => undefined);
       const errorSpy = vi.spyOn(console, "error").mockImplementation(() => undefined);
       mockRpc.mockResolvedValue({
         data: null,
-        error: { code: "P0001", message: "safe message", details: "safe details", hint: "safe hint" },
+        error: { code: "P0001", message: "safe message", details: "safe details", hint: "safe hint", status: 400 },
       });
 
       await expect(createGeneratedExerciseRecord(payload)).rejects.toThrow("DATABASE_ERROR");
 
       expect(errorSpy).toHaveBeenCalledWith("[exercise-generation-diagnostic]", {
-        stage: "exercise_generation",
+        ...expectedDiagnosticContext,
         event: "exercise_persistence_failure",
-        rpcFunction: "create_generated_exercise_draft",
-        code: "P0001",
-        message: "safe message",
-        details: "safe details",
-        hint: "safe hint",
+        dbErrorCode: "P0001",
+        dbErrorMessage: "safe message",
+        dbErrorDetails: "safe details",
+        dbErrorHint: "safe hint",
+        httpStatus: 400,
       });
-      expect(JSON.stringify([...infoSpy.mock.calls, ...errorSpy.mock.calls])).not.toMatch(/SECRET_/);
+      expect(JSON.stringify([...infoSpy.mock.calls, ...errorSpy.mock.calls])).not.toMatch(/SECRET_(TITLE|DESCRIPTION|CODE|OPTION|EXPLANATION|URL)/);
     });
   });
 
@@ -270,3 +287,4 @@ describe("ai repository", () => {
     });
   });
 });
+

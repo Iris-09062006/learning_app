@@ -13,12 +13,13 @@ function json(data: unknown, ok = true, status = 200): Response {
 }
 
 const content: GeneratedExerciseContent = {
-  title: "Bài tập gốc",
-  description: "Mô tả gốc",
+  type: "predict_output",
+  title: "BÃ i táº­p gá»‘c",
+  description: "MÃ´ táº£ gá»‘c",
   codeSnippet: "let x = 1;",
   options: ["A", "B"],
   correctAnswer: "A",
-  explanation: "Giải thích đáp án.",
+  explanation: "Giáº£i thÃ­ch Ä‘Ã¡p Ã¡n.",
 };
 
 function renderForm(onSuccess = vi.fn()) {
@@ -44,15 +45,15 @@ describe("ModerationReviewForm", () => {
   it("renders decision radios, feedback field, edit toggle and submit button", () => {
     renderForm();
 
-    expect(screen.getByRole("radio", { name: "Duyệt" })).toBeChecked();
-    expect(screen.getByRole("radio", { name: "Cần chỉnh sửa" })).not.toBeChecked();
-    expect(screen.getByRole("radio", { name: "Từ chối" })).not.toBeChecked();
-    expect(screen.getByLabelText("Phản hồi")).toBeInTheDocument();
+    expect(screen.getByRole("radio", { name: "Duyá»‡t" })).toBeChecked();
+    expect(screen.getByRole("radio", { name: "Cáº§n chá»‰nh sá»­a" })).not.toBeChecked();
+    expect(screen.getByRole("radio", { name: "Tá»« chá»‘i" })).not.toBeChecked();
+    expect(screen.getByLabelText("Pháº£n há»“i")).toBeInTheDocument();
     expect(
-      screen.getByRole("button", { name: "Chỉnh sửa draft" }),
+      screen.getByRole("button", { name: "Chá»‰nh sá»­a draft" }),
     ).toBeInTheDocument();
     expect(
-      screen.getByRole("button", { name: "Gửi đánh giá" }),
+      screen.getByRole("button", { name: "Gá»­i Ä‘Ã¡nh giÃ¡" }),
     ).toBeInTheDocument();
   });
 
@@ -62,7 +63,7 @@ describe("ModerationReviewForm", () => {
       .mockResolvedValue(json({ reviewId: 1 }));
     const { onSuccess } = renderForm();
 
-    fireEvent.click(screen.getByRole("button", { name: "Gửi đánh giá" }));
+    fireEvent.click(screen.getByRole("button", { name: "Gá»­i Ä‘Ã¡nh giÃ¡" }));
 
     await waitFor(() => expect(onSuccess).toHaveBeenCalledTimes(1));
 
@@ -80,18 +81,18 @@ describe("ModerationReviewForm", () => {
       .mockResolvedValue(json({ reviewId: 2 }));
     const { onSuccess } = renderForm();
 
-    fireEvent.click(screen.getByRole("radio", { name: "Cần chỉnh sửa" }));
-    fireEvent.change(screen.getByLabelText("Phản hồi"), {
-      target: { value: "Cần bổ sung giải thích" },
+    fireEvent.click(screen.getByRole("radio", { name: "Cáº§n chá»‰nh sá»­a" }));
+    fireEvent.change(screen.getByLabelText("Pháº£n há»“i"), {
+      target: { value: "Cáº§n bá»• sung giáº£i thÃ­ch" },
     });
-    fireEvent.click(screen.getByRole("button", { name: "Gửi đánh giá" }));
+    fireEvent.click(screen.getByRole("button", { name: "Gá»­i Ä‘Ã¡nh giÃ¡" }));
 
     await waitFor(() => expect(onSuccess).toHaveBeenCalledTimes(1));
 
     const init = fetchMock.mock.calls[0][1] as RequestInit;
     expect(JSON.parse(init.body as string)).toEqual({
       decision: "needs_revision",
-      comment: "Cần bổ sung giải thích",
+      comment: "Cáº§n bá»• sung giáº£i thÃ­ch",
     });
   });
 
@@ -101,11 +102,11 @@ describe("ModerationReviewForm", () => {
       .mockResolvedValue(json({ reviewId: 4 }));
     const { onSuccess } = renderForm();
 
-    fireEvent.click(screen.getByRole("radio", { name: "Từ chối" }));
-    fireEvent.change(screen.getByLabelText("Phản hồi"), {
-      target: { value: "Không đúng mục tiêu Lesson" },
+    fireEvent.click(screen.getByRole("radio", { name: "Tá»« chá»‘i" }));
+    fireEvent.change(screen.getByLabelText("Pháº£n há»“i"), {
+      target: { value: "KhÃ´ng Ä‘Ãºng má»¥c tiÃªu Lesson" },
     });
-    fireEvent.click(screen.getByRole("button", { name: "Gửi đánh giá" }));
+    fireEvent.click(screen.getByRole("button", { name: "Gá»­i Ä‘Ã¡nh giÃ¡" }));
 
     await waitFor(() => expect(onSuccess).toHaveBeenCalledTimes(1));
     expect(fetchMock).toHaveBeenCalledTimes(1);
@@ -114,7 +115,7 @@ describe("ModerationReviewForm", () => {
     expect(init.method).toBe("POST");
     expect(JSON.parse(init.body as string)).toEqual({
       decision: "rejected",
-      comment: "Không đúng mục tiêu Lesson",
+      comment: "KhÃ´ng Ä‘Ãºng má»¥c tiÃªu Lesson",
     });
   });
 
@@ -124,33 +125,33 @@ describe("ModerationReviewForm", () => {
       .mockResolvedValue(json({ reviewId: 3 }));
     const { onSuccess } = renderForm();
 
-    fireEvent.click(screen.getByRole("button", { name: "Chỉnh sửa draft" }));
-    fireEvent.change(screen.getByLabelText("Tiêu đề"), {
-      target: { value: "Tiêu đề mới" },
+    fireEvent.click(screen.getByRole("button", { name: "Chá»‰nh sá»­a draft" }));
+    fireEvent.change(screen.getByLabelText("TiÃªu Ä‘á»"), {
+      target: { value: "TiÃªu Ä‘á» má»›i" },
     });
-    fireEvent.change(screen.getByLabelText("Mô tả"), {
-      target: { value: "Mô tả mới" },
+    fireEvent.change(screen.getByLabelText("MÃ´ táº£"), {
+      target: { value: "MÃ´ táº£ má»›i" },
     });
-    fireEvent.change(screen.getByLabelText("Loại bài tập"), {
+    fireEvent.change(screen.getByLabelText("Loáº¡i bÃ i táº­p"), {
       target: { value: "fix_the_bug" },
     });
-    fireEvent.change(screen.getByLabelText("Độ khó"), {
+    fireEvent.change(screen.getByLabelText("Äá»™ khÃ³"), {
       target: { value: "medium" },
     });
     fireEvent.change(screen.getByLabelText("Code snippet"), {
       target: { value: "const x = 2;" },
     });
     fireEvent.change(
-      screen.getByLabelText("Các lựa chọn (mỗi dòng một lựa chọn)"),
+      screen.getByLabelText("CÃ¡c lá»±a chá»n (má»—i dÃ²ng má»™t lá»±a chá»n)"),
       { target: { value: "A\nB\nC" } },
     );
-    fireEvent.change(screen.getByLabelText("Đáp án đúng"), {
+    fireEvent.change(screen.getByLabelText("ÄÃ¡p Ã¡n Ä‘Ãºng"), {
       target: { value: "B" },
     });
-    fireEvent.change(screen.getByLabelText("Giải thích"), {
-      target: { value: "Giải thích mới" },
+    fireEvent.change(screen.getByLabelText("Giáº£i thÃ­ch"), {
+      target: { value: "Giáº£i thÃ­ch má»›i" },
     });
-    fireEvent.click(screen.getByRole("button", { name: "Gửi đánh giá" }));
+    fireEvent.click(screen.getByRole("button", { name: "Gá»­i Ä‘Ã¡nh giÃ¡" }));
 
     await waitFor(() => expect(onSuccess).toHaveBeenCalledTimes(1));
 
@@ -158,17 +159,18 @@ describe("ModerationReviewForm", () => {
     expect(JSON.parse(init.body as string)).toEqual({
       decision: "approved",
       editedDraft: {
-        title: "Tiêu đề mới",
-        description: "Mô tả mới",
+        title: "TiÃªu Ä‘á» má»›i",
+        description: "MÃ´ táº£ má»›i",
         exerciseType: "fix_the_bug",
         difficulty: "medium",
         content: {
-          title: "Tiêu đề mới",
-          description: "Mô tả mới",
+          type: "fix_the_bug",
+          title: "TiÃªu Ä‘á» má»›i",
+          description: "MÃ´ táº£ má»›i",
           codeSnippet: "const x = 2;",
           options: ["A", "B", "C"],
           correctAnswer: "B",
-          explanation: "Giải thích mới",
+          explanation: "Giáº£i thÃ­ch má»›i",
         },
       },
     });
@@ -180,7 +182,7 @@ describe("ModerationReviewForm", () => {
     );
     renderForm();
 
-    fireEvent.click(screen.getByRole("button", { name: "Gửi đánh giá" }));
+    fireEvent.click(screen.getByRole("button", { name: "Gá»­i Ä‘Ã¡nh giÃ¡" }));
 
     const alert = await screen.findByRole("alert");
     expect(alert).toHaveTextContent("Invalid review payload");
@@ -189,7 +191,7 @@ describe("ModerationReviewForm", () => {
 
   it("renders only Stitch tokens with no legacy palette or dark-hardcoded classes", () => {
     const { container } = renderForm();
-    fireEvent.click(screen.getByRole("button", { name: "Chỉnh sửa draft" }));
+    fireEvent.click(screen.getByRole("button", { name: "Chá»‰nh sá»­a draft" }));
 
     for (const element of Array.from(
       container.querySelectorAll<HTMLElement>("*"),
@@ -210,3 +212,4 @@ describe("ModerationReviewForm", () => {
     }
   });
 });
+

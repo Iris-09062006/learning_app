@@ -3,9 +3,21 @@ import type {
   DbExerciseType,
   GeneratedExerciseContent,
   GeneratedExerciseDraft,
+  MatchingPair,
 } from "@/features/ai/types";
 
-const TYPES = new Set<DbExerciseType>(["predict_output", "fix_the_bug"]);
+export const EXERCISE_TYPES = [
+  "multiple_choice",
+  "true_false",
+  "short_answer",
+  "ordering",
+  "matching",
+  "scenario",
+  "predict_output",
+  "fix_the_bug",
+] as const satisfies readonly DbExerciseType[];
+
+const TYPES = new Set<string>(EXERCISE_TYPES);
 const DIFFICULTIES = new Set<DbDifficultyLevel>(["easy", "medium", "hard"]);
 
 export type ExerciseValidationCode =
@@ -19,6 +31,12 @@ export type ExerciseValidationCode =
   | "DUPLICATE_OPTION"
   | "INVALID_CORRECT_ANSWER"
   | "ANSWER_NOT_IN_OPTIONS"
+  | "INVALID_EXPECTED_ANSWER"
+  | "INVALID_ORDER_ITEMS"
+  | "INVALID_CORRECT_ORDER"
+  | "INVALID_MATCHING_PAIRS"
+  | "INVALID_MATCHING_PAIR"
+  | "INVALID_SCENARIO"
   | "INVALID_EXPLANATION"
   | "INVALID_QUESTION_TYPE"
   | "INVALID_DIFFICULTY"
@@ -40,9 +58,73 @@ export class ExerciseValidationError extends Error {
   }
 }
 
-function unexpectedKey(record: Record<string, unknown>, allowed: readonly string[]): string | null {
-  const keys = new Set(allowed);
-  return Object.keys(record).find((key) => !keys.has(key)) ?? null;
+function fail(
+  code: ExerciseValidationCode,
+  path: string,
+  record: Record<string, unknown>,
+  optionCount?: number
+): never {
+  throw new ExerciseValidationError(code, path, {
+    topLevelKeys: Object.keys(record),
+    ...(optionCount === undefined ? {} : { optionCount }),
+  });
+}
+
+function assertExactKeys(record: Record<string, unknown>, allowed: readonly string[]): void {
+  const keys = Object.keys(record);
+  const allowedSet = new Set(allowed);
+  const unexpected = keys.find((key) => !allowedSet.has(key));
+  if (unexpected || keys.length !== allowed.length || allowed.some((key) => !(key in record))) {
+    fail("UNEXPECTED_EXERCISE_FIELD", unexpected ?? "$", record);
+  }
+}
+
+function validateCommon(record: Record<string, unknown>): void {
+  if (typeof record.title !== "string" || !record.title.trim() || record.title.trim().length > 150) {
+    fail("INVALID_TITLE", "title", record);
+  }
+  if (typeof record.description !== "string" || !record.description.trim() || record.description.trim().length > 2000) {
+    fail("INVALID_DESCRIPTION", "description", record);
+  }
+  if (typeof record.explanation !== "string" || !record.explanation.trim() || record.explanation.trim().length > 5000) {
+    fail("INVALID_EXPLANATION", "explanation", record);
+  }
+}
+
+function validateStringList(
+  value: unknown,
+  record: Record<string, unknown>,
+  path: string,
+  code: "INVALID_OPTIONS" | "INVALID_ORDER_ITEMS",
+  min = 2,
+  max = 8
+): string[] {
+  if (!Array.isArray(value) || value.length < min || value.length > max) {
+    fail(code, path, record, Array.isArray(value) ? value.length : undefined);
+  }
+  const normalized = value.map((item, index) => {
+    if (typeof item !== "string" || !item.trim() || item.trim().length > 500) {
+      fail("INVALID_OPTION", `${path}[${index}]`, record, value.length);
+    }
+    return item.trim();
+  });
+  const duplicateIndex = normalized.findIndex((item, index) => normalized.indexOf(item) !== index);
+  if (duplicateIndex !== -1) {
+    fail("DUPLICATE_OPTION", `${path}[${duplicateIndex}]`, record, normalized.length);
+  }
+  return normalized;
+}
+
+function validateChoiceFields(record: Record<string, unknown>): { options: string[]; correctAnswer: string } {
+  const options = validateStringList(record.options, record, "options", "INVALID_OPTIONS", 2, 6);
+  if (typeof record.correctAnswer !== "string" || !record.correctAnswer.trim() || record.correctAnswer.trim().length > 500) {
+    fail("INVALID_CORRECT_ANSWER", "correctAnswer", record, options.length);
+  }
+  const correctAnswer = record.correctAnswer.trim();
+  if (!options.includes(correctAnswer)) {
+    fail("ANSWER_NOT_IN_OPTIONS", "correctAnswer", record, options.length);
+  }
+  return { options, correctAnswer };
 }
 
 export function validateGeneratedExerciseContent(value: unknown): GeneratedExerciseContent {
@@ -50,69 +132,81 @@ export function validateGeneratedExerciseContent(value: unknown): GeneratedExerc
     throw new ExerciseValidationError("INVALID_EXERCISE_ROOT", "$", {});
   }
   const record = value as Record<string, unknown>;
-  const topLevelKeys = Object.keys(record);
-  const allowed = ["title", "description", "codeSnippet", "options", "correctAnswer", "explanation"];
-  const extraKey = unexpectedKey(record, allowed);
-  if (extraKey) {
-    throw new ExerciseValidationError("UNEXPECTED_EXERCISE_FIELD", extraKey, { topLevelKeys });
+  if (typeof record.type !== "string" || !TYPES.has(record.type)) {
+    fail("INVALID_QUESTION_TYPE", "type", record);
   }
-  if (typeof record.title !== "string" || !record.title.trim() || record.title.trim().length > 150) {
-    throw new ExerciseValidationError("INVALID_TITLE", "title", { topLevelKeys });
-  }
-  if (typeof record.description !== "string" || !record.description.trim() || record.description.trim().length > 2000) {
-    throw new ExerciseValidationError("INVALID_DESCRIPTION", "description", { topLevelKeys });
-  }
-  if (typeof record.codeSnippet !== "string" || record.codeSnippet.length > 10_000) {
-    throw new ExerciseValidationError("INVALID_CODE_SNIPPET", "codeSnippet", { topLevelKeys });
-  }
-  if (!Array.isArray(record.options) || record.options.length < 2 || record.options.length > 6) {
-    throw new ExerciseValidationError("INVALID_OPTIONS", "options", {
-      topLevelKeys,
-      optionCount: Array.isArray(record.options) ? record.options.length : undefined,
-    });
-  }
-  for (const [index, option] of record.options.entries()) {
-    if (typeof option !== "string" || !option.trim() || option.trim().length > 500) {
-      throw new ExerciseValidationError("INVALID_OPTION", `options[${index}]`, {
-        topLevelKeys,
-        optionCount: record.options.length,
-      });
-    }
-  }
-  if (typeof record.correctAnswer !== "string" || !record.correctAnswer.trim()) {
-    throw new ExerciseValidationError("INVALID_CORRECT_ANSWER", "correctAnswer", {
-      topLevelKeys,
-      optionCount: record.options.length,
-    });
-  }
-  if (typeof record.explanation !== "string" || !record.explanation.trim() || record.explanation.trim().length > 5000) {
-    throw new ExerciseValidationError("INVALID_EXPLANATION", "explanation", {
-      topLevelKeys,
-      optionCount: record.options.length,
-    });
-  }
-  const options = record.options.map((option) => String(option).trim());
-  const duplicateIndex = options.findIndex((option, index) => options.indexOf(option) !== index);
-  if (duplicateIndex !== -1) {
-    throw new ExerciseValidationError("DUPLICATE_OPTION", `options[${duplicateIndex}]`, {
-      topLevelKeys,
-      optionCount: options.length,
-    });
-  }
-  if (!options.includes(record.correctAnswer.trim())) {
-    throw new ExerciseValidationError("ANSWER_NOT_IN_OPTIONS", "correctAnswer", {
-      topLevelKeys,
-      optionCount: options.length,
-    });
-  }
-  return {
-    title: record.title.trim(),
-    description: record.description.trim(),
-    codeSnippet: record.codeSnippet.trim(),
-    options,
-    correctAnswer: record.correctAnswer.trim(),
-    explanation: record.explanation.trim(),
+  const type = record.type as DbExerciseType;
+  const commonKeys = ["type", "title", "description", "explanation"];
+  validateCommon(record);
+  const common = {
+    title: (record.title as string).trim(),
+    description: (record.description as string).trim(),
+    explanation: (record.explanation as string).trim(),
   };
+
+  if (type === "multiple_choice") {
+    assertExactKeys(record, [...commonKeys, "options", "correctAnswer"]);
+    const choice = validateChoiceFields(record);
+    return { type, ...common, ...choice };
+  }
+  if (type === "true_false") {
+    assertExactKeys(record, [...commonKeys, "correctAnswer"]);
+    if (typeof record.correctAnswer !== "boolean") fail("INVALID_CORRECT_ANSWER", "correctAnswer", record);
+    return { type, ...common, correctAnswer: record.correctAnswer };
+  }
+  if (type === "short_answer") {
+    assertExactKeys(record, [...commonKeys, "expectedAnswer"]);
+    if (typeof record.expectedAnswer !== "string" || !record.expectedAnswer.trim() || record.expectedAnswer.trim().length > 1000) {
+      fail("INVALID_EXPECTED_ANSWER", "expectedAnswer", record);
+    }
+    return { type, ...common, expectedAnswer: record.expectedAnswer.trim() };
+  }
+  if (type === "ordering") {
+    assertExactKeys(record, [...commonKeys, "items", "correctOrder"]);
+    const items = validateStringList(record.items, record, "items", "INVALID_ORDER_ITEMS");
+    const correctOrder = validateStringList(record.correctOrder, record, "correctOrder", "INVALID_ORDER_ITEMS");
+    if (items.length !== correctOrder.length || items.some((item) => !correctOrder.includes(item)) ||
+        items.every((item, index) => item === correctOrder[index])) {
+      fail("INVALID_CORRECT_ORDER", "correctOrder", record, correctOrder.length);
+    }
+    return { type, ...common, items, correctOrder };
+  }
+  if (type === "matching") {
+    assertExactKeys(record, [...commonKeys, "pairs"]);
+    if (!Array.isArray(record.pairs) || record.pairs.length < 2 || record.pairs.length > 8) {
+      fail("INVALID_MATCHING_PAIRS", "pairs", record, Array.isArray(record.pairs) ? record.pairs.length : undefined);
+    }
+    const rawPairs = record.pairs;
+    const pairs: MatchingPair[] = rawPairs.map((pair, index) => {
+      if (!pair || typeof pair !== "object" || Array.isArray(pair)) fail("INVALID_MATCHING_PAIR", `pairs[${index}]`, record, rawPairs.length);
+      const pairRecord = pair as Record<string, unknown>;
+      assertExactKeys(pairRecord, ["prompt", "answer"]);
+      if (typeof pairRecord.prompt !== "string" || !pairRecord.prompt.trim() || pairRecord.prompt.trim().length > 500 ||
+          typeof pairRecord.answer !== "string" || !pairRecord.answer.trim() || pairRecord.answer.trim().length > 500) {
+        fail("INVALID_MATCHING_PAIR", `pairs[${index}]`, record, rawPairs.length);
+      }
+      return { prompt: pairRecord.prompt.trim(), answer: pairRecord.answer.trim() };
+    });
+    if (new Set(pairs.map((pair) => pair.prompt)).size !== pairs.length || new Set(pairs.map((pair) => pair.answer)).size !== pairs.length) {
+      fail("DUPLICATE_OPTION", "pairs", record, pairs.length);
+    }
+    return { type, ...common, pairs };
+  }
+  if (type === "scenario") {
+    assertExactKeys(record, [...commonKeys, "scenario", "options", "correctAnswer"]);
+    if (typeof record.scenario !== "string" || !record.scenario.trim() || record.scenario.trim().length > 4000) {
+      fail("INVALID_SCENARIO", "scenario", record);
+    }
+    const choice = validateChoiceFields(record);
+    return { type, ...common, scenario: record.scenario.trim(), ...choice };
+  }
+
+  assertExactKeys(record, [...commonKeys, "codeSnippet", "options", "correctAnswer"]);
+  if (typeof record.codeSnippet !== "string" || !record.codeSnippet.trim() || record.codeSnippet.length > 10_000) {
+    fail("INVALID_CODE_SNIPPET", "codeSnippet", record);
+  }
+  const choice = validateChoiceFields(record);
+  return { type: type as "predict_output" | "fix_the_bug", ...common, codeSnippet: record.codeSnippet.trim(), ...choice };
 }
 
 export function validateGeneratedExerciseDraft(value: unknown): GeneratedExerciseDraft {
@@ -120,27 +214,23 @@ export function validateGeneratedExerciseDraft(value: unknown): GeneratedExercis
     throw new ExerciseValidationError("INVALID_EXERCISE_ROOT", "$", {});
   }
   const record = value as Record<string, unknown>;
-  const topLevelKeys = Object.keys(record);
-  const allowed = ["title", "description", "exerciseType", "difficulty", "content"];
-  const extraKey = unexpectedKey(record, allowed);
-  if (extraKey) {
-    throw new ExerciseValidationError("UNEXPECTED_EXERCISE_FIELD", extraKey, { topLevelKeys });
-  }
-  if (typeof record.exerciseType !== "string" || !TYPES.has(record.exerciseType as DbExerciseType)) {
-    throw new ExerciseValidationError("INVALID_QUESTION_TYPE", "exerciseType", { topLevelKeys });
+  assertExactKeys(record, ["title", "description", "exerciseType", "difficulty", "content"]);
+  if (typeof record.exerciseType !== "string" || !TYPES.has(record.exerciseType)) {
+    fail("INVALID_QUESTION_TYPE", "exerciseType", record);
   }
   if (typeof record.difficulty !== "string" || !DIFFICULTIES.has(record.difficulty as DbDifficultyLevel)) {
-    throw new ExerciseValidationError("INVALID_DIFFICULTY", "difficulty", { topLevelKeys });
+    fail("INVALID_DIFFICULTY", "difficulty", record);
   }
   const content = validateGeneratedExerciseContent(record.content);
-  if (record.title !== content.title || record.description !== content.description) {
-    throw new ExerciseValidationError("INVALID_EXERCISE_CONTENT", "content", { topLevelKeys });
+  if (record.title !== content.title || record.description !== content.description || record.exerciseType !== content.type) {
+    fail("INVALID_EXERCISE_CONTENT", "content", record);
   }
   return {
     title: content.title,
     description: content.description,
-    exerciseType: record.exerciseType as DbExerciseType,
+    exerciseType: content.type,
     difficulty: record.difficulty as DbDifficultyLevel,
     content,
   };
 }
+

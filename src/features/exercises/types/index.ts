@@ -11,18 +11,48 @@ export interface ExerciseOption {
   metadata?: Record<string, unknown>;
 }
 
-export interface GetExerciseResponse {
+interface ExerciseBaseResponse {
   id: number;
   lessonId: number;
   title: string;
   description: string | null;
   type: ExerciseType;
   difficulty: DifficultyLevel;
-  codeSnippet: string | null;
   order: number;
   isRequired: boolean;
+}
+
+interface ChoiceExerciseResponse extends ExerciseBaseResponse {
+  type: "multiple_choice" | "true_false" | "scenario";
   options: ExerciseOption[];
 }
+
+interface CodingExerciseResponse extends ExerciseBaseResponse {
+  type: "predict_output" | "fix_the_bug";
+  codeSnippet: string | null;
+  options: ExerciseOption[];
+}
+
+interface ShortAnswerExerciseResponse extends ExerciseBaseResponse {
+  type: "short_answer";
+}
+
+interface OrderingExerciseResponse extends ExerciseBaseResponse {
+  type: "ordering";
+  options: ExerciseOption[];
+}
+
+interface MatchingExerciseResponse extends ExerciseBaseResponse {
+  type: "matching";
+  options: ExerciseOption[];
+}
+
+export type GetExerciseResponse =
+  | ChoiceExerciseResponse
+  | CodingExerciseResponse
+  | ShortAnswerExerciseResponse
+  | OrderingExerciseResponse
+  | MatchingExerciseResponse;
 
 export interface PredictOutputAnswer {
   selectedOptionId: number;
@@ -32,8 +62,20 @@ export interface FixTheBugAnswer {
   selectedOptionId: number;
 }
 
+export interface ShortAnswerAnswer {
+  answerText: string;
+}
+
+export interface OrderingAnswer {
+  orderedOptionIds: number[];
+}
+
+export interface MatchingAnswer {
+  matches: Array<{ optionId: number; answer: string }>;
+}
+
 export interface SubmitExerciseRequest {
-  answer: PredictOutputAnswer | FixTheBugAnswer;
+  answer: PredictOutputAnswer | FixTheBugAnswer | ShortAnswerAnswer | OrderingAnswer | MatchingAnswer;
 }
 
 export interface LessonProgress {
@@ -67,3 +109,4 @@ export interface SubmissionSummary {
 export interface GetLearnerSubmissionsResponse {
   submissions: SubmissionSummary[];
 }
+

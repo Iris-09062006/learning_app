@@ -158,6 +158,10 @@ export class ModerationRepository {
       lessons?: { title: string } | null;
     }
   ): ModerationQueueItem {
+    const storedContent = raw.content as unknown as Record<string, unknown>;
+    const content = (typeof storedContent.type === "string"
+      ? storedContent
+      : { type: raw.exercise_type, ...storedContent }) as unknown as GeneratedExerciseContent;
     return {
       id: raw.id,
       lessonId: raw.lesson_id,
@@ -166,7 +170,7 @@ export class ModerationRepository {
       difficulty: raw.difficulty,
       title: raw.title,
       description: raw.description ?? "",
-      content: raw.content as unknown as GeneratedExerciseContent,
+      content,
       status: raw.status,
       provider: raw.provider,
       model: raw.model,
@@ -178,3 +182,4 @@ export class ModerationRepository {
     };
   }
 }
+

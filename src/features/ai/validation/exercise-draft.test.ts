@@ -6,15 +6,34 @@ import {
 } from "./exercise-draft";
 
 const content = {
-  title: "Dự đoán kết quả",
-  description: "Chương trình in gì?",
+  type: "predict_output" as const,
+  title: "Dá»± Ä‘oÃ¡n káº¿t quáº£",
+  description: "ChÆ°Æ¡ng trÃ¬nh in gÃ¬?",
   codeSnippet: "x = 1\nprint(x)",
   options: ["1", "2"],
   correctAnswer: "1",
-  explanation: "x được gán giá trị 1.",
+  explanation: "x Ä‘Æ°á»£c gÃ¡n giÃ¡ trá»‹ 1.",
 };
 
 describe("generated Exercise draft validation", () => {
+  it.each([
+    [{ type: "multiple_choice", title: "Q", description: "D", options: ["A", "B"], correctAnswer: "A", explanation: "E" }],
+    [{ type: "true_false", title: "Q", description: "D", correctAnswer: true, explanation: "E" }],
+    [{ type: "short_answer", title: "Q", description: "D", expectedAnswer: "Answer", explanation: "E" }],
+    [{ type: "ordering", title: "Q", description: "D", items: ["B", "A"], correctOrder: ["A", "B"], explanation: "E" }],
+    [{ type: "matching", title: "Q", description: "D", pairs: [{ prompt: "A", answer: "1" }, { prompt: "B", answer: "2" }], explanation: "E" }],
+    [{ type: "scenario", title: "Q", description: "D", scenario: "A workplace decision", options: ["A", "B"], correctAnswer: "A", explanation: "E" }],
+    [content],
+    [{ ...content, type: "fix_the_bug" }],
+  ])("accepts a precise payload for every supported modality", (candidate) => {
+    expect(validateGeneratedExerciseContent(candidate).type).toBe(candidate.type);
+  });
+
+  it("rejects coding fields on a non-code modality", () => {
+    expect(() => validateGeneratedExerciseContent({
+      type: "short_answer", title: "Q", description: "D", expectedAnswer: "A", explanation: "E", codeSnippet: "print('fake')",
+    })).toThrow("EXERCISE_DRAFT_INVALID");
+  });
   it("normalizes a complete strict content payload", () => {
     expect(validateGeneratedExerciseContent({ ...content, title: ` ${content.title} ` })).toEqual(content);
   });
@@ -45,7 +64,7 @@ describe("generated Exercise draft validation", () => {
 
   it("requires the editable wrapper and content title/description to agree", () => {
     expect(() => validateGeneratedExerciseDraft({
-      title: "Khác",
+      title: "KhÃ¡c",
       description: content.description,
       exerciseType: "predict_output",
       difficulty: "easy",
@@ -53,3 +72,4 @@ describe("generated Exercise draft validation", () => {
     })).toThrow("EXERCISE_DRAFT_INVALID");
   });
 });
+

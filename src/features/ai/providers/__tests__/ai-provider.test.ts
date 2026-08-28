@@ -16,38 +16,61 @@ const mockSubmission: SubmissionDetailsForAi = {
   exerciseId: 10,
   answer: { option: "A" },
   isCorrect: true,
-  exerciseTitle: "Phép cộng cơ bản",
-  exercisePrompt: "1 + 1 bằng bao nhiêu?",
+  exerciseTitle: "PhÃ©p cá»™ng cÆ¡ báº£n",
+  exercisePrompt: "1 + 1 báº±ng bao nhiÃªu?",
   staticExplanation: "1 + 1 = 2",
 };
 
 const exerciseRequest: ExerciseGenerationProviderRequest = {
   lessonTitle: "SECRET_LESSON_TITLE",
+  lessonSummary: "SECRET_LESSON_SUMMARY",
   lessonContent: "SECRET_LESSON_CONTENT",
   lessonLearningObjectives: ["SECRET_EVIDENCE"],
   courseTitle: "Python",
   courseDescription: null,
-  exerciseType: "predict_output",
   difficulty: "easy",
   learningObjective: "SECRET_OBJECTIVE",
   topicHint: null,
 };
 
 describe("ai provider", () => {
-  it("keeps both mock exercise types valid", async () => {
+  it("allows a coding modality only when the Lesson requires code", async () => {
     const provider = new MockAIProvider();
     const result = await provider.generateExercise!({
-      lessonTitle: "Hàm",
+      lessonTitle: "HÃ m",
+      lessonSummary: "Viáº¿t vÃ  sá»­a hÃ m Python",
       lessonContent: "return",
-      lessonLearningObjectives: ["Sửa hàm"],
-      courseTitle: "Python cơ bản",
+      lessonLearningObjectives: ["Sá»­a hÃ m"],
+      courseTitle: "Python cÆ¡ báº£n",
       courseDescription: null,
-      exerciseType: "fix_the_bug",
       difficulty: "easy",
-      learningObjective: "Sửa hàm",
+      learningObjective: "Sá»­a hÃ m",
       topicHint: null,
     });
-    expect(result.content.options).toContain(result.content.correctAnswer);
+    expect(result.content.type).toBe("predict_output");
+    expect("options" in result.content && result.content.options).toContain("correctAnswer" in result.content ? result.content.correctAnswer : "");
+  });
+
+  it.each([
+    ["Agile Manifesto", "Values and principles for teams", ["Apply Agile values"], "scenario", false],
+    ["Professional Ethics", "Choose an ethical response at work", ["Evaluate professional conduct"], "scenario", false],
+    ["Python loops", "Use Python for loops", ["Reason about loop output"], "predict_output", true],
+    ["Database normalization", "Explain normal forms and dependencies", ["Apply normalization theory"], "multiple_choice", false],
+  ] as const)("selects a subject-appropriate modality for %s", async (lessonTitle, lessonSummary, objectives, expectedType, expectsCode) => {
+    const provider = new MockAIProvider();
+    const result = await provider.generateExercise!({
+      lessonTitle,
+      lessonSummary,
+      lessonContent: lessonSummary,
+      lessonLearningObjectives: [...objectives],
+      courseTitle: "Course",
+      courseDescription: null,
+      difficulty: "medium",
+      learningObjective: objectives[0],
+      topicHint: null,
+    });
+    expect(result.content.type).toBe(expectedType);
+    expect("codeSnippet" in result.content).toBe(expectsCode);
   });
 
   const originalEnv = process.env;
@@ -76,13 +99,13 @@ describe("ai provider", () => {
       const provider = new MockAIProvider();
       const result = await provider.generateExplanation({
         submission: mockSubmission,
-        question: "Vì sao đúng?",
+        question: "VÃ¬ sao Ä‘Ãºng?",
       });
 
       expect(result.provider).toBe("mock");
-      expect(result.explanation).toContain("Bài làm của bạn là chính xác.");
+      expect(result.explanation).toContain("BÃ i lÃ m cá»§a báº¡n lÃ  chÃ­nh xÃ¡c.");
       expect(result.explanation).toContain("1 + 1 = 2");
-      expect(result.explanation).toContain("Câu hỏi của bạn: Vì sao đúng?");
+      expect(result.explanation).toContain("CÃ¢u há»i cá»§a báº¡n: VÃ¬ sao Ä‘Ãºng?");
     });
   });
 
@@ -104,7 +127,7 @@ describe("ai provider", () => {
           choices: [
             {
               message: {
-                content: "Giải thích từ OpenAI",
+                content: "Giáº£i thÃ­ch tá»« OpenAI",
               },
             },
           ],
@@ -119,7 +142,7 @@ describe("ai provider", () => {
       });
 
       expect(result).toEqual({
-        explanation: "Giải thích từ OpenAI",
+        explanation: "Giáº£i thÃ­ch tá»« OpenAI",
         provider: "openai-compatible",
         model: "gpt-4o-mini",
       });
@@ -170,21 +193,21 @@ describe("ai provider", () => {
       vi.spyOn(globalThis, "fetch").mockResolvedValueOnce({
         ok: true,
         json: async () => ({
-          choices: [{ message: { content: "không phải json" } }],
+          choices: [{ message: { content: "khÃ´ng pháº£i json" } }],
         }),
       } as Response);
 
       const provider = new OpenAIApiProvider("test-key");
       await expect(
         provider.generateExercise!({
-          lessonTitle: "Biến",
-          lessonContent: "Nội dung biến",
-          lessonLearningObjectives: ["Hiểu biến"],
-          courseTitle: "Python cơ bản",
+          lessonTitle: "Biáº¿n",
+          lessonSummary: "Biáº¿n Python",
+          lessonContent: "Ná»™i dung biáº¿n",
+          lessonLearningObjectives: ["Hiá»ƒu biáº¿n"],
+          courseTitle: "Python cÆ¡ báº£n",
           courseDescription: null,
-          exerciseType: "predict_output",
           difficulty: "easy",
-          learningObjective: "Hiểu biến",
+          learningObjective: "Hiá»ƒu biáº¿n",
           topicHint: null,
         })
       ).rejects.toMatchObject({
@@ -202,14 +225,14 @@ describe("ai provider", () => {
       );
       const provider = new OpenAIApiProvider("test-key");
       const pending = expect(provider.generateExercise!({
-        lessonTitle: "Biến",
+        lessonTitle: "Biáº¿n",
+        lessonSummary: "Biáº¿n Python",
         lessonContent: "x = 1",
-        lessonLearningObjectives: ["Hiểu biến"],
-        courseTitle: "Python cơ bản",
+        lessonLearningObjectives: ["Hiá»ƒu biáº¿n"],
+        courseTitle: "Python cÆ¡ báº£n",
         courseDescription: null,
-        exerciseType: "predict_output",
         difficulty: "easy",
-        learningObjective: "Hiểu biến",
+        learningObjective: "Hiá»ƒu biáº¿n",
         topicHint: null,
       })).rejects.toMatchObject({ diagnosticCode: "PROVIDER_TIMEOUT" });
 
@@ -229,19 +252,19 @@ describe("ai provider", () => {
       const provider = new OpenAIApiProvider("test-key");
       await expect(
         provider.generateExercise!({
-          lessonTitle: "Biến",
-          lessonContent: "Nội dung biến",
-          lessonLearningObjectives: ["Hiểu biến"],
-          courseTitle: "Python cơ bản",
+          lessonTitle: "Biáº¿n",
+          lessonSummary: "Biáº¿n Python",
+          lessonContent: "Ná»™i dung biáº¿n",
+          lessonLearningObjectives: ["Hiá»ƒu biáº¿n"],
+          courseTitle: "Python cÆ¡ báº£n",
           courseDescription: null,
-          exerciseType: "predict_output",
           difficulty: "easy",
-          learningObjective: "Hiểu biến",
+          learningObjective: "Hiá»ƒu biáº¿n",
           topicHint: null,
         })
       ).rejects.toMatchObject({
-        validationCode: "INVALID_DESCRIPTION",
-        fieldPath: "description",
+        validationCode: "INVALID_QUESTION_TYPE",
+        fieldPath: "type",
       } satisfies Partial<ExerciseValidationError>);
     });
 
@@ -253,9 +276,10 @@ describe("ai provider", () => {
             {
               message: {
                 content: JSON.stringify({
+                  type: "predict_output",
                   title: "Test",
                   description: "Desc",
-                  codeSnippet: "",
+                  codeSnippet: "print('A')",
                   options: ["A", "B", "C"],
                   correctAnswer: "D",
                   explanation: "Exp",
@@ -269,14 +293,14 @@ describe("ai provider", () => {
       const provider = new OpenAIApiProvider("test-key");
       await expect(
         provider.generateExercise!({
-          lessonTitle: "Biến",
-          lessonContent: "Nội dung biến",
-          lessonLearningObjectives: ["Hiểu biến"],
-          courseTitle: "Python cơ bản",
+          lessonTitle: "Biáº¿n",
+          lessonSummary: "Biáº¿n Python",
+          lessonContent: "Ná»™i dung biáº¿n",
+          lessonLearningObjectives: ["Hiá»ƒu biáº¿n"],
+          courseTitle: "Python cÆ¡ báº£n",
           courseDescription: null,
-          exerciseType: "predict_output",
           difficulty: "easy",
-          learningObjective: "Hiểu biến",
+          learningObjective: "Hiá»ƒu biáº¿n",
           topicHint: null,
         })
       ).rejects.toMatchObject({
@@ -333,6 +357,7 @@ describe("ai provider", () => {
       const infoSpy = vi.spyOn(console, "info").mockImplementation(() => undefined);
       vi.spyOn(console, "error").mockImplementation(() => undefined);
       const generatedContent = {
+        type: "predict_output",
         title: "SECRET_GENERATED_TITLE",
         description: "SECRET_GENERATED_DESCRIPTION",
         codeSnippet: "SECRET_GENERATED_CODE",
@@ -369,12 +394,12 @@ describe("ai provider", () => {
 
     it("generates exercise successfully", async () => {
       const mockResult = {
-        title: "Khai báo biến let",
-        description: "Từ khóa nào dùng để khai báo biến có thể thay đổi?",
-        codeSnippet: "",
+        type: "multiple_choice",
+        title: "Khai bÃ¡o biáº¿n let",
+        description: "Tá»« khÃ³a nÃ o dÃ¹ng Ä‘á»ƒ khai bÃ¡o biáº¿n cÃ³ thá»ƒ thay Ä‘á»•i?",
         options: ["let", "const", "var"],
         correctAnswer: "let",
-        explanation: "Từ khóa let cho phép gán lại giá trị.",
+        explanation: "Tá»« khÃ³a let cho phÃ©p gÃ¡n láº¡i giÃ¡ trá»‹.",
       };
 
       const fetchSpy = vi.spyOn(globalThis, "fetch").mockResolvedValueOnce({
@@ -393,14 +418,14 @@ describe("ai provider", () => {
 
       const provider = new OpenAIApiProvider("test-key");
       const result = await provider.generateExercise!({
-        lessonTitle: "Biến",
-        lessonContent: "Nội dung biến",
-        lessonLearningObjectives: ["Hiểu biến"],
-        courseTitle: "Python cơ bản",
+        lessonTitle: "Biáº¿n",
+        lessonSummary: "Biáº¿n JavaScript",
+        lessonContent: "Ná»™i dung biáº¿n",
+        lessonLearningObjectives: ["Hiá»ƒu biáº¿n"],
+        courseTitle: "Python cÆ¡ báº£n",
         courseDescription: null,
-        exerciseType: "predict_output",
         difficulty: "easy",
-        learningObjective: "Hiểu khai báo let",
+        learningObjective: "Hiá»ƒu khai bÃ¡o let",
         topicHint: null,
       });
 
@@ -410,6 +435,7 @@ describe("ai provider", () => {
         model: string;
         stream: boolean;
         response_format: unknown;
+        messages: Array<{ role: string; content: string }>;
       };
       expect(request.stream).toBe(false);
       expect(request.model).toBe("gpt-4o-mini");
@@ -419,11 +445,14 @@ describe("ai provider", () => {
           name: "lesson_exercise_draft",
           strict: true,
           schema: expect.objectContaining({
-            type: "object",
-            additionalProperties: false,
+            oneOf: expect.any(Array),
           }),
         }),
       });
+      expect(request.messages[0].content).toContain("Choose the Exercise format based on what the learner is supposed to understand or do.");
+      expect(request.messages[0].content).toContain("Do not generate a programming/code Exercise unless the Lesson itself requires programming or code reasoning.");
+      expect(request.messages[0].content).toContain("khÃ´ng bá»c danh sÃ¡ch, khÃ¡i niá»‡m");
+      expect(request.messages[1].content).toContain("TÃ³m táº¯t bÃ i há»c: Biáº¿n JavaScript");
       expect(fetchSpy).toHaveBeenCalledWith(
         "https://api.openai.com/v1/chat/completions",
         expect.objectContaining({
@@ -440,3 +469,4 @@ describe("ai provider", () => {
     });
   });
 });
+

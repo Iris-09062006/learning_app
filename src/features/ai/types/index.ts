@@ -58,20 +58,72 @@ export type DbGeneratedExerciseStatus = Database["public"]["Enums"]["generated_e
 
 export interface GenerateExerciseInput {
   lessonId: number;
-  exerciseType: DbExerciseType;
   difficulty: DbDifficultyLevel;
   learningObjective: string;
   topicHint?: string;
 }
 
-export interface GeneratedExerciseContent {
+interface GeneratedExerciseBase {
+  type: DbExerciseType;
   title: string;
   description: string;
+  explanation: string;
+}
+
+export interface MultipleChoiceExerciseContent extends GeneratedExerciseBase {
+  type: "multiple_choice";
+  options: string[];
+  correctAnswer: string;
+}
+
+export interface TrueFalseExerciseContent extends GeneratedExerciseBase {
+  type: "true_false";
+  correctAnswer: boolean;
+}
+
+export interface ShortAnswerExerciseContent extends GeneratedExerciseBase {
+  type: "short_answer";
+  expectedAnswer: string;
+}
+
+export interface OrderingExerciseContent extends GeneratedExerciseBase {
+  type: "ordering";
+  items: string[];
+  correctOrder: string[];
+}
+
+export interface MatchingPair {
+  prompt: string;
+  answer: string;
+}
+
+export interface MatchingExerciseContent extends GeneratedExerciseBase {
+  type: "matching";
+  pairs: MatchingPair[];
+}
+
+export interface ScenarioExerciseContent extends GeneratedExerciseBase {
+  type: "scenario";
+  scenario: string;
+  options: string[];
+  correctAnswer: string;
+}
+
+export interface CodingExerciseContent extends GeneratedExerciseBase {
+  type: "predict_output" | "fix_the_bug";
   codeSnippet: string;
   options: string[];
   correctAnswer: string;
-  explanation: string;
 }
+
+export type GeneratedExerciseContent =
+  | MultipleChoiceExerciseContent
+  | TrueFalseExerciseContent
+  | ShortAnswerExerciseContent
+  | OrderingExerciseContent
+  | MatchingExerciseContent
+  | ScenarioExerciseContent
+  | CodingExerciseContent;
 
 export interface GeneratedExerciseDraft {
   title: string;
@@ -84,6 +136,7 @@ export interface GeneratedExerciseDraft {
 export interface ExerciseGenerationContext {
   lessonId: number;
   lessonTitle: string;
+  lessonSummary?: string;
   lessonContent: string;
   learningObjectives: string[];
   courseTitle: string;
@@ -118,3 +171,4 @@ export interface GeneratedExerciseRecord {
 export interface GenerateExerciseResponse {
   generatedExercise: GeneratedExerciseRecord;
 }
+
