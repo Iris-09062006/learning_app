@@ -6,6 +6,7 @@ import { ExerciseGenerationForm } from "./exercise-generation-form";
 const baseContext = {
   lessonId: 51,
   lessonTitle: "Biến",
+  lessonSummary: "Giới thiệu phép gán và biến.",
   lessonContent: "x = 1",
   learningObjectives: ["Hiểu phép gán", "Vận dụng biến"],
   courseTitle: "Python cơ bản",
@@ -47,15 +48,11 @@ afterEach(() => {
 });
 
 describe("ExerciseGenerationForm", () => {
-  it("renders the fixed generation fields, defaults, and Lesson datalist unchanged", () => {
+  it("renders subject-aware generation guidance, difficulty, and the Lesson datalist", () => {
     render(<ExerciseGenerationForm context={baseContext} />);
 
-    const typeSelect = screen.getByLabelText("Loại bài tập");
-    expect(typeSelect).toHaveValue("predict_output");
-    expect(within(typeSelect).getAllByRole("option").map((option) => option.textContent)).toEqual([
-      "Predict the Output",
-      "Fix the Bug",
-    ]);
+    expect(screen.queryByLabelText("Loại bài tập")).not.toBeInTheDocument();
+    expect(screen.getByText(/AI sẽ chọn định dạng phù hợp/u)).toBeInTheDocument();
 
     const difficultySelect = screen.getByLabelText("Độ khó");
     expect(difficultySelect).toHaveValue("easy");
@@ -134,7 +131,6 @@ describe("ExerciseGenerationForm", () => {
     expect(calls[0].method).toBe("POST");
     expect(calls[0].body).toEqual({
       lessonId: 51,
-      exerciseType: "predict_output",
       difficulty: "easy",
       learningObjective: "Hiểu phép gán",
     });
@@ -189,7 +185,6 @@ describe("ExerciseGenerationForm", () => {
     expect(calls[0]).toEqual(calls[1]);
     expect(calls[0].body).toEqual({
       lessonId: 51,
-      exerciseType: "predict_output",
       difficulty: "easy",
       learningObjective: "Hiểu phép gán",
     });
@@ -207,7 +202,6 @@ describe("ExerciseGenerationForm", () => {
     expect(await screen.findByRole("link", { name: "Mở draft" })).toHaveAttribute("href", "/moderation/90");
     expect(calls[0].body).toEqual({
       lessonId: 51,
-      exerciseType: "predict_output",
       difficulty: "easy",
       learningObjective: "Hiểu phép gán",
       topicHint: "vòng lặp for",
@@ -230,19 +224,19 @@ describe("ExerciseGenerationForm", () => {
     const { container } = render(<ExerciseGenerationForm context={baseContext} />);
 
     const submitButton = screen.getByRole("button", { name: "Sinh Exercise draft" });
-    expect(submitButton).toHaveClass("bg-primary", "text-on-primary", "rounded-lg");
+    expect(submitButton).toHaveClass("bg-primary", "text-on-primary", "rounded-xl");
     expect(screen.getByRole("link", { name: "← Chọn Lesson khác" })).toHaveClass("text-primary");
 
     const form = container.querySelector("form");
     expect(form).toHaveClass("grid", "gap-5", "p-6", "md:grid-cols-2");
     const formCard = form?.parentElement;
-    expect(formCard).toHaveClass("rounded-xl", "border", "border-border", "bg-surface", "shadow-sm");
+    expect(formCard).toHaveClass("rounded-2xl", "border", "border-border", "bg-surface");
 
     for (const select of screen.getAllByRole("combobox")) {
-      expect(select).toHaveClass("border-border", "bg-surface", "rounded-lg");
+      expect(select).toHaveClass("border-border", "bg-surface", "rounded-xl");
     }
     for (const input of screen.getAllByRole("textbox")) {
-      expect(input).toHaveClass("border-border", "bg-surface", "rounded-lg");
+      expect(input).toHaveClass("border-border", "bg-surface", "rounded-xl");
     }
 
     const objectivesAside = screen.getByRole("complementary");
@@ -258,13 +252,13 @@ describe("ExerciseGenerationForm", () => {
     }
   });
 
-  it("adds no AI-generation controls beyond the two existing selects", () => {
+  it("does not expose a manual exercise-type selector", () => {
     const { container } = render(<ExerciseGenerationForm context={baseContext} />);
 
     const selects = Array.from(container.querySelectorAll("select"));
-    expect(selects).toHaveLength(2);
-    expect(screen.getByLabelText("Loại bài tập")).toBe(selects[0]);
-    expect(screen.getByLabelText("Độ khó")).toBe(selects[1]);
+    expect(selects).toHaveLength(1);
+    expect(screen.getByLabelText("Độ khó")).toBe(selects[0]);
+    expect(screen.queryByLabelText("Loại bài tập")).not.toBeInTheDocument();
 
     const inputs = Array.from(container.querySelectorAll("input"));
     expect(inputs).toHaveLength(2);

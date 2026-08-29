@@ -30,17 +30,17 @@ describe("MainLayout shell synchronization", () => {
     const element = await MainLayout({ children: <div>page content</div> });
     const { container } = render(element);
 
-    // Desktop sidebar width (w-72 = 288px).
+    // Compact desktop sidebar width (w-64 = 256px).
     const aside = document.querySelector("aside");
-    expect(aside?.className).toContain("w-72");
+    expect(aside?.className).toContain("w-64");
 
     // Sidebar stays hidden below the desktop breakpoint, flex from lg up.
     expect(aside?.className).toContain("hidden");
     expect(aside?.className).toContain("lg:flex");
 
     // Main content offset matches the sidebar width exactly.
-    const content = container.querySelector('[class*="pt-14"]');
-    expect(content?.className).toContain("lg:pl-72");
+    const content = container.querySelector('[class*="pt-16"]');
+    expect(content?.className).toContain("lg:pl-64");
     expect(content?.className).toContain("lg:pt-0");
 
     expect(screen.getByText("page content")).toBeInTheDocument();

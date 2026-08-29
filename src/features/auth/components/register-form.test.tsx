@@ -40,7 +40,7 @@ function successfulRegistration(requiresEmailConfirmation: boolean) {
       user: {
         id: "usr_123",
         email: "learner@example.com",
-        username: "Python Learner",
+        username: "Người học mới",
         role: "learner",
       },
       requiresEmailConfirmation,
@@ -101,7 +101,7 @@ describe("RegisterForm", () => {
     fillRegisterForm(
       "  LEARNER@Example.com  ",
       "StrongPassword123!",
-      "  Python Learner  ",
+      "  Người học mới  ",
     );
     fireEvent.click(screen.getByRole("button", { name: "Tạo tài khoản" }));
 
@@ -117,7 +117,7 @@ describe("RegisterForm", () => {
         body: JSON.stringify({
           email: "learner@example.com",
           password: "StrongPassword123!",
-          username: "Python Learner",
+          username: "Người học mới",
         }),
       }),
     );
@@ -133,7 +133,7 @@ describe("RegisterForm", () => {
     fillRegisterForm(
       "learner@example.com",
       "StrongPassword123!",
-      "Python Learner",
+      "Người học mới",
     );
     fireEvent.click(screen.getByRole("button", { name: "Tạo tài khoản" }));
 
@@ -161,7 +161,7 @@ describe("RegisterForm", () => {
     fillRegisterForm(
       "learner@example.com",
       "StrongPassword123!",
-      "Python Learner",
+      "Người học mới",
     );
     fireEvent.click(screen.getByRole("button", { name: "Tạo tài khoản" }));
 
@@ -181,7 +181,7 @@ describe("RegisterForm", () => {
     fillRegisterForm(
       "learner@example.com",
       "StrongPassword123!",
-      "Python Learner",
+      "Người học mới",
     );
     fireEvent.click(screen.getByRole("button", { name: "Tạo tài khoản" }));
 
@@ -202,7 +202,7 @@ describe("RegisterForm", () => {
     fillRegisterForm(
       "learner@example.com",
       "StrongPassword123!",
-      "Python Learner",
+      "Người học mới",
     );
     fireEvent.click(screen.getByRole("button", { name: "Tạo tài khoản" }));
 

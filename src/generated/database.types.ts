@@ -1281,7 +1281,15 @@ export type Database = {
       difficulty_level: "easy" | "medium" | "hard"
       enrollment_status: "active" | "completed" | "cancelled"
       exercise_source: "manual" | "ai_generated"
-      exercise_type: "fix_the_bug" | "predict_output"
+      exercise_type:
+        | "multiple_choice"
+        | "true_false"
+        | "short_answer"
+        | "ordering"
+        | "matching"
+        | "scenario"
+        | "fix_the_bug"
+        | "predict_output"
       generated_exercise_status:
         | "pending"
         | "approved"
@@ -1438,7 +1446,16 @@ export const Constants = {
       difficulty_level: ["easy", "medium", "hard"],
       enrollment_status: ["active", "completed", "cancelled"],
       exercise_source: ["manual", "ai_generated"],
-      exercise_type: ["fix_the_bug", "predict_output"],
+      exercise_type: [
+        "fix_the_bug",
+        "predict_output",
+        "multiple_choice",
+        "true_false",
+        "short_answer",
+        "ordering",
+        "matching",
+        "scenario",
+      ],
       generated_exercise_status: [
         "pending",
         "approved",

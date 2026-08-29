@@ -2,9 +2,33 @@ import { createServerSupabaseClient } from "@/lib/supabase/server";
 import type { ProgressStatus } from "@/features/courses/types";
 import type {
   LessonDetail,
-  LessonNextRef,
+  LessonAdjacentRef,
   StartLessonResponse,
 } from "@/features/lessons/types";
+
+interface OrderedLessonRow {
+  id: number;
+  title: string;
+  lesson_order: number;
+  chapters: unknown;
+}
+
+function resolveAdjacentLessons(
+  orderedLessons: OrderedLessonRow[],
+  lessonId: number,
+): { previousLesson: LessonAdjacentRef | null; nextLesson: LessonAdjacentRef | null } {
+  const currentIndex = orderedLessons.findIndex((item) => item.id === lessonId);
+  if (currentIndex < 0) {
+    return { previousLesson: null, nextLesson: null };
+  }
+
+  const previous = orderedLessons[currentIndex - 1];
+  const next = orderedLessons[currentIndex + 1];
+  return {
+    previousLesson: previous ? { id: previous.id, title: previous.title } : null,
+    nextLesson: next ? { id: next.id, title: next.title } : null,
+  };
+}
 
 function toProgressStatus(status: string | null | undefined): ProgressStatus {
   if (status === "unlocked") return "unlocked";
@@ -91,16 +115,37 @@ export async function fetchLessonDetail(lessonId: number): Promise<{
     throw new Error(`Failed to fetch exercises: ${exercisesError.message}`);
   }
 
-  const exercises = (exercisesData || []).map((e) => ({
+  const exerciseRows = exercisesData || [];
+  const exerciseIds = exerciseRows.map((exercise) => exercise.id);
+  const completedExerciseIds = new Set<number>();
+
+  if (exerciseIds.length > 0) {
+    const { data: correctSubmissions, error: submissionsError } = await supabase
+      .from("submissions")
+      .select("exercise_id")
+      .eq("user_id", user.id)
+      .eq("is_correct", true)
+      .in("exercise_id", exerciseIds);
+
+    if (submissionsError) {
+      throw new Error(`Failed to fetch exercise completion: ${submissionsError.message}`);
+    }
+
+    for (const submission of correctSubmissions || []) {
+      completedExerciseIds.add(submission.exercise_id);
+    }
+  }
+
+  const exercises = exerciseRows.map((e) => ({
     id: e.id,
     title: e.title,
     type: e.exercise_type,
     difficulty: e.difficulty,
     order: e.exercise_order,
     isPublished: e.is_published,
+    isCompleted: completedExerciseIds.has(e.id),
   }));
 
-  let nextLesson: LessonNextRef | null = null;
   const { data: courseLessons, error: courseLessonsError } = await supabase
     .from("lessons")
     .select("id, title, lesson_order, chapters!inner(chapter_order)")
@@ -118,12 +163,7 @@ export async function fetchLessonDetail(lessonId: number): Promise<{
     const chapterB = (b.chapters as unknown as { chapter_order: number })?.chapter_order ?? 0;
     return chapterA - chapterB || a.lesson_order - b.lesson_order;
   });
-  const currentIndex = ordered.findIndex((item) => item.id === lessonId);
-  const next = currentIndex >= 0 ? ordered[currentIndex + 1] : undefined;
-
-  if (next) {
-    nextLesson = { id: next.id, title: next.title };
-  }
+  const { previousLesson, nextLesson } = resolveAdjacentLessons(ordered, lessonId);
 
   return {
     lessonExists: true,
@@ -141,6 +181,7 @@ export async function fetchLessonDetail(lessonId: number): Promise<{
       status,
       isPublished: lesson.is_published,
       exercises,
+      previousLesson,
       nextLesson,
     },
   };

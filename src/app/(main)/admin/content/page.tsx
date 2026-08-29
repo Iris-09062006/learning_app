@@ -1,11 +1,12 @@
 import { redirect } from "next/navigation";
 
 import { PageContainer } from "@/components/layout/page-container";
+import { createProductTitle } from "@/config/product";
 import { AdminServiceError, assertAdminAccess } from "@/features/admin/services/admin-service";
 import { ContentPipelineAdmin } from "@/features/content-pipeline/components/content-pipeline-admin";
 
 export const metadata = {
-  title: "Document-to-Lesson | LearningApp Admin",
+  title: createProductTitle("Document-to-Lesson Admin"),
   description: "Create and review cited lesson drafts from private source documents.",
 };
 

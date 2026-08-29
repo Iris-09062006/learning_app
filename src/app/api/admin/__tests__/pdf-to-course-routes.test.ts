@@ -5,7 +5,6 @@ const serviceMocks = vi.hoisted(() => ({
   generateCourseOutlineForJob: vi.fn(),
   updateCourseOutline: vi.fn(),
   regenerateCourseOutline: vi.fn(),
-  generateCourseLessonContent: vi.fn(),
   generateCourseLessonContents: vi.fn(),
   regenerateCourseLessonContent: vi.fn(),
   ingestUrlSource: vi.fn(),
@@ -28,7 +27,6 @@ import { POST as generateOutline } from "../content-sources/[id]/course-outline/
 import { PATCH as editOutline, POST as generateJobOutline } from "../course-drafts/[id]/outline/route";
 import { POST as regenerateOutline } from "../course-drafts/[id]/outline/regenerate/route";
 import { POST as generateLessons } from "../course-drafts/[id]/lessons/generate/route";
-import { POST as generateLesson } from "../course-drafts/[id]/lessons/[lessonId]/generate/route";
 import {
   maxDuration as regenerateLessonMaxDuration,
   POST as regenerateLesson,
@@ -314,48 +312,6 @@ describe("two-stage PDF-to-Course routes", () => {
     expect(serviceMocks.generateCourseLessonContents).toHaveBeenCalledWith("61");
     expect(serviceMocks.regenerateCourseLessonContent).toHaveBeenCalledWith("61", "71");
     expect(regenerateLessonMaxDuration).toBe(300);
-  });
-
-  it("returns generated and idempotent one-Lesson responses with no-store", async () => {
-    serviceMocks.generateCourseLessonContent
-      .mockResolvedValueOnce({ jobId: 61, outlineLessonId: 71, outcome: "generated",
-        lessonContentDraftId: 81, revision: 1, courseStatus: "generating_content" })
-      .mockResolvedValueOnce({ jobId: 61, outlineLessonId: 71, outcome: "already_generated",
-        lessonContentDraftId: 81, revision: 1, courseStatus: "generating_content" });
-
-    const generated = await generateLesson(new Request("http://localhost", { method: "POST" }), {
-      params: Promise.resolve({ id: "61", lessonId: "71" }),
-    });
-    expect(generated.status).toBe(201);
-    expect(generated.headers.get("Cache-Control")).toBe("no-store");
-    await expect(generated.json()).resolves.toMatchObject({
-      success: true, data: { outcome: "generated", outlineLessonId: 71, lessonContentDraftId: 81, revision: 1 },
-    });
-
-    const replay = await generateLesson(new Request("http://localhost", { method: "POST" }), {
-      params: Promise.resolve({ id: "61", lessonId: "71" }),
-    });
-    expect(replay.status).toBe(200);
-    await expect(replay.json()).resolves.toMatchObject({
-      success: true, data: { outcome: "already_generated", lessonContentDraftId: 81, revision: 1 },
-    });
-    expect(serviceMocks.generateCourseLessonContent).toHaveBeenNthCalledWith(1, "61", "71");
-    expect(serviceMocks.generateCourseLessonContent).toHaveBeenNthCalledWith(2, "61", "71");
-  });
-
-  it.each([
-    ["NOT_FOUND", 404],
-    ["INVALID_STATE", 409],
-    ["STALE_OUTLINE", 409],
-    ["AI_PROVIDER_ERROR", 502],
-  ] as const)("maps one-Lesson %s failures to HTTP %i", async (code, status) => {
-    serviceMocks.generateCourseLessonContent.mockRejectedValueOnce(new ContentPipelineError(code, "safe failure"));
-    const response = await generateLesson(new Request("http://localhost", { method: "POST" }), {
-      params: Promise.resolve({ id: "61", lessonId: "71" }),
-    });
-    expect(response.status).toBe(status);
-    expect(response.headers.get("Cache-Control")).toBe("no-store");
-    await expect(response.json()).resolves.toMatchObject({ success: false, error: { code, message: "safe failure" } });
   });
 
   it("maps AI provider lesson-generation failures to a retryable HTTP 502", async () => {

@@ -747,7 +747,6 @@ Chỉ dùng AI recommendation khi có yêu cầu rõ ràng sau.
 ### Input
 
 - Lesson ID.
-- Exercise type.
 - Difficulty.
 - Learning objective của Lesson hoặc mục tiêu cụ thể trong Lesson.
 
@@ -755,7 +754,7 @@ Chỉ dùng AI recommendation khi có yêu cầu rõ ràng sau.
 
 1. Moderator/Admin mở `/moderation/lessons`, chọn đúng một Lesson đã publish và yêu cầu tạo bài.
 2. Server kiểm tra role.
-3. Lấy title, learning objectives và content hiện tại của Lesson làm context chính.
+3. Lấy title, summary, learning objectives và content hiện tại của Lesson làm context chính.
 4. Prompt Builder tạo prompt.
 5. AI Provider trả structured response.
 6. Response validator kiểm tra schema.
@@ -764,14 +763,21 @@ Chỉ dùng AI recommendation khi có yêu cầu rõ ràng sau.
 
 ### Quy tắc nghiệp vụ
 
-- Chỉ hỗ trợ hai exercise type của MVP.
+- Hỗ trợ bộ modality nhỏ: multiple choice, true/false, short answer, ordering, matching,
+  scenario, predict output và fix the bug.
+- Provider tự chọn modality theo điều learner cần hiểu/làm; client không ép loại trước.
+- Generated JSON sở hữu `type` nhưng không sở hữu `difficulty`: provider trả discriminator
+  `type`, còn application truyền và persist difficulty từ request metadata.
+- Chỉ chọn `predict_output` hoặc `fix_the_bug` khi code là một phần thật sự của Lesson objective;
+  cấm bọc khái niệm không-code trong code giả.
 - Không sinh theo Course và không gửi toàn PDF nếu Lesson context đã đủ.
 - Mọi generated exercise phải persist đúng `lesson_id` của Lesson được chọn.
 - Correct solution phải có.
 - Generated content phải qua review.
 - Provider response sai schema bị từ chối.
-- Draft có 2–6 option text duy nhất; `correctAnswer` phải khớp chính xác một option.
-- Provider có timeout 45 giây; timeout/response lỗi không được persist draft.
+- Mỗi modality dùng schema riêng, exact fields và validation chính xác; choice/coding draft có
+  2–6 option text duy nhất và `correctAnswer` phải khớp chính xác một option.
+- Provider có timeout 180 giây; timeout/response lỗi không được persist draft.
 - Client không được INSERT/UPDATE trực tiếp generated draft; mọi transition đi qua RPC.
 
 ---

@@ -35,6 +35,7 @@ const MOCK_GENERATED_EXERCISE: GeneratedExerciseRecord = {
   title: "Luyện tập: Biến số",
   description: "Bài tập medium về Biến số.",
   content: {
+    type: "predict_output",
     title: "Luyện tập: Biến số",
     description: "Bài tập medium về Biến số.",
     codeSnippet: 'console.log("Hello");',
@@ -82,7 +83,8 @@ describe("POST /api/ai/exercises/generate", () => {
       expect(data.error).toBe("VALIDATION_ERROR");
     });
 
-    it("should return 400 for invalid exerciseType", async () => {
+    it("ignores a legacy exerciseType and lets the provider select the modality", async () => {
+      vi.mocked(aiService.generateExercise).mockResolvedValue({ generatedExercise: MOCK_GENERATED_EXERCISE });
       const request = createJsonRequest({
         lessonId: 1,
         exerciseType: "invalid_type",
@@ -93,14 +95,13 @@ describe("POST /api/ai/exercises/generate", () => {
       const response = await POST(request);
       const data = await response.json();
 
-      expect(response.status).toBe(400);
-      expect(data.error).toBe("VALIDATION_ERROR");
+      expect(response.status).toBe(201);
+      expect(data.generatedExercise.exerciseType).toBe("predict_output");
     });
 
     it("should return 400 for invalid difficulty", async () => {
       const request = createJsonRequest({
         lessonId: 1,
-        exerciseType: "predict_output",
         difficulty: "impossible",
         learningObjective: "Test",
       });
@@ -122,7 +123,6 @@ describe("POST /api/ai/exercises/generate", () => {
 
       const request = createJsonRequest({
         lessonId: 10,
-        exerciseType: "predict_output",
         difficulty: "medium",
         learningObjective: "Biến số trong JS",
         topicHint: "Từ khóa let",
@@ -135,7 +135,6 @@ describe("POST /api/ai/exercises/generate", () => {
       expect(data.generatedExercise).toEqual(MOCK_GENERATED_EXERCISE);
       expect(aiService.generateExercise).toHaveBeenCalledWith({
         lessonId: 10,
-        exerciseType: "predict_output",
         difficulty: "medium",
         learningObjective: "Biến số trong JS",
         topicHint: "Từ khóa let",
@@ -150,7 +149,6 @@ describe("POST /api/ai/exercises/generate", () => {
 
       const request = createJsonRequest({
         lessonId: 10,
-        exerciseType: "predict_output",
         difficulty: "medium",
         learningObjective: "Biến số",
       });
@@ -169,7 +167,6 @@ describe("POST /api/ai/exercises/generate", () => {
 
       const request = createJsonRequest({
         lessonId: 10,
-        exerciseType: "predict_output",
         difficulty: "medium",
         learningObjective: "Biến số",
       });
@@ -188,7 +185,6 @@ describe("POST /api/ai/exercises/generate", () => {
 
       const request = createJsonRequest({
         lessonId: 10,
-        exerciseType: "predict_output",
         difficulty: "medium",
         learningObjective: "Biến số",
       });
@@ -207,7 +203,6 @@ describe("POST /api/ai/exercises/generate", () => {
 
       const response = await POST(createJsonRequest({
         lessonId: 10,
-        exerciseType: "predict_output",
         difficulty: "medium",
         learningObjective: "Biến số",
       }));
@@ -224,7 +219,6 @@ describe("POST /api/ai/exercises/generate", () => {
 
       const request = createJsonRequest({
         lessonId: 10,
-        exerciseType: "predict_output",
         difficulty: "medium",
         learningObjective: "Biến số",
       });

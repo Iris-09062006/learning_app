@@ -1,33 +1,31 @@
 # TASK-090 Test Report
 
-## Diagnostic evidence
+## Focused deterministic tests
 
-- Starting baseline: clean `feature/005-per-lesson-generation` at
-  `e588138b0f720e672247e25495eecd8a743c0863`.
-- No raw Lesson 78 provider payload was retained. Existing privacy-safe TASK-084 evidence recorded
-  HTTP 200, successful envelope/JSON extraction, first blueprint order `1`, then
-  `AI_RESPONSE_INVALID`; it retained no source, prompt, response body, credential, or user content.
-- Deterministic current-tree fixture changed only valid section orders from `0,1` to `1,2`.
-  Pre-fix focused run: FAIL as expected, 106 passed / 1 failed, exact throw at the section-order
-  predicate in `parseSynthesisBlueprint()`.
-- Post-fix the same fixture returns internal orders `0,1`.
-- Context7 confirmed the Gemini OpenAI-compatible chat-completions structured-output boundary uses
-  schema-driven output through the successful completion response; no SDK or envelope migration was
-  implicated.
+Command:
+
+`npm test -- src/features/content-pipeline/repositories/content-pipeline-repository.test.ts src/features/content-pipeline/repositories/pdf-to-course-migration.test.ts src/features/content-pipeline/services/content-pipeline-service.test.ts --silent`
+
+Result: **PASS** — 3 files, 184 tests.
+
+Coverage includes:
+
+- Lesson 1 persists before Lesson 2 generation begins.
+- Lesson 2 persists before Lesson 3 generation begins.
+- Lesson 3 provider failure preserves the Lesson 1/2 checkpoint sequence and fails the job.
+- Retry makes zero provider calls for Lessons 1/2 and begins at Lesson 3.
+- Missing Lessons 3–6 continue in approved-outline order.
+- All-complete failed retry makes zero provider calls and invokes server reconciliation.
+- Persistence failure prevents the next Lesson from starting.
+- Repository selects the approved revision and latest ready draft rather than a different current
+  outline or a newer failed draft.
+- Failure and preparation migrations do not delete/update ready Lesson draft checkpoints.
+- Admin authorization and RPC grants remain constrained.
 
 ## Quality gates
 
-- Provider and service tests: PASS, 253/253 (107 provider + 146 service).
-- One-Lesson route and repository tests: PASS, 59/59 (47 route + 12 repository).
-- The service suite covers exact normal 3 calls, correction max 5, no sixth call, stage-one stop,
-  zero persistence on failure, one-Lesson persistence, citation ownership, Lesson regeneration,
-  and publication regressions.
-- `npm run lint`: PASS.
-- `npm run typecheck`: PASS.
-- `npm run build`: first run compiled and typechecked, then failed only because public Supabase env
-  variables were absent; rerun with process-only non-secret placeholders PASS.
-- `git diff --check`: PASS; only Windows LF-to-CRLF notices were printed.
+- `npm run lint` — **PASS**
+- `npm run typecheck` — **PASS**
+- `git diff --check` — **PASS** (only existing Windows LF/CRLF warnings)
 
-## Cost and external actions
-
-No real Gemini request, live smoke, database mutation, push, or deployment was performed.
+No real provider calls were made. Build was not requested and was not run.

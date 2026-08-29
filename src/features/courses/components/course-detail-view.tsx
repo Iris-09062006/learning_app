@@ -53,34 +53,29 @@ export const CourseDetailView: React.FC<CourseDetailViewProps> = ({ course }) =>
   }
 
   return (
-    <div data-testid="course-detail-view" className="min-w-0 space-y-8">
+    <div data-testid="course-detail-view" className="min-w-0 space-y-10">
       {/* Header section */}
       <div
         data-testid="course-detail-header"
-        className="rounded-xl border border-border bg-surface p-8 shadow-sm"
+        className="relative overflow-hidden rounded-3xl border border-border bg-surface p-6 shadow-[0_24px_70px_-45px_rgba(99,102,241,0.45)] sm:p-8"
       >
-        <div className="flex items-center gap-3">
-          <span className="rounded-md bg-primary-soft px-3 py-1 text-xs font-semibold text-primary">
-            {course.language.toUpperCase()}
-          </span>
-          <span className="text-xs capitalize text-text-muted">
-            Cấp độ: {course.level}
-          </span>
+        <div aria-hidden="true" className="absolute -right-20 -top-20 size-56 rounded-full bg-primary/10 blur-3xl" />
+        <div className="relative flex items-center gap-3">
+          <span className="rounded-full bg-surface-subtle px-3 py-1.5 text-xs capitalize text-text-secondary">Cấp độ {course.level}</span>
         </div>
 
-        <h1 className="mt-4 break-words text-3xl font-bold tracking-tight text-text-primary">
+        <h1 className="relative mt-5 max-w-3xl break-words text-3xl font-semibold tracking-[-0.03em] text-text-primary [text-wrap:balance] sm:text-4xl">
           {course.title}
         </h1>
 
-        <p className="mt-4 break-words text-base text-text-secondary">
+        <p className="relative mt-4 max-w-2xl break-words text-base leading-7 text-text-secondary">
           {course.description || "Chưa có mô tả chi tiết cho khóa học này."}
         </p>
 
-        <div className="mt-6 flex flex-wrap items-center justify-between gap-4 border-t border-border pt-6">
-          <div className="flex flex-wrap items-center gap-x-6 gap-y-2 text-sm text-text-muted">
-            <span>{course.chapterCount} chương</span>
-            <span>&bull;</span>
-            <span>{course.lessonCount} bài học</span>
+        <div className="relative mt-7 flex flex-wrap items-center justify-between gap-5 border-t border-border pt-6">
+          <div className="flex flex-wrap items-center gap-2 text-sm text-text-secondary">
+            <span className="rounded-lg bg-surface-subtle px-3 py-2">{course.chapterCount} chương</span>
+            <span className="rounded-lg bg-surface-subtle px-3 py-2">{course.lessonCount} bài học</span>
           </div>
 
           <div className="flex flex-col items-end gap-2">
@@ -127,7 +122,7 @@ export const CourseDetailView: React.FC<CourseDetailViewProps> = ({ course }) =>
 
       {/* Chapters summary */}
       <div className="space-y-4">
-        <h2 className="text-xl font-bold text-text-primary">
+        <h2 className="text-xl font-semibold tracking-tight text-text-primary">
           Nội dung khóa học
         </h2>
 
@@ -141,12 +136,12 @@ export const CourseDetailView: React.FC<CourseDetailViewProps> = ({ course }) =>
               <div
                 key={ch.id}
                 data-testid="course-chapter-row"
-                className="flex items-center justify-between gap-4 rounded-xl border border-border bg-surface p-4 transition-shadow hover:shadow-sm"
+                className="flex items-center justify-between gap-4 rounded-2xl border border-border bg-surface p-4 transition-colors duration-200 hover:border-primary/30 sm:p-5"
               >
                 <div className="flex min-w-0 flex-1 items-start gap-3">
                   <span
                     aria-hidden="true"
-                    className="flex size-8 shrink-0 items-center justify-center rounded-md bg-primary-soft text-sm font-bold text-primary"
+                    className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-primary-soft text-sm font-semibold text-primary"
                   >
                     {ch.chapterOrder}
                   </span>

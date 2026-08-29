@@ -531,7 +531,19 @@ export async function persistCourseOutlineForJob(input: {
     p_provider: input.provider,
     p_model: input.model,
   });
-  if (error || !data || typeof data !== "object") throw new Error("DATABASE_ERROR");
+  if (error) {
+    console.warn("[outline-persistence-diagnostic]", {
+      stage: "outline_persistence",
+      jobId: input.jobId,
+      rpcFunction: "create_course_outline_for_job",
+      postgresCode: error.code,
+      message: error.message,
+      details: error.details,
+      hint: error.hint,
+    });
+    throw new Error("DATABASE_ERROR");
+  }
+  if (!data || typeof data !== "object") throw new Error("DATABASE_ERROR");
   const result = data as unknown as PersistCourseOutlineResult;
   if (result.jobId !== input.jobId || result.status !== "outline_review"
     || !result.sourceDocumentIds?.length || result.sourceDocumentIds[0] !== result.sourceDocumentId) {
@@ -589,6 +601,27 @@ async function loadCourseImportSourceMap(jobIds: number[]): Promise<Map<number, 
 
 export async function listCourseImportSources(jobId: number): Promise<CourseImportSourceSummary[]> {
   return (await loadCourseImportSourceMap([jobId])).get(jobId) ?? [];
+}
+
+export async function getCourseImportOutlineState(jobId: number): Promise<{
+  status: CourseImportDraft["status"];
+  errorCode: string | null;
+  currentOutlineRevision: number;
+  approvedOutlineRevision: number | null;
+} | null> {
+  const supabase = adminClient();
+  const { data, error } = await supabase.from("course_import_jobs")
+    .select("status, error_code, current_outline_revision, approved_outline_revision")
+    .eq("id", jobId)
+    .maybeSingle();
+  if (error) throw new Error("DATABASE_ERROR");
+  if (!data) return null;
+  return {
+    status: data.status as CourseImportDraft["status"],
+    errorCode: data.error_code,
+    currentOutlineRevision: data.current_outline_revision,
+    approvedOutlineRevision: data.approved_outline_revision,
+  };
 }
 
 export async function getCourseImportCompatibilityDiagnostics(): Promise<CourseImportCompatibilityDiagnostic[]> {
@@ -706,10 +739,11 @@ async function loadCourseImports(jobId?: number): Promise<CourseImportDraft[]> {
   const allDrafts = (draftResult.data ?? []) as Array<{
     id: number; job_id: number; revision: number; title: string; description: string;
   }>;
-  const currentDrafts = jobs.flatMap((job) => allDrafts.filter(
-    (draft) => draft.job_id === job.id && draft.revision === job.current_outline_revision
+  const selectedDrafts = jobs.flatMap((job) => allDrafts.filter(
+    (draft) => draft.job_id === job.id
+      && draft.revision === (job.approved_outline_revision ?? job.current_outline_revision)
   ));
-  const draftIds = currentDrafts.map((draft) => draft.id);
+  const draftIds = selectedDrafts.map((draft) => draft.id);
   if (!draftIds.length) return [];
   const [objectiveResult, lessonResult] = await Promise.all([
     supabase.from("course_draft_objectives").select("*").in("course_draft_id", draftIds).order("objective_order"),
@@ -752,7 +786,7 @@ async function loadCourseImports(jobId?: number): Promise<CourseImportDraft[]> {
   }>;
 
   return jobs.flatMap((job) => {
-    const draft = currentDrafts.find((item) => item.job_id === job.id);
+    const draft = selectedDrafts.find((item) => item.job_id === job.id);
     const jobSources = sourceMap.get(job.id) ?? [];
     if (!draft || !jobSources.length || jobSources[0].sourceDocumentId !== job.source_document_id) return [];
     return [{
@@ -763,7 +797,7 @@ async function loadCourseImports(jobId?: number): Promise<CourseImportDraft[]> {
       outlineStale: job.status === "processing" && job.current_outline_revision > 0,
       status: job.status,
       errorCode: job.error_code,
-      outlineRevision: job.current_outline_revision,
+      outlineRevision: draft.revision,
       approvedOutlineRevision: job.approved_outline_revision,
       title: draft.title,
       description: draft.description,
@@ -771,7 +805,9 @@ async function loadCourseImports(jobId?: number): Promise<CourseImportDraft[]> {
         .sort((a, b) => a.objective_order - b.objective_order).map((item) => item.objective),
       lessons: outlineLessons.filter((lesson) => lesson.course_draft_id === draft.id)
         .sort((a, b) => a.lesson_order - b.lesson_order).map((lesson) => {
-          const content = contents.find((item) => item.outline_lesson_id === lesson.id);
+          const content = contents.find((item) =>
+            item.outline_lesson_id === lesson.id && item.status === "ready"
+          );
           const contentDraft: CourseImportLessonDraft | null = content ? {
             id: content.id,
             outlineLessonId: lesson.id,
@@ -852,10 +888,37 @@ export async function getCourseImportChunks(jobId: number): Promise<CourseSource
   return (await getCourseImportGenerationContext(jobId))?.chunks ?? [];
 }
 
-export async function prepareCourseLessonGeneration(jobId: number): Promise<void> {
+export async function prepareCourseLessonGeneration(
+  jobId: number
+): Promise<{ jobId: number; status: "generating_content" | "content_review"; outlineRevision: number }> {
   const supabase = await client();
-  const { error } = await supabase.rpc("prepare_course_lesson_generation", { p_job_id: jobId });
-  if (error) throw new Error("DATABASE_ERROR");
+  const { data, error } = await supabase.rpc("prepare_course_lesson_generation", { p_job_id: jobId });
+  if (error || !data || typeof data !== "object") throw new Error("DATABASE_ERROR");
+  const result = data as {
+    jobId?: unknown;
+    status?: unknown;
+    outlineRevision?: unknown;
+  };
+  if (result.jobId !== jobId
+    || (result.status !== "generating_content" && result.status !== "content_review")
+    || !Number.isSafeInteger(result.outlineRevision) || Number(result.outlineRevision) < 1) {
+    throw new Error("DATABASE_ERROR");
+  }
+  return result as { jobId: number; status: "generating_content" | "content_review"; outlineRevision: number };
+}
+
+export async function reconcileCourseLessonGeneration(
+  jobId: number
+): Promise<{ jobId: number; status: "content_review"; outlineRevision: number }> {
+  const supabase = await client();
+  const { data, error } = await supabase.rpc("reconcile_course_lesson_generation", { p_job_id: jobId });
+  if (error || !data || typeof data !== "object") throw new Error("DATABASE_ERROR");
+  const result = data as { jobId?: unknown; status?: unknown; outlineRevision?: unknown };
+  if (result.jobId !== jobId || result.status !== "content_review"
+    || !Number.isSafeInteger(result.outlineRevision) || Number(result.outlineRevision) < 1) {
+    throw new Error("DATABASE_ERROR");
+  }
+  return result as { jobId: number; status: "content_review"; outlineRevision: number };
 }
 
 export async function persistCourseLessonContent(input: {

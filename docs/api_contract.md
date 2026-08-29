@@ -104,9 +104,13 @@ reference và mọi field `exercise|quiz|answer|solution` đều bị từ chố
 
 ### Exercise endpoints
 
-`POST /api/ai/exercises/generate` tiếp tục nhận đúng một `lessonId` cùng exercise type,
-difficulty và learning objective. Server lấy Lesson title/objectives/content làm context
+`POST /api/ai/exercises/generate` nhận đúng một `lessonId`, difficulty và learning objective;
+Exercise type do provider chọn từ Lesson title, summary, objectives và content,
+không do client ép buộc. Server lấy Lesson title/summary/objectives/content làm context
 chính và trả đúng một `generatedExercise` ở trạng thái `pending` có cùng `lessonId`.
+Provider JSON phải chứa `type` đúng một lần và chỉ chứa các root field của nhánh type đã
+chọn. Provider không được trả `difficulty`: application sở hữu giá trị request này và persist
+nó độc lập, trong khi server persist `exercise_type` từ generated `content.type` đã validate.
 Review/edit/publish tiếp tục dùng `/api/moderation/generated-exercises/**`; Course draft
 API không được đọc, approve hoặc publish generated exercise.
 
@@ -300,6 +304,12 @@ completed    → completed
 
 ```ts
 type ExerciseType =
+  | "multipleChoice"
+  | "trueFalse"
+  | "shortAnswer"
+  | "ordering"
+  | "matching"
+  | "scenario"
   | "fixTheBug"
   | "predictOutput";
 ```
@@ -309,6 +319,12 @@ Database mapping:
 ```text
 fixTheBug      → fix_the_bug
 predictOutput  → predict_output
+multipleChoice → multiple_choice
+trueFalse      → true_false
+shortAnswer    → short_answer
+ordering       → ordering
+matching       → matching
+scenario       → scenario
 ```
 
 ---
@@ -961,6 +977,10 @@ interface LessonDetail {
   estimatedMinutes: number | null;
   status: ProgressStatus;
   exercises: ExerciseSummary[];
+  previousLesson: {
+    id: number;
+    title: string;
+  } | null;
   nextLesson: {
     id: number;
     title: string;
@@ -974,8 +994,14 @@ interface ExerciseSummary {
   difficulty: DifficultyLevel;
   order: number;
   isRequired: boolean;
+  isCompleted: boolean;
 }
 ```
+
+`previousLesson` và `nextLesson` được phân giải cùng nhau theo thứ tự curriculum persisted
+`(chapters.chapter_order, lessons.lesson_order)`, không theo ID. `isCompleted` chỉ là `true` khi user
+hiện tại đã có ít nhất một `submissions.is_correct = true` cho Exercise; RLS và filter `user_id`
+không cho phép trạng thái của learner khác xuất hiện trong response.
 
 Nếu locked:
 
@@ -1048,7 +1074,6 @@ interface ExerciseBase {
   description: string;
   exerciseType: ExerciseType;
   difficulty: DifficultyLevel;
-  codeSnippet: string | null;
   order: number;
   isRequired: boolean;
 }
@@ -1059,6 +1084,7 @@ Predict Output:
 ```ts
 interface PredictOutputExercise extends ExerciseBase {
   type: "predictOutput";
+  codeSnippet: string | null;
   options: ExerciseOption[];
 }
 ```
@@ -1068,7 +1094,27 @@ Fix the Bug:
 ```ts
 interface FixTheBugExercise extends ExerciseBase {
   type: "fixTheBug";
+  codeSnippet: string | null;
   options: ExerciseOption[];
+}
+
+interface ChoiceExercise extends ExerciseBase {
+  type: "multipleChoice" | "trueFalse" | "scenario";
+  options: ExerciseOption[];
+}
+
+interface ShortAnswerExercise extends ExerciseBase {
+  type: "shortAnswer";
+}
+
+interface OrderingExercise extends ExerciseBase {
+  type: "ordering";
+  options: ExerciseOption[];
+}
+
+interface MatchingExercise extends ExerciseBase {
+  type: "matching";
+  options: Array<ExerciseOption & { metadata: { answerOptions: string[] } }>;
 }
 ```
 
@@ -1109,7 +1155,7 @@ Request:
 
 ```ts
 interface SubmitExerciseRequest {
-  answer: PredictOutputAnswer | FixTheBugAnswer;
+  answer: ChoiceAnswer | ShortAnswer | OrderingAnswer | MatchingAnswer;
 }
 
 interface PredictOutputAnswer {
@@ -1119,6 +1165,11 @@ interface PredictOutputAnswer {
 interface FixTheBugAnswer {
   selectedOptionId: number;
 }
+
+type ChoiceAnswer = PredictOutputAnswer | FixTheBugAnswer;
+interface ShortAnswer { answerText: string }
+interface OrderingAnswer { orderedOptionIds: number[] }
+interface MatchingAnswer { matches: Array<{ optionId: number; answer: string }> }
 ```
 
 Server phải validate answer theo exercise type.
@@ -1192,6 +1243,24 @@ interface SubmissionSummary {
 ```
 
 Chỉ trả submission của user hiện tại.
+
+Review mode uses the existing persisted submission contract and route intent:
+
+```text
+/exercises/:exerciseId              attempt mode when no successful submission exists
+/exercises/:exerciseId?mode=review  read-only review intent
+```
+
+- `Xem lại` resolves the current learner's highest `attemptNumber` where `isCorrect = true`.
+- Persisted completion takes precedence over the route hint: refreshing a just-completed attempt
+  remains read-only rather than reopening an editable form.
+- The server restores only that owned submission's `answer`; refresh repeats the same server read.
+- Review controls are read-only and cannot create a new submission.
+- Static feedback may be returned only after the server has established ownership of a successful
+  submission. The learner response never includes `correctAnswer`, solution identifiers, or the
+  `exercise_solutions` row.
+- If the current learner has no successful submission, no review answer is returned and another
+  learner's submission is never used as a fallback.
 
 ---
 
@@ -1420,14 +1489,21 @@ interface GeneratedExerciseDetail {
   createdAt: string;
 }
 
-interface GeneratedExerciseContent {
+interface GeneratedExerciseBase {
+  type: ExerciseType;
   title: string;
   description: string;
-  codeSnippet: string;
-  options: string[];
-  correctAnswer: string;
   explanation: string;
 }
+
+type GeneratedExerciseContent =
+  | (GeneratedExerciseBase & { type: "multipleChoice"; options: string[]; correctAnswer: string })
+  | (GeneratedExerciseBase & { type: "trueFalse"; correctAnswer: boolean })
+  | (GeneratedExerciseBase & { type: "shortAnswer"; expectedAnswer: string })
+  | (GeneratedExerciseBase & { type: "ordering"; items: string[]; correctOrder: string[] })
+  | (GeneratedExerciseBase & { type: "matching"; pairs: Array<{ prompt: string; answer: string }> })
+  | (GeneratedExerciseBase & { type: "scenario"; scenario: string; options: string[]; correctAnswer: string })
+  | (GeneratedExerciseBase & { type: "predictOutput" | "fixTheBug"; codeSnippet: string; options: string[]; correctAnswer: string });
 
 interface GeneratedExerciseDraft {
   title: string;
@@ -1446,7 +1522,7 @@ interface ExerciseReviewSummary {
 }
 ```
 
-`correctAnswer` chỉ xuất hiện trong endpoint Moderator/Admin này sau khi server đã kiểm tra role. Khi publish, server ánh xạ text này sang `exercise_options.id` thật và chỉ lưu ID trong `exercise_solutions`. Không reuse DTO này cho Learner UI.
+Các field solution (`correctAnswer`, `expectedAnswer`, `correctOrder`, `pairs`) chỉ xuất hiện trong endpoint Moderator/Admin này sau khi server đã kiểm tra role. Khi publish, server ánh xạ chúng sang `exercise_solutions` server-only. Không reuse DTO này cho Learner UI.
 
 ---
 
@@ -1482,7 +1558,7 @@ interface ExerciseReviewResponse {
 Nghiệp vụ:
 
 - Chỉ review generated exercise chưa `published`.
-- Nếu có `editedDraft`, validate toàn bộ title, description, exerciseType, difficulty, options, correctAnswer và explanation.
+- Nếu có `editedDraft`, validate toàn bộ common fields, discriminator và đúng các field riêng của modality; từ chối field thừa hoặc field coding trên modality không-code.
 - Cập nhật generated exercise thành snapshot mới trong cùng transaction với review.
 - Lưu full edited snapshot vào review history khi có chỉnh sửa.
 - `approved` không đồng nghĩa đã publish.

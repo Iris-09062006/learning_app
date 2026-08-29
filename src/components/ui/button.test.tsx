@@ -12,7 +12,7 @@ describe("Button", () => {
     expect(button.getAttribute("type")).toBe("button");
     expect(button.className).toContain("bg-primary");
     expect(button.className).toContain("text-on-primary");
-    expect(button.className).toContain("h-10");
+    expect(button.className).toContain("h-11");
   });
 
   it.each<[ButtonVariant, string]>([
@@ -28,8 +28,8 @@ describe("Button", () => {
   });
 
   it.each<[ButtonSize, string]>([
-    ["sm", "h-8"],
-    ["md", "h-10"],
+    ["sm", "h-10"],
+    ["md", "h-11"],
     ["lg", "h-12"],
   ])("applies the %s size", (size, expectedClass) => {
     render(<Button size={size}>{size}</Button>);
@@ -69,7 +69,7 @@ describe("Button", () => {
     expect(button.className).toContain("disabled:bg-surface-subtle");
     expect(button.className).toContain("disabled:text-text-muted");
     expect(button.className).toContain("disabled:opacity-100");
-    expect(button.className).not.toContain("transition-colors");
+    expect(button.className).toContain("transition-colors");
     expect(button.className).not.toContain("disabled:opacity-50");
     expect(handleClick).not.toHaveBeenCalled();
   });

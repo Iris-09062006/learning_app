@@ -1,51 +1,53 @@
-# TASK-088 — Feature 005 Per-Lesson Generation Phase B
+# TASK-088 — Route Course Outline and Lessons through 9Router Configuration
 
 - **Status:** VERIFIED
 - **Owner / Reviewer:** Codex
-- **Feature:** `005-per-lesson-generation`
-- **Scope:** Backend Phase B only
+- **Type:** AI provider configuration
 
 ## Objective
 
-Add one Admin backend endpoint that generates exactly one requested outline Lesson while reusing the verified pedagogical runner and persistence boundary, lock both service and provider to the currently configured `gemini-3.7-flash` model, and preserve all existing Course-wide behavior.
+Remove the hard-coded pedagogical Gemini model and route Course outline plus Lesson generation
+through the configured 9Router OpenAI-compatible endpoint and model identifier.
 
-## Required context
+## Scope
 
-- User-provided Feature 005 Phase A discovery and model rebase result
-- User-provided Feature 005 Phase B task packet
-- Existing Feature 003 pedagogical generation implementation and TASK-080 through TASK-083 reports
-- Model migration commits `1cc29ee` and `935067b` (inspected; changes ported selectively, not cherry-picked)
+- Use `AI_API_KEY`, `AI_PROVIDER_URL`, and `AI_PROVIDER_MODEL` for every 9Router outline/Lesson request.
+- Allow 9Router to report the actual upstream model selected for each stage without rejecting router fallback.
+- Verify Course outline requests use the 9Router authorization/header/model contract.
+- Update provider documentation from direct Gemini to 9Router-managed upstream routing.
+- Preserve schemas, call budgets, pacing, timeouts, citations, persistence, error mapping, and public APIs.
+- No dependency, migration, live provider request, secret write, database mutation, push, or deployment.
 
 ## Allowed files
 
-- Per-Lesson generate route and route tests
-- Content pipeline service/provider implementation and focused tests
-- Content pipeline repository model expectation test
+- `src/features/content-pipeline/providers/lesson-draft-provider.ts`
+- `src/features/content-pipeline/providers/lesson-draft-provider.test.ts`
+- `src/features/content-pipeline/services/content-pipeline-service.ts`
+- `src/features/content-pipeline/services/content-pipeline-service.test.ts`
+- `.env.example`
+- `docs/architecture.md`
+- `docs/ai-course-current-flow.md`
+- `docs/deployment.md`
+- `docs/security.md`
+- `docs/tech_stack.md`
+- `docs/testing.md`
 - Task state and TASK-088 reports
 
 ## Acceptance criteria
 
-- `POST /api/admin/course-drafts/[id]/lessons/[lessonId]/generate` generates only the requested Lesson.
-- First generation persists one reviewed draft and returns `generated`; replay of a completed Lesson returns `already_generated` without provider, persistence, or revision work.
-- The exact configured pedagogical model is `gemini-3.7-flash` in both service and provider, and focused tests assert that exact value.
-- Normal flow remains exactly three model requests; correction remains at most five with no sixth request; every request retains the 45-second timeout.
-- Existing regeneration, Course-wide Continue scheduling (concurrency three, 240-second deadline), citations, publication, Exercise, and progress behavior remain unchanged.
-- No frontend timeout change, migration, live provider request, push, or deployment.
+- No pedagogical model name is hard-coded in provider or service production code.
+- Missing `AI_PROVIDER_MODEL` fails as `AI_PROVIDER_NOT_CONFIGURED` before dispatch.
+- All pedagogical requests use the configured 9Router route without app-level vendor model locking.
+- Course outline requests use the configured route, Bearer authorization, and 9Router token-saver header.
+- Existing provider response validation and downstream contracts remain unchanged.
 
 ## Required commands
 
 ```powershell
-npm run test -- src/features/content-pipeline/providers/lesson-draft-provider.test.ts
-npm run test -- src/features/content-pipeline/repositories/content-pipeline-repository.test.ts
-npm run test -- src/features/content-pipeline/services/content-pipeline-service.test.ts
-npm run test -- src/app/api/admin/__tests__/pdf-to-course-routes.test.ts
+npm run test -- src/features/content-pipeline/providers/lesson-draft-provider.test.ts src/features/content-pipeline/services/content-pipeline-service.test.ts
 npm run lint
 npm run typecheck
-npm run test -- --reporter=dot
+npm run test
 npm run build
 git diff --check
 ```
-
-## Out of scope
-
-Frontend orchestration, the existing 60-second browser timeout, Course-wide route/scheduler changes, regeneration contract changes, migrations, publication, Exercise, progress, live Gemini calls, push, and deployment.

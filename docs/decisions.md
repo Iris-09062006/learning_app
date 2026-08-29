@@ -880,3 +880,35 @@ Tích cực:
 - Có yêu cầu đặt mật khẩu mới phải qua server (ví dụ kiểm tra policy mật khẩu riêng, chặn password cũ trùng).
 - Cần ghi log hành vi đặt lại mật khẩu phía server.
 - Có yêu cầu tích hợp provider xác thực khác ngoài Supabase Auth.
+
+---
+
+# ADR-025 — Exercise modality theo nội dung Lesson
+
+**Trạng thái:** Accepted — supersedes ADR-010
+
+## Quyết định
+
+Exercise dùng discriminated contract với tám modality tối thiểu:
+
+```text
+multiple_choice, true_false, short_answer, ordering,
+matching, scenario, predict_output, fix_the_bug
+```
+
+Provider chọn modality từ Lesson title, summary, learning objectives và content. Hai modality coding
+chỉ hợp lệ khi Lesson thực sự dạy lập trình hoặc suy luận code; code không được dùng làm wrapper trang
+trí cho kiến thức không-code.
+
+## Lý do
+
+LearningApp hỗ trợ môn học tùy ý. Giới hạn cũ ở hai loại coding tạo bài tập sai mục tiêu sư phạm cho
+Lesson lý thuyết. JSONB hiện có cho generated content, learner answer và solution cho phép mở rộng
+schema theo type mà không tạo cột giả.
+
+## Hệ quả
+
+- PostgreSQL enum `exercise_type` được mở rộng bằng migration tương thích ngược.
+- Parser/application validator và RPC validator đều kiểm tra exact fields theo type.
+- `exercise_solutions` tiếp tục server-only; learner DTO không chứa đáp án.
+- Existing `predict_output` và `fix_the_bug` rows, option IDs và `correctOptionId` vẫn hợp lệ.

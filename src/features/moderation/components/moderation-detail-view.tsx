@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
 import type { ModerationQueueItem } from "../types";
+import type { GeneratedExerciseContent } from "@/features/ai/types";
 import { ModerationReviewForm } from "./moderation-review-form";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -43,6 +44,34 @@ const defaultStatusConfig = {
   badge: "bg-surface-subtle text-text-secondary",
   dot: "bg-text-muted",
 };
+
+function ExerciseDraftPreview({ content }: { content: GeneratedExerciseContent }) {
+  const choiceOptions = "options" in content ? content.options : [];
+  return (
+    <section aria-labelledby="exercise-preview-heading" className="mt-4 rounded-xl border border-border bg-surface-subtle p-4">
+      <h2 id="exercise-preview-heading" className="text-sm font-semibold text-text-primary">Nội dung theo định dạng</h2>
+      {content.type === "scenario" && <p className="mt-3 whitespace-pre-wrap rounded-lg border border-border bg-surface p-4 text-sm leading-relaxed text-text-primary">{content.scenario}</p>}
+      {(content.type === "predict_output" || content.type === "fix_the_bug") && (
+        <pre aria-label="Code của bài tập" tabIndex={0} className="mt-3 max-w-full overflow-x-auto rounded-lg bg-code-background p-4 font-mono text-sm text-code-text focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring"><code>{content.codeSnippet}</code></pre>
+      )}
+      {choiceOptions.length > 0 && (
+        <ol className="mt-3 space-y-2">
+          {choiceOptions.map((option) => <li key={option} className="rounded-lg border border-border bg-surface px-3 py-2 text-sm text-text-primary">{option}</li>)}
+        </ol>
+      )}
+      {content.type === "true_false" && <p className="mt-3 text-sm text-text-secondary">Đáp án mong đợi: <strong>{content.correctAnswer ? "Đúng" : "Sai"}</strong></p>}
+      {content.type === "short_answer" && <p className="mt-3 whitespace-pre-wrap text-sm text-text-secondary">Đáp án mong đợi: <strong>{content.expectedAnswer}</strong></p>}
+      {content.type === "ordering" && (
+        <ol className="mt-3 list-decimal space-y-2 pl-5 text-sm text-text-primary">{content.correctOrder.map((item) => <li key={item}>{item}</li>)}</ol>
+      )}
+      {content.type === "matching" && (
+        <dl className="mt-3 grid gap-2 text-sm sm:grid-cols-2">{content.pairs.map((pair) => <div key={pair.prompt} className="rounded-lg border border-border bg-surface p-3"><dt className="font-medium text-text-primary">{pair.prompt}</dt><dd className="mt-1 text-text-secondary">{pair.answer}</dd></div>)}</dl>
+      )}
+      {"correctAnswer" in content && typeof content.correctAnswer === "string" && <p className="mt-3 text-sm text-text-secondary">Đáp án đúng: <strong>{content.correctAnswer}</strong></p>}
+      <p className="mt-3 whitespace-pre-wrap text-sm leading-relaxed text-text-secondary"><strong>Giải thích:</strong> {content.explanation}</p>
+    </section>
+  );
+}
 
 export function ModerationDetailView({ id }: ModerationDetailViewProps) {
   const [item, setItem] = useState<ModerationQueueItem | null>(null);
@@ -100,7 +129,7 @@ export function ModerationDetailView({ id }: ModerationDetailViewProps) {
       setPublishSuccess(
         `Exercise successfully published! Created exercise #${result.publishedExerciseId}`
       );
-      fetchDetail(); // Refresh data
+      await fetchDetail();
     } catch (err: unknown) {
       if (err instanceof Error) {
         setPublishError(err.message);
@@ -242,15 +271,15 @@ export function ModerationDetailView({ id }: ModerationDetailViewProps) {
           </div>
         </div>
 
-        <div className="mt-4">
-          <div className="mb-2 flex items-center justify-between">
-            <h3 className="text-sm font-semibold text-text-primary">
-              Payload bài tập (JSON)
-            </h3>
+        <ExerciseDraftPreview content={item.content} />
+
+        <details className="mt-4">
+          <summary className="mb-2 flex cursor-pointer items-center justify-between text-sm font-semibold text-text-primary">
+            <span>Payload bài tập (JSON)</span>
             <span className="rounded-full bg-surface-container px-2.5 py-0.5 text-xs font-medium text-text-secondary">
               {JSON.stringify(item.content).length.toLocaleString()} bytes
             </span>
-          </div>
+          </summary>
           <pre
             aria-label="Payload bài tập dạng JSON"
             tabIndex={0}
@@ -258,7 +287,7 @@ export function ModerationDetailView({ id }: ModerationDetailViewProps) {
           >
             {JSON.stringify(item.content, null, 2)}
           </pre>
-        </div>
+        </details>
       </div>
 
       {item.reviews && item.reviews.length > 0 && (

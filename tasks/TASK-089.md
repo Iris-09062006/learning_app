@@ -1,42 +1,38 @@
-# TASK-089 — Feature 005 Per-Lesson Generation Phase C
+# TASK-089 — Extend AI Provider Response Timeout
 
-- **Status:** VERIFIED
+- **Status:** IN_PROGRESS
 - **Owner / Reviewer:** Codex
-- **Feature:** `005-per-lesson-generation`
-- **Scope:** Frontend sequential orchestration only
+- **Type:** AI provider configuration
 
 ## Objective
 
-Replace the Admin Continue generate-all request with explicit, server-truth-driven, sequential one-Lesson requests while preserving the Phase B backend, legacy Course scheduler, Feature 004 UI, and all downstream contracts.
+Increase the server-side AI provider response timeout from 45 seconds to 180 seconds.
+Add metadata-only diagnostic logging around Course outline provider responses and outline parsing.
+Add temporary metadata-only diagnostics around every multi-call pedagogical Lesson provider stage.
+
+## Scope
+
+- Apply the 180-second abort timeout to pedagogical Lesson generation and Exercise generation.
+- Update timeout assertions and current feature documentation.
+- Log outline HTTP status/content type, response shape metadata, and parse outcome without logging
+  prompts, generated content, source material, credentials, or authorization headers.
+- Log stable `synthesis_blueprint`, `sections`, `quality_review`, `correction`, and `re_review`
+  stage names with response metadata; on validation failure log only stable code/path/index metadata.
+- Preserve route duration, Course scheduling deadline, request budgets, retries, persistence, and APIs.
+- Do not run tests or build, per the user's explicit instruction.
 
 ## Acceptance criteria
 
-- Continue refreshes `GET /api/admin/course-drafts`, sorts missing Lessons by `lessonOrder`, and POSTs one Lesson at a time.
-- Every successful POST is followed by a refresh and confirmation that the requested `contentDraft` exists.
-- One-Lesson POSTs alone use a 300,000ms client timeout; other requests retain existing timeout behavior.
-- Failure stops later POSTs; retry refreshes first and skips completed Lessons.
-- Reload never auto-starts generation; server drafts recover visible progress.
-- A synchronous ref guard plus disabled controls prevent duplicate client orchestration.
-- Progress exposes completed/total and current Lesson through an accessible live status without redesign.
-- The final persisted Lesson exposes the existing `content_review` UI; an already-complete Course sends zero generation POSTs.
-- No provider, model, backend scheduler, database, migration, publication, Exercise, or progress change.
+- Every active 45-second AI provider abort timer is 180 seconds.
+- Timeout tests advance the matching 180-second duration.
+- Course outline diagnostics identify HTTP, missing-content, valid-outline, and invalid-outline stages
+  without exposing sensitive or source-derived content.
+- Lesson diagnostics expose only stage, HTTP/content metadata, model, choice count, content type/length,
+  and validation code/path/index metadata when applicable.
+- No route or scheduling deadline is changed.
 
-## Required commands
+## Verification status
 
-```powershell
-npm run test -- src/features/content-pipeline/components/__tests__/content-pipeline-admin.test.tsx
-npm run test -- src/features/content-pipeline/providers/lesson-draft-provider.test.ts
-npm run test -- src/features/content-pipeline/repositories/content-pipeline-repository.test.ts
-npm run test -- src/features/content-pipeline/services/content-pipeline-service.test.ts
-npm run test -- src/app/api/admin/__tests__/pdf-to-course-routes.test.ts
-npm run test:e2e -- tests/e2e/per-lesson-generation.spec.ts
-npm run test:e2e -- tests/e2e/critical-flows.spec.ts
-npm run lint
-npm run typecheck
-npm run build
-git diff --check
-```
-
-## Out of scope
-
-Phase D, backend route retirement, provider/prompt/call-budget changes, scheduler changes, database locking, migrations, a background worker, polling, automatic reload resume, push, and deployment.
+Focused provider/service tests, focused lint, and typecheck pass with mocked provider responses.
+Build and live provider calls were not run. The task remains `IN_PROGRESS` and uncommitted by the
+user's explicit instruction.

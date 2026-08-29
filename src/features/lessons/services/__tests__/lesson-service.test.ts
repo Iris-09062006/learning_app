@@ -90,6 +90,7 @@ describe("lesson service", () => {
           status: "locked",
           isPublished: true,
           exercises: [],
+          previousLesson: null,
           nextLesson: null,
         },
       });
@@ -117,6 +118,7 @@ describe("lesson service", () => {
           status: "unlocked",
           isPublished: true,
           exercises: [],
+          previousLesson: null,
           nextLesson: null,
         },
       });
@@ -131,6 +133,7 @@ describe("lesson service", () => {
         estimatedMinutes: 30,
         status: "unlocked",
         exercises: [],
+        previousLesson: null,
         nextLesson: null,
       });
       const serialized = JSON.stringify(res);
@@ -166,6 +169,7 @@ describe("lesson service", () => {
           status: "locked",
           isPublished: true,
           exercises: [],
+          previousLesson: null,
           nextLesson: null,
         },
       });
@@ -200,6 +204,7 @@ describe("lesson service", () => {
           status: "unlocked",
           isPublished: true,
           exercises: [],
+          previousLesson: null,
           nextLesson: null,
         },
       });
@@ -234,6 +239,7 @@ describe("lesson service", () => {
           status: "unlocked",
           isPublished: true,
           exercises: [],
+          previousLesson: null,
           nextLesson: null,
         },
       });
@@ -269,6 +275,7 @@ describe("lesson service", () => {
             status: "unlocked",
             isPublished: true,
             exercises: [],
+            previousLesson: null,
             nextLesson: null,
 
           },

@@ -10,13 +10,11 @@ import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
 import type {
   DbDifficultyLevel,
-  DbExerciseType,
   ExerciseGenerationContext,
   GeneratedExerciseRecord,
 } from "@/features/ai/types";
 
 export function ExerciseGenerationForm({ context }: { context: ExerciseGenerationContext }) {
-  const [exerciseType, setExerciseType] = useState<DbExerciseType>("predict_output");
   const [difficulty, setDifficulty] = useState<DbDifficultyLevel>("easy");
   const [learningObjective, setLearningObjective] = useState(context.learningObjectives[0] ?? "");
   const [topicHint, setTopicHint] = useState("");
@@ -35,7 +33,6 @@ export function ExerciseGenerationForm({ context }: { context: ExerciseGeneratio
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           lessonId: context.lessonId,
-          exerciseType,
           difficulty,
           learningObjective: learningObjective.trim(),
           topicHint: topicHint.trim() || undefined,
@@ -77,14 +74,9 @@ export function ExerciseGenerationForm({ context }: { context: ExerciseGeneratio
       {result && <p className="break-words rounded-xl border border-success bg-success-soft px-4 py-3 text-sm font-medium text-success">Draft “{result.title}” đang chờ moderation. <Link className="font-semibold underline" href={`/moderation/${result.id}`}>Mở draft</Link></p>}
       <Card>
         <form onSubmit={submit} className="grid gap-5 p-6 md:grid-cols-2">
-          <Select
-            label="Loại bài tập"
-            value={exerciseType}
-            onChange={(event) => setExerciseType(event.target.value as DbExerciseType)}
-          >
-            <option value="predict_output">Predict the Output</option>
-            <option value="fix_the_bug">Fix the Bug</option>
-          </Select>
+          <p className="rounded-lg border border-border bg-surface-subtle p-4 text-sm leading-relaxed text-text-secondary">
+            AI sẽ chọn định dạng phù hợp với nội dung và mục tiêu Lesson. Bài tập code chỉ được dùng khi Lesson thực sự dạy lập trình hoặc suy luận trên code.
+          </p>
           <Select
             label="Độ khó"
             value={difficulty}

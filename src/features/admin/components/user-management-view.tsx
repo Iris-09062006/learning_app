@@ -116,6 +116,12 @@ export function UserManagementView({ initialData }: UserManagementViewProps) {
     <div className="min-w-0 space-y-6">
       <form onSubmit={handleFilter} className="grid min-w-0 gap-4 rounded-xl border border-border bg-surface p-5 shadow-sm sm:grid-cols-2 lg:grid-cols-4">
         <div>
+          <label
+            htmlFor="user-search"
+            className="mb-2 block text-sm font-medium text-text-primary"
+          >
+            Tìm kiếm
+          </label>
           <div className="relative">
             <Input
               id="user-search"

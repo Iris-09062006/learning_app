@@ -2,6 +2,7 @@ import "server-only";
 
 import {
   createAIProvider,
+  ExerciseProviderDiagnosticError,
   type AIProvider,
 } from "@/features/ai/providers/ai-provider";
 import {
@@ -22,7 +23,10 @@ import type {
   ExerciseGenerationContext,
   ExerciseLessonTarget,
 } from "@/features/ai/types";
-import { validateGeneratedExerciseContent } from "@/features/ai/validation/exercise-draft";
+import {
+  ExerciseValidationError,
+  validateGeneratedExerciseContent,
+} from "@/features/ai/validation/exercise-draft";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 import { checkRateLimit } from "@/lib/rate-limiter";
 
@@ -288,19 +292,23 @@ export async function generateExercise(
   try {
     const generated = await provider.generateExercise({
       lessonTitle: lessonContext.lessonTitle,
+      lessonSummary: lessonContext.lessonSummary,
       lessonContent: lessonContext.lessonContent,
       lessonLearningObjectives: lessonContext.learningObjectives,
       courseTitle: lessonContext.courseTitle,
       courseDescription: lessonContext.courseDescription,
-      exerciseType: input.exerciseType,
       difficulty: input.difficulty,
       learningObjective: input.learningObjective,
       topicHint: input.topicHint ?? null,
     });
     const content = validateGeneratedExerciseContent(generated.content);
+    console.info("[exercise-generation-diagnostic]", {
+      stage: "exercise_generation",
+      event: "exercise_parse_complete",
+    });
     const record = await createGeneratedExerciseRecord({
       lesson_id: input.lessonId,
-      exercise_type: input.exerciseType,
+      exercise_type: content.type,
       difficulty: input.difficulty,
       content,
       provider: generated.provider,
@@ -311,6 +319,21 @@ export async function generateExercise(
   } catch (error: unknown) {
     if (error instanceof Error && error.message === "FORBIDDEN") {
       throw new AiServiceError("FORBIDDEN", "Moderator or Admin role required.");
+    }
+    if (error instanceof ExerciseValidationError) {
+      console.error("[exercise-generation-validation-failure]", {
+        stage: "exercise_generation",
+        validationCode: error.validationCode,
+        fieldPath: error.fieldPath,
+        ...error.metadata,
+      });
+      throw new AiServiceError("AI_PROVIDER_ERROR", "Invalid response from AI provider.");
+    }
+    if (error instanceof ExerciseProviderDiagnosticError) {
+      if (["INVALID_HTTP_RESPONSE", "PROVIDER_REQUEST_FAILED", "PROVIDER_TIMEOUT"].includes(error.diagnosticCode)) {
+        throw new AiServiceError("AI_PROVIDER_ERROR", "Unable to generate exercise at this time.");
+      }
+      throw new AiServiceError("AI_PROVIDER_ERROR", "Invalid response from AI provider.");
     }
     if (error instanceof Error && ["AI_RESPONSE_INVALID", "EXERCISE_DRAFT_INVALID"].includes(error.message)) {
       throw new AiServiceError("AI_PROVIDER_ERROR", "Invalid response from AI provider.");

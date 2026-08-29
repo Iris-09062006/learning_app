@@ -6,6 +6,7 @@ const mockSelect = vi.fn();
 const mockEq = vi.fn();
 const mockMaybeSingle = vi.fn();
 const mockOrder = vi.fn();
+const mockIn = vi.fn();
 const mockRpc = vi.fn();
 
 const mockQueryBuilder = {
@@ -13,6 +14,7 @@ const mockQueryBuilder = {
   eq: mockEq,
   maybeSingle: mockMaybeSingle,
   order: mockOrder,
+  in: mockIn,
 };
 
 mockSelect.mockReturnValue(mockQueryBuilder);
@@ -118,7 +120,9 @@ describe("lesson repository", () => {
             }
           ],
           error: null,
-        })
+        });
+      mockIn.mockResolvedValueOnce({ data: [], error: null });
+      mockOrder
         .mockResolvedValueOnce({ // ordered published course lessons
           data: [
             { id: 1, title: "Lesson 1", lesson_order: 1, chapters: { chapter_order: 1 } },
@@ -139,9 +143,87 @@ describe("lesson repository", () => {
         status: "unlocked",
         courseId: 10,
         exercises: [
-          { id: 100, type: "quiz", difficulty: "easy" }
+          { id: 100, type: "quiz", difficulty: "easy", isCompleted: false }
         ],
+        previousLesson: null,
         nextLesson: { id: 2, title: "Lesson 2" },
+      });
+      expect(mockEq).toHaveBeenCalledWith("user_id", "user-1");
+      expect(mockEq).toHaveBeenCalledWith("is_correct", true);
+      expect(mockIn).toHaveBeenCalledWith("exercise_id", [100]);
+    });
+
+    it("resolves both neighbors once and marks only persisted correct submissions completed", async () => {
+      mockMaybeSingle
+        .mockResolvedValueOnce({
+          data: {
+            id: 2,
+            chapter_id: 3,
+            title: "Lesson 2",
+            content: "Content 2",
+            lesson_order: 1,
+            estimated_minutes: 12,
+            is_published: true,
+            chapters: { course_id: 10 },
+          },
+          error: null,
+        })
+        .mockResolvedValueOnce({ data: { id: 5 }, error: null })
+        .mockResolvedValueOnce({ data: { status: "in_progress" }, error: null });
+
+      mockOrder.mockResolvedValueOnce({
+        data: [
+          { id: 100, title: "Completed", exercise_type: "multiple_choice", difficulty: "easy", exercise_order: 1, is_published: true },
+          { id: 101, title: "Incorrect only", exercise_type: "short_answer", difficulty: "medium", exercise_order: 2, is_published: true },
+        ],
+        error: null,
+      });
+      mockIn.mockResolvedValueOnce({ data: [{ exercise_id: 100 }], error: null });
+      mockOrder.mockResolvedValueOnce({
+        data: [
+          { id: 1, title: "Lesson 1", lesson_order: 1, chapters: { chapter_order: 1 } },
+          { id: 2, title: "Lesson 2", lesson_order: 1, chapters: { chapter_order: 2 } },
+          { id: 3, title: "Lesson 3", lesson_order: 2, chapters: { chapter_order: 2 } },
+        ],
+        error: null,
+      });
+      mockGetUser.mockResolvedValueOnce({ data: { user: { id: "learner-a" } } });
+
+      const result = await fetchLessonDetail(2);
+
+      expect(result.lesson).toMatchObject({
+        previousLesson: { id: 1, title: "Lesson 1" },
+        nextLesson: { id: 3, title: "Lesson 3" },
+        exercises: [
+          { id: 100, isCompleted: true },
+          { id: 101, isCompleted: false },
+        ],
+      });
+      expect(mockEq).toHaveBeenCalledWith("user_id", "learner-a");
+      expect(mockEq).toHaveBeenCalledWith("is_correct", true);
+    });
+
+    it("keeps previous navigation on the final published lesson", async () => {
+      mockMaybeSingle
+        .mockResolvedValueOnce({
+          data: { id: 3, chapter_id: 3, title: "Lesson 3", content: "C", lesson_order: 2, estimated_minutes: 5, is_published: true, chapters: { course_id: 10 } },
+          error: null,
+        })
+        .mockResolvedValueOnce({ data: { id: 5 }, error: null })
+        .mockResolvedValueOnce({ data: { status: "in_progress" }, error: null });
+      mockOrder.mockResolvedValueOnce({ data: [], error: null });
+      mockOrder.mockResolvedValueOnce({
+        data: [
+          { id: 1, title: "Lesson 1", lesson_order: 1, chapters: { chapter_order: 1 } },
+          { id: 3, title: "Lesson 3", lesson_order: 2, chapters: { chapter_order: 1 } },
+        ],
+        error: null,
+      });
+      mockGetUser.mockResolvedValueOnce({ data: { user: { id: "learner-a" } } });
+
+      expect((await fetchLessonDetail(3)).lesson).toMatchObject({
+        previousLesson: { id: 1, title: "Lesson 1" },
+        nextLesson: null,
       });
     });
   });

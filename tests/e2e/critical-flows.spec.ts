@@ -21,7 +21,7 @@ test("registers, logs in, and reaches the learner dashboard", async ({ page }) =
   await expectNoSeriousA11yViolations(page);
 
   await page.keyboard.press("Tab");
-  await expect(page.getByRole("link", { name: "Về trang chủ Python Learning" })).toBeFocused();
+  await expect(page.getByRole("link", { name: "Về trang chủ LearningApp" })).toBeFocused();
   await expectVisibleKeyboardFocus(page);
   await page.keyboard.press("Tab");
   await expect(page.getByLabel("Tên hiển thị")).toBeFocused();
@@ -57,6 +57,28 @@ test("registers, logs in, and reaches the learner dashboard", async ({ page }) =
     page.getByRole("heading", { name: /Chào mừng trở lại, New E2E Learner/u }),
   ).toBeVisible();
   await expectNoSeriousA11yViolations(page);
+});
+
+test("keeps landing navigation aligned with the authenticated session", async ({ page }) => {
+  await page.goto("/");
+  await expect(page.locator("header").getByRole("link", { name: "Đăng nhập" })).toBeVisible();
+  await expect(page.locator("header").getByRole("link", { name: /Bắt đầu học/ })).toBeVisible();
+  await expectNoSeriousA11yViolations(page);
+
+  await loginAs(page);
+  await page.locator('aside a[href="/"]').click();
+
+  await expect(page).toHaveURL(/\/$/u);
+  const header = page.locator("header");
+  await expect(header.getByRole("link", { name: "Đăng nhập" })).toHaveCount(0);
+  await expect(header.getByRole("link", { name: /Bắt đầu học|Đăng ký/ })).toHaveCount(0);
+  await expect(header.getByRole("link", { name: "Tổng quan" })).toHaveAttribute("href", "/dashboard");
+  await expect(page.getByRole("link", { name: /Tiếp tục học/ })).toHaveAttribute("href", "/dashboard");
+  await expectNoSeriousA11yViolations(page);
+
+  await page.reload();
+  await expect(header.getByRole("link", { name: "Đăng nhập" })).toHaveCount(0);
+  await expect(header.getByRole("link", { name: "Tổng quan" })).toBeVisible();
 });
 
 test("enrolls, completes the first lesson exercise, and unlocks the next lesson", async ({ page }) => {
@@ -155,6 +177,7 @@ test("generates, moderates, and publishes an Exercise for one published Lesson",
 
 test("reviews an outline, generates Lesson contents, and atomically publishes a Course", async ({ page }) => {
   let stage: "empty" | "outline" | "content" | "published" = "empty";
+  let courseTitle = "Phương pháp tính";
   let tavilySearchCalls = 0;
   let tavilyExtractCalls = 0;
   const content = (id: number, outlineLessonId: number, title: string) => ({
@@ -171,7 +194,7 @@ test("reviews an outline, generates Lesson contents, and atomically publishes a 
       errorCode: null, chunkCount: 1 }], outlineStale: false,
     status: stage === "outline" ? "outline_review" : "content_review",
     errorCode: null, outlineRevision: 1, approvedOutlineRevision: stage === "outline" ? null : 1,
-    title: "Phương pháp tính", description: "Khóa học nội suy.", learningObjectives: ["Hiểu nội suy"],
+    title: courseTitle, description: "Khóa học nội suy.", learningObjectives: ["Hiểu nội suy"],
     lessons: [
       { id: 71, clientKey: "lagrange", lessonOrder: 1, title: "Nội suy Lagrange", summary: "Lagrange", learningObjectives: ["Áp dụng Lagrange"], sourceChunkIndexes: [0], contentDraft: stage === "content" ? content(81, 71, "Nội suy Lagrange") : null },
       { id: 72, clientKey: "newton", lessonOrder: 2, title: "Nội suy Newton", summary: "Newton", learningObjectives: ["Áp dụng Newton"], sourceChunkIndexes: [0], contentDraft: stage === "content" ? content(82, 72, "Nội suy Newton") : null },
@@ -198,7 +221,11 @@ test("reviews an outline, generates Lesson contents, and atomically publishes a 
       stage = "outline";
       return respond({ jobId: 61, sourceDocumentId: 9, outlineRevision: 1, status: "outline_review" }, 201);
     }
-    if (/^\/api\/admin\/course-drafts\/61\/lessons\/\d+\/generate$/u.test(pathname)) {
+    if (pathname === "/api/admin/course-drafts/61/outline" && request.method() === "PATCH") {
+      courseTitle = (request.postDataJSON() as { title: string }).title;
+      return respond({ jobId: 61, sourceDocumentId: 9, outlineRevision: 2, status: "outline_review" });
+    }
+    if (pathname === "/api/admin/course-drafts/61/lessons/generate") {
       stage = "content";
       return respond({ jobId: 61, status: "content_review" }, 201);
     }
@@ -226,8 +253,13 @@ test("reviews an outline, generates Lesson contents, and atomically publishes a 
   });
   await page.getByRole("button", { name: "Tạo Course outline" }).click();
 
+  await expect(page.locator('input[name="source"]')).toHaveValue("");
   await expect(page.getByRole("textbox", { name: "Course title" })).toHaveValue("Phương pháp tính");
   await expect(page.getByRole("textbox", { name: "Lesson 1 title" })).toHaveValue("Nội suy Lagrange");
+  await page.getByRole("textbox", { name: "Course title" }).fill("Phương pháp tính hiện đại");
+  await page.getByRole("button", { name: "Lưu outline" }).click();
+  await expect(page.getByRole("textbox", { name: "Course title" })).toHaveValue("Phương pháp tính hiện đại");
+  await expect(page.getByRole("button", { name: /Phương pháp tính hiện đại/ })).toBeVisible();
   await page.getByRole("button", { name: "Continue: sinh Lesson contents" }).click();
   await expect(page.getByRole("button", { name: "Publish Course" })).toBeVisible();
   await page.getByRole("button", { name: "Publish Course" }).click();
@@ -356,7 +388,7 @@ test("recovers a partial Tavily-unavailable manual URL with stored file evidence
     if (pathname === "/api/admin/course-drafts/31/sources" && request.method() === "POST") { attachedIds = [22, 23]; return respond({ jobId: 31, sourceDocumentId: 23, attached: true }, 201); }
     if (pathname === "/api/admin/course-drafts/31/sources/23" && request.method() === "DELETE") { attachedIds = [22]; stage = "stale"; return respond({ jobId: 31, sourceDocumentId: 23, outlineStale: true, sourceDocumentIds: [22] }); }
     if (pathname === "/api/admin/course-drafts/31/outline" && request.method() === "POST") { revision += 1; stage = "outline"; return respond({ jobId: 31, sourceDocumentId: 22, sourceDocumentIds: attachedIds, outlineRevision: revision, status: "outline_review" }, 201); }
-    if (/^\/api\/admin\/course-drafts\/31\/lessons\/\d+\/generate$/u.test(pathname)) { stage = "content"; return respond({ jobId: 31, status: "content_review" }, 201); }
+    if (pathname === "/api/admin/course-drafts/31/lessons/generate") { stage = "content"; return respond({ jobId: 31, status: "content_review" }, 201); }
     if (pathname === "/api/admin/course-drafts/31/reviews") { stage = "published"; return respond({ jobId: 31, sourceDocumentId: 22, sourceDocumentIds: [22], courseId: 41, status: "published", lessonIds: [51, 52] }); }
     return route.fallback();
   });
@@ -468,7 +500,7 @@ test("researches a topic, preserves Research More selection, and ingests only co
       return respond({ jobId: fixture.jobId, sourceDocumentId: initializedSources[0].sourceDocumentId, sourceDocumentIds: initializedSources.map((source) => source.sourceDocumentId) }, 201);
     }
     if (pathname === `/api/admin/course-drafts/${fixture.jobId}/outline` && request.method() === "POST") { stage = "outline"; return respond({ jobId: fixture.jobId, outlineRevision: 1, status: "outline_review" }, 201); }
-    if (new RegExp(`^/api/admin/course-drafts/${fixture.jobId}/lessons/\\d+/generate$`, "u").test(pathname)) { stage = "content"; return respond({ jobId: fixture.jobId, status: "content_review" }, 201); }
+    if (pathname === `/api/admin/course-drafts/${fixture.jobId}/lessons/generate`) { stage = "content"; return respond({ jobId: fixture.jobId, status: "content_review" }, 201); }
     if (pathname === `/api/admin/course-drafts/${fixture.jobId}/reviews`) { stage = "published"; return respond({ jobId: fixture.jobId, sourceDocumentId: initializedSources[0].sourceDocumentId, sourceDocumentIds: initializedSources.map((source) => source.sourceDocumentId), courseId: 51, status: "published", lessonIds: [61, 62] }); }
     return route.fallback();
   });
@@ -607,7 +639,7 @@ test("regenerates and publishes a stored multi-source Course while Tavily is una
       return respond({ jobId: 61, sourceDocumentId: 9, sourceDocumentIds: [9, 10],
         outlineRevision: revision, status: "outline_review" });
     }
-    if (/^\/api\/admin\/course-drafts\/61\/lessons\/\d+\/generate$/u.test(pathname)) {
+    if (pathname === "/api/admin/course-drafts/61/lessons/generate") {
       stage = "content";
       return respond({ jobId: 61, status: "content_review" }, 201);
     }

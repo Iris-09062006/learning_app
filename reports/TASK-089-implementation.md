@@ -2,28 +2,36 @@
 
 ## Outcome
 
-Feature 005 Phase C is implemented. The Admin browser now orchestrates initial Course Lesson generation sequentially from persisted server truth and no longer calls the legacy generate-all endpoint.
+The active AI provider abort timeout is now 180 seconds for pedagogical Lesson requests and Exercise
+generation. Matching fake-timer expectations and current feature documentation were updated.
 
-## Orchestration
+Course outline requests now emit metadata-only diagnostics for the HTTP response, provider response
+shape, missing content, successful outline validation, and validation failure. Prompt text, source
+chunks, generated content, API keys, and authorization headers are not logged.
 
-- `refresh()` now returns the fetched Course-import collection as well as updating React state.
-- An explicit Continue/Retry action refreshes first, finds the selected job, sorts Lessons by `lessonOrder` with ID tie-breaking, and filters `contentDraft === null`.
-- Each missing Lesson is POSTed to `/api/admin/course-drafts/{jobId}/lessons/{lessonId}/generate` and awaited before the next request.
-- Each 2xx response is followed by a fresh GET; the requested Lesson must have a persisted `contentDraft` before the loop advances.
-- A failure stops immediately, refreshes persisted progress, displays the existing safe error alert, and leaves later Lessons unrequested.
-- Retry performs a new initial refresh and starts from the first missing Lesson. Reload restores the same count but never auto-starts work.
-- A synchronous ref guard prevents same-tick duplicate runs; existing busy state disables relevant controls.
+The multi-call pedagogical Lesson pipeline now emits stable metadata-only diagnostics for
+`synthesis_blueprint`, `sections`, `quality_review`, `correction`, and `re_review`. Response logs are
+limited to status/content type/model/choice count/content type/content length; validation logs are
+limited to code/path and section or Lesson index when available.
 
-## Timeout and progress
+The 240-second Course scheduling deadline and 300-second browser/route envelopes remain unchanged.
 
-- Added `PER_LESSON_GENERATION_REQUEST_TIMEOUT_MS = 300_000` and pass it only to the new one-Lesson POST.
-- The Phase B route already exported `maxDuration = 300`; no route change was required.
-- The selected Course shows persisted completed/total progress. During generation its live status also announces the current count and Lesson title.
-- Partially generated `generating_content` jobs expose an explicit Continue control alongside the existing refresh control.
-- A selected queue item's secondary text uses the stronger existing semantic text token to meet stable light-theme contrast.
+## Files changed
 
-## Protected scope
+- `src/features/content-pipeline/providers/lesson-draft-provider.ts`
+- `src/features/content-pipeline/providers/lesson-draft-provider.test.ts`
+- `src/features/content-pipeline/services/content-pipeline-service.ts`
+- `src/features/content-pipeline/services/content-pipeline-service.test.ts`
+- `src/features/ai/providers/ai-provider.ts`
+- `src/features/ai/providers/__tests__/ai-provider.test.ts`
+- `docs/features.md`
+- Task state and TASK-089 report files
 
-The provider/model, Gemini 3.7 payload, 45-second call timeout, three/five-call limits, Quality Review, citations, persistence, Course-wide scheduler, old generate-all route, regeneration, database, publication, Exercise, learner progress, and Phase D are unchanged.
+## Verification
 
-The cross-instance simultaneous first-request race documented in Phase B remains; Phase C adds no migration or distributed lock.
+- `npm test -- src/features/content-pipeline/providers/lesson-draft-provider.test.ts src/features/content-pipeline/services/content-pipeline-service.test.ts --silent` — PASS (248 tests)
+- Focused ESLint on the four changed provider/service implementation and test files — PASS
+- `npm run typecheck` — PASS
+- `git diff --check` — PASS
+
+No build or live AI request was run. No commit was created.

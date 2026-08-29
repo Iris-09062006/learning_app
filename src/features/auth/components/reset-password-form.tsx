@@ -88,7 +88,7 @@ export function ResetPasswordForm() {
 
   if (isSubmitted) {
     return (
-      <Card className="w-full max-w-md border-slate-200/80 shadow-xl shadow-indigo-950/5">
+      <Card className="w-full max-w-md border-border bg-surface shadow-[0_28px_80px_-45px_rgba(99,102,241,0.45)]">
         <CardHeader className="space-y-3 px-6 pb-5 pt-7 sm:px-8 sm:pt-8">
           <div
             aria-hidden="true"
@@ -106,14 +106,14 @@ export function ResetPasswordForm() {
           </div>
         </CardHeader>
 
-        <CardFooter className="justify-center border-t border-slate-100 px-6 py-5 text-sm text-slate-600 sm:px-8">
+        <CardFooter className="justify-center border-t border-border px-6 py-5 text-sm text-text-secondary sm:px-8">
           <button
             type="button"
             onClick={() => {
               router.replace("/login");
               router.refresh();
             }}
-            className="font-semibold text-indigo-600 underline-offset-4 hover:underline"
+            className="font-semibold text-primary underline-offset-4 hover:underline"
           >
             Quay lại đăng nhập
           </button>
@@ -124,7 +124,7 @@ export function ResetPasswordForm() {
 
   if (sessionState === "invalid") {
     return (
-      <Card className="w-full max-w-md border-slate-200/80 shadow-xl shadow-indigo-950/5">
+      <Card className="w-full max-w-md border-border bg-surface shadow-[0_28px_80px_-45px_rgba(99,102,241,0.45)]">
         <CardHeader className="space-y-3 px-6 pb-5 pt-7 sm:px-8 sm:pt-8">
           <div
             aria-hidden="true"
@@ -143,10 +143,10 @@ export function ResetPasswordForm() {
           </div>
         </CardHeader>
 
-        <CardFooter className="justify-center border-t border-slate-100 px-6 py-5 text-sm text-slate-600 sm:px-8">
+        <CardFooter className="justify-center border-t border-border px-6 py-5 text-sm text-text-secondary sm:px-8">
           <Link
             href="/forgot-password"
-            className="font-semibold text-indigo-600 underline-offset-4 hover:underline"
+            className="font-semibold text-primary underline-offset-4 hover:underline"
           >
             Yêu cầu liên kết mới
           </Link>
@@ -156,14 +156,9 @@ export function ResetPasswordForm() {
   }
 
   return (
-    <Card className="w-full max-w-md border-slate-200/80 shadow-xl shadow-indigo-950/5">
+    <Card className="w-full max-w-md border-border bg-surface shadow-[0_28px_80px_-45px_rgba(99,102,241,0.45)]">
       <CardHeader className="space-y-3 px-6 pb-5 pt-7 sm:px-8 sm:pt-8">
-        <div
-          aria-hidden="true"
-          className="flex size-11 items-center justify-center rounded-2xl bg-indigo-50 text-xl font-bold text-indigo-600"
-          >
-            {">_"}
-          </div>
+        <p className="text-xs font-semibold uppercase tracking-[0.16em] text-primary">Bảo mật tài khoản</p>
         <div className="space-y-2">
           <h1 className="text-2xl font-bold tracking-tight sm:text-3xl">
             Đặt mật khẩu mới
@@ -191,7 +186,7 @@ export function ResetPasswordForm() {
           {formError ? (
             <p
               role="alert"
-              className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm leading-5 text-red-700"
+              className="rounded-xl border border-danger/30 bg-danger-soft px-4 py-3 text-sm leading-5 text-danger"
             >
               {formError}
             </p>

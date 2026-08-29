@@ -87,7 +87,7 @@ export async function fetchExerciseData(exerciseId: number): Promise<{
 
   const { data: optionRows, error: optionsError } = await supabase
     .from("exercise_options")
-    .select("id, content, option_order")
+    .select("id, content, option_order, metadata")
     .eq("exercise_id", exerciseId)
     .order("option_order", { ascending: true });
 
@@ -95,27 +95,41 @@ export async function fetchExerciseData(exerciseId: number): Promise<{
     throw new Error(`Failed to fetch exercise options: ${optionsError.message}`);
   }
 
+  const options = optionRows.map((option) => {
+    const rawMetadata = option.metadata && typeof option.metadata === "object" && !Array.isArray(option.metadata)
+      ? option.metadata as Record<string, unknown>
+      : {};
+    const answerOptions = exercise.exercise_type === "matching" && Array.isArray(rawMetadata.answerOptions)
+      ? rawMetadata.answerOptions.filter((item): item is string => typeof item === "string")
+      : [];
+    return {
+      id: option.id,
+      content: option.content,
+      order: option.option_order,
+      ...(answerOptions.length > 0 ? { metadata: { answerOptions } } : {}),
+    };
+  });
+  const base = {
+    id: exercise.id,
+    lessonId: exercise.lesson_id,
+    title: exercise.title,
+    description: exercise.description,
+    difficulty: exercise.difficulty,
+    order: exercise.exercise_order,
+    isRequired: exercise.is_required,
+  };
+  const mappedExercise: GetExerciseResponse = exercise.exercise_type === "short_answer"
+    ? { ...base, type: "short_answer" }
+    : exercise.exercise_type === "predict_output" || exercise.exercise_type === "fix_the_bug"
+      ? { ...base, type: exercise.exercise_type, codeSnippet: exercise.code_snippet, options }
+      : { ...base, type: exercise.exercise_type, options };
+
   return {
     exerciseExists: true,
     isPublished: exercise.is_published,
     isAuthenticated: true,
     isEnrolled: true,
-    exercise: {
-      id: exercise.id,
-      lessonId: exercise.lesson_id,
-      title: exercise.title,
-      description: exercise.description,
-      type: exercise.exercise_type,
-      difficulty: exercise.difficulty,
-      order: exercise.exercise_order,
-      codeSnippet: exercise.code_snippet,
-      isRequired: exercise.is_required,
-      options: optionRows.map((option) => ({
-        id: option.id,
-        content: option.content,
-        order: option.option_order,
-      })),
-    },
+    exercise: mappedExercise,
   };
 }
 
@@ -242,7 +256,7 @@ export async function fetchLearnerSubmissions(
 
   const { data: submissions, error } = await supabase
     .from("submissions")
-    .select("id, is_correct, submitted_at")
+    .select("id, exercise_id, answer, is_correct, attempt_number, submitted_at")
     .eq("exercise_id", exerciseId)
     .eq("user_id", user.id)
     .order("submitted_at", { ascending: false });
@@ -253,8 +267,53 @@ export async function fetchLearnerSubmissions(
 
   return submissions.map((submission) => ({
     id: submission.id,
+    exerciseId: submission.exercise_id,
+    answer: submission.answer && typeof submission.answer === "object" && !Array.isArray(submission.answer)
+      ? submission.answer as Record<string, unknown>
+      : {},
     isCorrect: submission.is_correct,
+    attemptNumber: submission.attempt_number,
     submittedAt: submission.submitted_at,
   }));
+}
+
+export async function fetchLatestCorrectSubmission(
+  exerciseId: number,
+): Promise<SubmissionSummary | null> {
+  const supabase = await createServerSupabaseClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) {
+    throw new Error("UNAUTHENTICATED");
+  }
+
+  const { data: submission, error } = await supabase
+    .from("submissions")
+    .select("id, exercise_id, answer, is_correct, attempt_number, submitted_at")
+    .eq("exercise_id", exerciseId)
+    .eq("user_id", user.id)
+    .eq("is_correct", true)
+    .order("attempt_number", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  if (error) {
+    throw new Error(`Failed to fetch completed submission: ${error.message}`);
+  }
+
+  if (!submission) return null;
+
+  return {
+    id: submission.id,
+    exerciseId: submission.exercise_id,
+    answer: submission.answer && typeof submission.answer === "object" && !Array.isArray(submission.answer)
+      ? submission.answer as Record<string, unknown>
+      : {},
+    isCorrect: submission.is_correct,
+    attemptNumber: submission.attempt_number,
+    submittedAt: submission.submitted_at,
+  };
 }
 

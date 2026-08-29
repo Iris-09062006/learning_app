@@ -20,7 +20,17 @@ const statusDetails: Record<Exclude<ProgressStatus, "locked">, { label: string; 
 };
 
 function formatExerciseType(type: string): string {
-  return type === "fix_the_bug" ? "Sửa lỗi" : "Đoán kết quả";
+  const labels: Record<string, string> = {
+    multiple_choice: "Trắc nghiệm",
+    true_false: "Đúng / sai",
+    short_answer: "Trả lời ngắn",
+    ordering: "Sắp xếp",
+    matching: "Ghép cặp",
+    scenario: "Tình huống",
+    fix_the_bug: "Sửa lỗi",
+    predict_output: "Đoán kết quả",
+  };
+  return labels[type] ?? type.replaceAll("_", " ");
 }
 
 function formatDifficulty(difficulty: string): string {
@@ -40,6 +50,8 @@ export const LessonContentView: React.FC<LessonContentViewProps> = ({ lesson }) 
   const contentRef = useRef<HTMLElement>(null);
   const isContentVisible = status === "inProgress" || status === "completed";
   const visibleStatus = status === "locked" ? statusDetails.unlocked : statusDetails[status];
+  const completedExerciseCount = lesson.exercises.filter((exercise) => exercise.isCompleted).length;
+  const hasBothAdjacentLessons = Boolean(lesson.previousLesson && lesson.nextLesson);
 
   useEffect(() => {
     if (!shouldFocusContent || !isContentVisible) return;
@@ -208,45 +220,71 @@ export const LessonContentView: React.FC<LessonContentViewProps> = ({ lesson }) 
               ) : (
                 <div className="mt-6 grid gap-4">
                   {lesson.exercises.map((exercise) => (
-                    <article key={exercise.id} className="group flex flex-col gap-4 rounded-xl border border-border bg-surface p-5 transition hover:border-primary hover:bg-primary-soft sm:flex-row sm:items-center sm:justify-between">
+                    <article
+                      key={exercise.id}
+                      data-testid={`lesson-exercise-${exercise.id}`}
+                      data-completed={exercise.isCompleted}
+                      className={`group flex flex-col gap-4 rounded-xl border p-5 transition sm:flex-row sm:items-center sm:justify-between ${exercise.isCompleted ? "border-success bg-success-soft hover:border-success" : "border-border bg-surface hover:border-primary hover:bg-primary-soft"}`}
+                    >
                       <div className="flex min-w-0 items-start gap-4">
-                        <span className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-primary-soft text-sm font-extrabold text-primary">{exercise.order}</span>
+                        <span className={`flex size-11 shrink-0 items-center justify-center rounded-xl text-sm font-extrabold ${exercise.isCompleted ? "bg-success text-text-inverse" : "bg-primary-soft text-primary"}`}>
+                          {exercise.isCompleted ? (
+                            <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round" className="size-5">
+                              <path d="m5 12 4 4L19 6" />
+                            </svg>
+                          ) : exercise.order}
+                        </span>
                         <div className="min-w-0">
                           <h3 className="break-words text-base font-semibold leading-6 text-text-primary">{exercise.title}</h3>
                           <p className="mt-1 text-sm text-text-secondary">{formatExerciseType(exercise.type)} · {formatDifficulty(exercise.difficulty)}</p>
+                          {exercise.isCompleted ? <p className="mt-2 inline-flex items-center gap-1 text-sm font-bold text-success"><span aria-hidden="true">✓</span> Hoàn thành</p> : null}
                         </div>
                       </div>
-                      <Link href={`/exercises/${exercise.id}`} className="inline-flex min-h-10 shrink-0 items-center justify-center rounded-xl border border-primary bg-surface px-4 py-2 text-sm font-bold text-primary transition group-hover:bg-primary group-hover:text-text-inverse focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background">Làm bài <span aria-hidden="true" className="ml-2">→</span></Link>
+                      <Link href={`/exercises/${exercise.id}${exercise.isCompleted ? "?mode=review" : ""}`} className="inline-flex min-h-11 shrink-0 items-center justify-center rounded-xl border border-primary bg-surface px-4 py-2 text-sm font-bold text-primary transition hover:bg-primary hover:text-text-inverse focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background">{exercise.isCompleted ? "Xem lại" : "Làm bài"} <span aria-hidden="true" className="ml-2">→</span></Link>
                     </article>
                   ))}
                 </div>
               )}
             </section>
 
-            {isContentVisible && lesson.nextLesson ? (
-              <nav aria-label="Bài tiếp theo" className="relative rounded-xl border border-border bg-surface p-5">
-                <span aria-hidden="true" className="absolute inset-y-5 left-0 w-1 rounded-r-md bg-primary" />
-                <div className="sm:flex sm:items-center sm:justify-between sm:gap-4">
-                  <div className="min-w-0">
+            {isContentVisible && (lesson.previousLesson || lesson.nextLesson) ? (
+              <nav
+                aria-label="Điều hướng bài học liền kề"
+                data-layout={hasBothAdjacentLessons ? "two-columns" : "single-column"}
+                className={`grid gap-4 ${hasBothAdjacentLessons ? "sm:grid-cols-2" : "grid-cols-1"}`}
+              >
+                {lesson.previousLesson ? (
+                  <div data-testid="lesson-previous-card" className="relative min-w-0 rounded-xl border border-border bg-surface p-5">
+                    <span aria-hidden="true" className="absolute inset-y-5 left-0 w-1 rounded-r-md bg-primary" />
+                    <p className="text-xs font-bold uppercase tracking-[0.16em] text-primary">Bài trước</p>
+                    <p className="mt-1 break-words font-bold text-text-primary">{lesson.previousLesson.title}</p>
+                    <Link href={`/lessons/${lesson.previousLesson.id}`} className="mt-3 inline-flex min-h-11 items-center justify-center rounded-xl border border-primary bg-surface px-4 py-2 text-sm font-bold text-primary transition hover:bg-primary hover:text-text-inverse focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background">
+                      <span aria-hidden="true" className="mr-2">←</span> Bài trước
+                    </Link>
+                  </div>
+                ) : null}
+
+                {lesson.nextLesson ? (
+                  <div data-testid="lesson-next-card" className="relative min-w-0 rounded-xl border border-border bg-surface p-5 sm:text-right">
+                    <span aria-hidden="true" className="absolute inset-y-5 right-0 w-1 rounded-l-md bg-primary" />
                     <p className="text-xs font-bold uppercase tracking-[0.16em] text-primary">Bài tiếp theo</p>
                     <p className="mt-1 break-words font-bold text-text-primary">{lesson.nextLesson.title}</p>
-                    <p className="mt-1 text-sm text-text-secondary">Bạn có thể tiếp tục ngay; bài hiện tại vẫn giữ đúng tiến độ đã đạt.</p>
+                    <Button
+                      type="button"
+                      onClick={handleNextLesson}
+                      size="md"
+                      disabled={isAdvancing}
+                      aria-describedby={advanceErrorMessage ? "lesson-next-error" : undefined}
+                      className="mt-3 min-h-11 shrink-0 gap-2"
+                    >
+                      {isAdvancing ? "Đang mở..." : "Tiếp theo"} <span aria-hidden="true">→</span>
+                    </Button>
+                    {advanceErrorMessage ? (
+                      <p id="lesson-next-error" role="alert" className="mt-3 text-sm font-medium text-danger">
+                        {advanceErrorMessage}
+                      </p>
+                    ) : null}
                   </div>
-                  <Button
-                    type="button"
-                    onClick={handleNextLesson}
-                    size="md"
-                    disabled={isAdvancing}
-                    aria-describedby={advanceErrorMessage ? "lesson-next-error" : undefined}
-                    className="mt-3 shrink-0 gap-2 sm:mt-0"
-                  >
-                    {isAdvancing ? "Đang mở..." : "Tiếp theo"} <span aria-hidden="true">→</span>
-                  </Button>
-                </div>
-                {advanceErrorMessage ? (
-                  <p id="lesson-next-error" role="alert" className="mt-3 text-sm font-medium text-danger">
-                    {advanceErrorMessage}
-                  </p>
                 ) : null}
               </nav>
             ) : null}
@@ -258,7 +296,7 @@ export const LessonContentView: React.FC<LessonContentViewProps> = ({ lesson }) 
               <dl className="mt-4 space-y-4 text-sm">
                 <div className="flex items-center justify-between gap-3"><dt className="text-text-secondary">Trạng thái</dt><dd className="font-semibold text-text-primary">{visibleStatus.label}</dd></div>
                 <div className="flex items-center justify-between gap-3"><dt className="text-text-secondary">Thời lượng</dt><dd className="font-semibold text-text-primary">{lesson.estimatedMinutes ?? "—"}{lesson.estimatedMinutes !== null ? " phút" : ""}</dd></div>
-                <div className="flex items-center justify-between gap-3"><dt className="text-text-secondary">Bài tập</dt><dd className="font-semibold text-text-primary">{lesson.exercises.length}</dd></div>
+                <div className="flex items-center justify-between gap-3"><dt className="text-text-secondary">Bài tập</dt><dd className="text-right font-semibold text-text-primary">{completedExerciseCount}/{lesson.exercises.length} hoàn thành</dd></div>
               </dl>
             </div>
             <Link href="/courses" className="flex min-h-11 items-center justify-center rounded-xl border border-border bg-surface px-4 py-2 text-sm font-semibold text-text-secondary transition hover:border-primary hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background">Xem lộ trình khác</Link>

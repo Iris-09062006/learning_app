@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 
+import { createProductTitle } from "@/config/product";
 import { SystemHealthCard } from "@/features/admin/components/system-health-card";
 import {
   AdminServiceError,
@@ -9,7 +10,7 @@ import {
   getSystemHealth,
 } from "@/features/admin/services/admin-service";
 
-export const metadata: Metadata = { title: "System health | LearningApp" };
+export const metadata: Metadata = { title: createProductTitle("System health") };
 export const dynamic = "force-dynamic";
 
 export default async function AdminSystemPage() {

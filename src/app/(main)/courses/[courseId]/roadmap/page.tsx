@@ -3,6 +3,7 @@ import { notFound, redirect } from "next/navigation";
 import { cache } from "react";
 
 import { PageContainer } from "@/components/layout/page-container";
+import { createProductTitle } from "@/config/product";
 import { CourseRoadmapView } from "@/features/courses/components/course-roadmap-view";
 import {
   getCourseRoadmap,
@@ -23,18 +24,18 @@ export async function generateMetadata({
   const { courseId } = await params;
   const numId = Number(courseId);
   if (!Number.isInteger(numId) || numId < 1) {
-    return { title: "Không tìm thấy lộ trình | Python Learning Platform" };
+    return { title: createProductTitle("Không tìm thấy lộ trình") };
   }
 
   try {
     const roadmap = await getCachedCourseRoadmap(numId);
     return {
-      title: `Lộ trình: ${roadmap.course.title} | Python Learning Platform`,
+      title: createProductTitle(`Lộ trình: ${roadmap.course.title}`),
       description: `Chi tiết lộ trình học cho khóa học ${roadmap.course.title}`,
     };
   } catch {
     return {
-      title: "Lộ trình học | Python Learning Platform",
+      title: createProductTitle("Lộ trình học"),
     };
   }
 }

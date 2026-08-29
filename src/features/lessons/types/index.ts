@@ -11,9 +11,10 @@ export interface LessonExerciseSummary {
   difficulty: DifficultyLevel;
   order: number;
   isPublished: boolean;
+  isCompleted: boolean;
 }
 
-export interface LessonNextRef {
+export interface LessonAdjacentRef {
   id: number;
   title: string;
 }
@@ -29,7 +30,8 @@ export interface LessonDetail {
   status: ProgressStatus;
   isPublished: boolean;
   exercises: LessonExerciseSummary[];
-  nextLesson: LessonNextRef | null;
+  previousLesson: LessonAdjacentRef | null;
+  nextLesson: LessonAdjacentRef | null;
 }
 
 export type LessonResponse = Omit<LessonDetail, "isPublished" | "courseId">;

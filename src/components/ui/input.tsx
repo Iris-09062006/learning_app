@@ -48,7 +48,7 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(function Input(
         ref={ref}
         id={inputId}
         className={cn(
-          "flex h-10 w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm text-text-primary",
+          "flex h-11 w-full rounded-xl border border-border bg-surface px-3.5 py-2 text-sm text-text-primary transition-colors duration-200",
           "placeholder:text-text-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background",
           "disabled:cursor-not-allowed disabled:bg-surface-subtle disabled:opacity-60",
           hasError && "border-danger",

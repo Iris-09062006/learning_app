@@ -162,7 +162,7 @@ describe("ModerationRepository", () => {
           description: "Updated description",
           exerciseType: "predict_output" as const,
           difficulty: "easy" as const,
-          content: { title: "Updated Title", description: "Updated description", codeSnippet: "print(1)", options: ["1", "2"], correctAnswer: "1", explanation: "Because" },
+          content: { type: "predict_output" as const, title: "Updated Title", description: "Updated description", codeSnippet: "print(1)", options: ["1", "2"], correctAnswer: "1", explanation: "Because" },
         },
       };
       mockClient.rpc.mockResolvedValue({

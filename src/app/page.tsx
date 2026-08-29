@@ -1,85 +1,143 @@
 import Link from "next/link";
 
+import { BrandMark } from "@/components/brand/brand-mark";
+import { PRODUCT_NAME } from "@/config/product";
+import { authService } from "@/features/auth/auth.service";
+
+export const dynamic = "force-dynamic";
+
 const PRODUCT_PILLARS = [
   {
     step: "01",
-    title: "Lộ trình rõ ràng",
-    description: "Đi từ nền tảng Python đến từng bài học ngắn, biết mình đang ở đâu và nên học gì tiếp theo.",
+    title: "Lộ trình dễ theo dõi",
+    description:
+      "Mỗi khóa học được chia thành các Lesson vừa sức, giúp bạn luôn biết mình đang ở đâu và nên học gì tiếp theo.",
   },
   {
     step: "02",
-    title: "Thực hành ngay",
-    description: "Củng cố kiến thức bằng bài Predict the Output và Fix the Bug với phản hồi đúng, sai tức thì.",
+    title: "Học đi đôi với làm",
+    description:
+      "Checkpoint và bài tập gắn trực tiếp với từng Lesson, để kiến thức được củng cố ngay khi còn mới.",
   },
   {
     step: "03",
-    title: "AI Mentor an toàn",
-    description: "Nhận lời giải thích theo đúng ngữ cảnh bài làm; khóa AI và đáp án đúng luôn được xử lý phía server.",
+    title: "Hỗ trợ đúng thời điểm",
+    description:
+      "Nguồn học đáng tin cậy kết hợp cùng trợ giúp AI phù hợp, trong một trải nghiệm tập trung và có kiểm soát.",
   },
 ];
 
-export default function HomePage() {
+function ArrowIcon() {
   return (
-    <main className="min-h-screen overflow-hidden bg-slate-950 text-white">
-      <header className="relative z-20 border-b border-white/10">
-        <nav aria-label="Điều hướng trang chủ" className="mx-auto flex h-18 max-w-7xl items-center justify-between px-5 py-4 sm:px-8">
-          <Link href="/" className="flex items-center gap-3 font-bold tracking-tight focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-indigo-400">
-            <span className="flex size-10 items-center justify-center rounded-xl bg-indigo-500 font-mono text-sm">Py</span>
-            Python Learning
+    <svg aria-hidden="true" viewBox="0 0 20 20" fill="none" className="size-4">
+      <path d="M4 10h12m-4-4 4 4-4 4" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
+export default async function HomePage() {
+  const user = await authService.getCurrentUser().catch(() => null);
+
+  return (
+    <main className="dark min-h-screen overflow-hidden bg-background text-text-primary">
+      <header className="relative z-20 border-b border-border/80 bg-background/80 backdrop-blur-xl">
+        <nav aria-label="Điều hướng trang chủ" className="mx-auto flex h-16 max-w-6xl items-center justify-between px-5 sm:px-8">
+          <Link href="/" className="flex min-h-11 items-center gap-2 rounded-lg text-[15px] font-semibold tracking-[-0.02em] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring sm:gap-2.5 sm:text-base">
+            <BrandMark className="size-7 text-primary sm:size-8" />
+            <span>{PRODUCT_NAME}</span>
           </Link>
-          <div className="flex items-center gap-2 sm:gap-3">
-            <Link href="/courses" className="hidden min-h-10 items-center rounded-lg px-3 text-sm font-semibold text-slate-300 transition-colors duration-200 hover:text-white focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-400 sm:flex">Khóa học</Link>
-            <Link href="/login" className="flex min-h-10 items-center rounded-lg px-3 text-sm font-semibold text-slate-200 transition-colors duration-200 hover:bg-white/10 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-400">Đăng nhập</Link>
-            <Link href="/register" className="flex min-h-10 items-center rounded-lg bg-indigo-500 px-4 text-sm font-semibold text-white transition-colors duration-200 hover:bg-indigo-400 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-300">Bắt đầu học</Link>
+          <div className="flex items-center gap-1 sm:gap-2">
+            <Link href="/courses" className="hidden min-h-11 items-center rounded-xl px-3.5 text-sm font-medium text-text-secondary transition-colors duration-200 hover:bg-surface-subtle hover:text-text-primary sm:flex">Khóa học</Link>
+            {user ? (
+              <>
+                <Link href="/profile" className="hidden min-h-11 items-center whitespace-nowrap rounded-xl px-3.5 text-sm font-medium text-text-secondary transition-colors duration-200 hover:bg-surface-subtle hover:text-text-primary sm:flex">Hồ sơ</Link>
+                <Link href="/dashboard" className="flex min-h-11 items-center whitespace-nowrap rounded-xl bg-primary px-3.5 text-sm font-semibold text-on-primary transition-colors duration-200 hover:bg-primary-hover sm:px-4">Tổng quan</Link>
+              </>
+            ) : (
+              <>
+                <Link href="/login" className="flex min-h-11 items-center whitespace-nowrap rounded-xl px-2.5 text-sm font-medium text-text-secondary transition-colors duration-200 hover:bg-surface-subtle hover:text-text-primary sm:px-3.5">Đăng nhập</Link>
+                <Link href="/register" className="flex min-h-11 items-center whitespace-nowrap rounded-xl bg-primary px-3.5 text-sm font-semibold text-on-primary transition-colors duration-200 hover:bg-primary-hover sm:px-4"><span className="sm:hidden">Bắt đầu</span><span className="hidden sm:inline">Bắt đầu học</span></Link>
+              </>
+            )}
           </div>
         </nav>
       </header>
 
-      <section className="relative mx-auto grid max-w-7xl gap-14 px-5 pb-20 pt-16 sm:px-8 sm:pt-24 lg:grid-cols-[1.1fr_0.9fr] lg:items-center lg:pb-28">
-        <div aria-hidden="true" className="absolute -right-40 -top-40 size-[34rem] rounded-full bg-indigo-600/20 blur-3xl" />
+      <section className="relative mx-auto grid max-w-6xl gap-12 px-5 pb-20 pt-16 sm:px-8 sm:pt-20 lg:grid-cols-[minmax(0,1fr)_27rem] lg:items-center lg:gap-16 lg:pb-24 lg:pt-24">
+        <div aria-hidden="true" className="absolute -right-64 -top-64 size-[34rem] rounded-full bg-primary/10 blur-3xl" />
         <div className="relative z-10">
-          <p className="inline-flex rounded-full border border-cyan-300/30 bg-cyan-300/10 px-4 py-2 text-xs font-bold uppercase tracking-[0.2em] text-cyan-200">Python cho người mới bắt đầu</p>
-          <h1 className="mt-7 max-w-4xl text-5xl font-black leading-[1.04] tracking-tight sm:text-6xl lg:text-7xl">
-            Học Python bằng cách <span className="text-indigo-400">thật sự làm bài.</span>
-          </h1>
-          <p className="mt-7 max-w-2xl text-lg leading-8 text-slate-300 sm:text-xl">
-            Một hành trình học có cấu trúc: chọn khóa học, đi theo roadmap, sửa lỗi trong code và hiểu sâu hơn với AI Mentor khi bạn cần.
+          <p className="flex items-center gap-2 text-sm font-medium text-primary">
+            <span aria-hidden="true" className="size-1.5 rounded-full bg-primary" />
+            Học có định hướng, tiến bộ có thể thấy
           </p>
-          <div className="mt-9 flex flex-wrap gap-3">
-            <Link href="/register" className="inline-flex min-h-12 items-center justify-center rounded-xl bg-indigo-500 px-6 font-bold shadow-lg shadow-indigo-950 transition-all duration-200 hover:-translate-y-0.5 hover:bg-indigo-400 hover:shadow-xl hover:shadow-indigo-950 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-300 motion-reduce:transform-none motion-reduce:transition-none">Tạo tài khoản miễn phí</Link>
-            <Link href="/courses" className="inline-flex min-h-12 items-center justify-center rounded-xl border border-white/20 bg-white/5 px-6 font-bold transition-colors duration-200 hover:bg-white/10 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-400">Khám phá khóa học</Link>
+          <h1 className="mt-6 max-w-[15ch] text-4xl font-semibold leading-[1.1] tracking-[-0.045em] [text-wrap:balance] sm:text-5xl lg:text-[3.75rem]">
+            Một lộ trình rõ ràng cho điều bạn muốn học.
+          </h1>
+          <p className="mt-6 max-w-xl text-base leading-7 text-text-secondary sm:text-lg sm:leading-8">
+            Khám phá khóa học từ nguồn kiến thức đáng tin cậy, luyện tập ngay trong từng Lesson và theo dõi tiến độ mà không bị phân tâm.
+          </p>
+          <div className="mt-8 flex flex-wrap gap-3">
+            <Link href={user ? "/dashboard" : "/register"} className="inline-flex min-h-12 items-center justify-center gap-2 rounded-xl bg-primary px-5 font-semibold text-on-primary transition-colors duration-200 hover:bg-primary-hover">
+              {user ? "Tiếp tục học" : "Tạo tài khoản miễn phí"} <ArrowIcon />
+            </Link>
+            <Link href="/courses" className="inline-flex min-h-12 items-center justify-center rounded-xl border border-border bg-surface/70 px-5 font-semibold text-text-primary transition-colors duration-200 hover:bg-surface-elevated">Khám phá khóa học</Link>
           </div>
+          <p className="mt-5 text-sm text-text-muted">{user ? `Chào ${user.username} · Tiếp tục theo tiến độ của bạn` : "Bắt đầu miễn phí · Học theo tốc độ của bạn"}</p>
         </div>
 
-        <div className="relative z-10 rounded-3xl border border-white/10 bg-white/[0.06] p-5 shadow-2xl shadow-indigo-950/60 backdrop-blur sm:p-7">
-          <div className="flex items-center justify-between border-b border-white/10 pb-5">
-            <div>
-              <p className="text-xs font-bold uppercase tracking-widest text-indigo-300">Minh họa một lộ trình</p>
-              <h2 className="mt-2 text-xl font-bold">Điều kiện và nhánh rẽ</h2>
+        <div className="relative z-10 mx-auto w-full max-w-md rounded-[1.75rem] border border-border bg-surface p-3 shadow-[0_32px_90px_-45px_rgba(99,102,241,0.5)]">
+          <div className="rounded-2xl border border-border bg-surface-subtle p-5 sm:p-6">
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-[0.15em] text-primary">Lộ trình đang học</p>
+                <h2 className="mt-2 text-lg font-semibold tracking-tight">Tư duy hệ thống</h2>
+              </div>
+              <span className="rounded-full border border-success/25 bg-success-soft px-2.5 py-1 text-xs font-medium text-success">Đang học</span>
             </div>
-            <span className="rounded-full bg-emerald-400/15 px-3 py-1 text-xs font-bold text-emerald-300">Đang học</span>
-          </div>
-          <pre className="mt-5 overflow-x-auto rounded-2xl bg-[#0b1020] p-5 font-mono text-sm leading-7 text-slate-200"><code><span className="text-fuchsia-300">score</span> = <span className="text-amber-300">8</span>{"\n"}<span className="text-cyan-300">if</span> score &gt;= <span className="text-amber-300">8</span>:{"\n"}    <span className="text-emerald-300">print</span>(<span className="text-yellow-200">&quot;Bạn đã mở khóa bài tiếp theo!&quot;</span>)</code></pre>
-          <div className="mt-5 grid grid-cols-3 gap-3 text-center">
-            <div className="rounded-xl bg-white/5 p-3"><strong className="block text-xl">12</strong><span className="text-xs text-slate-400">bài học</span></div>
-            <div className="rounded-xl bg-white/5 p-3"><strong className="block text-xl">36</strong><span className="text-xs text-slate-400">bài tập</span></div>
-            <div className="rounded-xl bg-white/5 p-3"><strong className="block text-xl">42%</strong><span className="text-xs text-slate-400">tiến độ</span></div>
+
+            <div className="mt-6" aria-label="Tiến độ mẫu của khóa học">
+              <div className="flex items-center justify-between text-xs">
+                <span className="text-text-secondary">Tiến độ khóa học</span>
+                <strong className="font-semibold text-text-primary">42%</strong>
+              </div>
+              <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-surface-container-highest">
+                <div className="h-full w-[42%] rounded-full bg-primary" />
+              </div>
+            </div>
+
+            <ol className="mt-6 space-y-1" aria-label="Các bước trong lộ trình mẫu">
+              <li className="flex gap-3 rounded-xl px-2 py-3">
+                <span aria-hidden="true" className="mt-0.5 flex size-6 shrink-0 items-center justify-center rounded-full bg-success-soft text-xs font-bold text-success">✓</span>
+                <span><strong className="block text-sm font-medium">Nền tảng tư duy</strong><span className="mt-0.5 block text-xs text-text-muted">Lesson đã hoàn thành</span></span>
+              </li>
+              <li className="flex gap-3 rounded-xl border border-primary/30 bg-primary-soft px-2 py-3">
+                <span aria-hidden="true" className="mt-0.5 flex size-6 shrink-0 items-center justify-center rounded-full bg-primary text-xs font-bold text-on-primary">2</span>
+                <span><strong className="block text-sm font-medium">Phân tích mối quan hệ</strong><span className="mt-0.5 block text-xs text-text-secondary">Lesson đang học</span></span>
+              </li>
+              <li className="flex gap-3 rounded-xl px-2 py-3">
+                <span aria-hidden="true" className="mt-0.5 flex size-6 shrink-0 items-center justify-center rounded-full border border-border text-xs text-text-muted">3</span>
+                <span><strong className="block text-sm font-medium text-text-secondary">Checkpoint kiến thức</strong><span className="mt-0.5 block text-xs text-text-muted">Bước tiếp theo</span></span>
+              </li>
+            </ol>
           </div>
         </div>
       </section>
 
-      <section aria-labelledby="learning-flow-title" className="border-t border-white/10 bg-white/[0.03]">
-        <div className="mx-auto max-w-7xl px-5 py-16 sm:px-8 sm:py-20">
-          <div className="max-w-2xl">
-            <p className="text-sm font-bold uppercase tracking-widest text-indigo-300">Học — Làm — Hiểu</p>
-            <h2 id="learning-flow-title" className="mt-3 text-3xl font-bold tracking-tight sm:text-4xl">Mỗi bước đều đưa bạn tiến về phía trước.</h2>
+      <section aria-labelledby="learning-flow-title" className="border-t border-border bg-surface-subtle/40">
+        <div className="mx-auto max-w-6xl px-5 py-16 sm:px-8 sm:py-20">
+          <div className="grid gap-8 lg:grid-cols-[0.8fr_1.2fr] lg:items-end">
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-[0.16em] text-primary">Học · Làm · Hiểu</p>
+              <h2 id="learning-flow-title" className="mt-3 max-w-lg text-3xl font-semibold tracking-[-0.03em] [text-wrap:balance] sm:text-4xl">Tiến bộ từ những bước nhỏ nhưng có chủ đích.</h2>
+            </div>
+            <p className="max-w-xl text-base leading-7 text-text-secondary lg:justify-self-end">LearningApp kết nối nội dung, luyện tập và tiến độ trong cùng một luồng học tập nhất quán.</p>
           </div>
-          <div className="mt-10 grid gap-5 md:grid-cols-3">
-            {PRODUCT_PILLARS.map((pillar) => (
-              <article key={pillar.step} className="group rounded-2xl border border-white/10 bg-slate-900 p-6 transition-all duration-300 hover:-translate-y-1 hover:border-indigo-400/40 hover:shadow-lg hover:shadow-indigo-950/50 motion-reduce:transform-none motion-reduce:transition-none">
-                <span className="font-mono text-sm font-bold text-indigo-300 transition-colors duration-300 group-hover:text-indigo-200">{pillar.step}</span>
-                <h3 className="mt-5 text-xl font-bold">{pillar.title}</h3>
-                <p className="mt-3 leading-7 text-slate-400">{pillar.description}</p>
+          <div className="mt-12 grid border-y border-border md:grid-cols-3">
+            {PRODUCT_PILLARS.map((pillar, index) => (
+              <article key={pillar.step} className={`py-7 md:px-7 ${index > 0 ? "border-t border-border md:border-l md:border-t-0" : ""}`}>
+                <span className="font-mono text-xs font-semibold text-primary">{pillar.step}</span>
+                <h3 className="mt-5 text-lg font-semibold">{pillar.title}</h3>
+                <p className="mt-3 max-w-sm text-sm leading-6 text-text-secondary">{pillar.description}</p>
               </article>
             ))}
           </div>

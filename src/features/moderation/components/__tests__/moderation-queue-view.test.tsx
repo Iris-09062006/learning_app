@@ -13,6 +13,7 @@ function json(data: unknown): Response {
 }
 
 const content: GeneratedExerciseContent = {
+  type: "predict_output",
   title: "Bài tập kiểm duyệt 1",
   description: "Mô tả bài tập 1",
   codeSnippet: "let x = 1;",

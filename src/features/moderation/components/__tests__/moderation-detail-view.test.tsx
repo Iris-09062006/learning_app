@@ -22,6 +22,7 @@ function queueItem(
     title: `Bài tập kiểm duyệt ${id}`,
     description: `Mô tả bài tập ${id}`,
     content: {
+      type: "predict_output",
       title: `Bài tập kiểm duyệt ${id}`,
       description: `Mô tả bài tập ${id}`,
       codeSnippet: "let x = 1;",
@@ -130,6 +131,27 @@ describe("ModerationDetailView", () => {
     expect(payload).toHaveClass("max-w-full", "overflow-x-auto");
   });
 
+  it("renders a scenario as conceptual content without a code preview", async () => {
+    const fixture: ModerationQueueItem = {
+      ...queueItem(15),
+      exerciseType: "scenario",
+      content: {
+        type: "scenario",
+        title: "Agile team decision",
+        description: "Choose the response that best applies an Agile value.",
+        scenario: "A team discovers new customer evidence midway through delivery.",
+        options: ["Discuss and adapt", "Ignore the evidence"],
+        correctAnswer: "Discuss and adapt",
+        explanation: "Responding to change applies the Lesson objective.",
+      },
+    };
+    mockDetail(fixture);
+    render(<ModerationDetailView id={15} />);
+    expect(await screen.findByText("A team discovers new customer evidence midway through delivery.")).toBeInTheDocument();
+    expect(screen.getByText("Discuss and adapt", { selector: "li" })).toBeInTheDocument();
+    expect(screen.queryByLabelText("Code của bài tập")).not.toBeInTheDocument();
+  });
+
   it("publishes an approved item and shows the success state while re-fetching", async () => {
     const fetchMock = mockDetail(queueItem(6, "approved"));
     render(<ModerationDetailView id={6} />);
@@ -200,7 +222,7 @@ describe("ModerationDetailView", () => {
       await screen.findByRole("heading", { name: "Lịch sử kiểm duyệt" }),
     ).toBeInTheDocument();
     expect(screen.getByText("Nội dung phù hợp.")).toBeInTheDocument();
-    expect(screen.getByRole("list")).toBeInTheDocument();
+    expect(screen.getAllByRole("list").length).toBeGreaterThanOrEqual(1);
     expect(screen.getAllByText("rejected").length).toBeGreaterThanOrEqual(1);
   });
 

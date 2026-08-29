@@ -58,7 +58,9 @@ source_documents
 - `course_outline_lessons` giữ Lesson identity/order/title/summary/source references để
   add/remove/reorder độc lập trước khi sinh content.
 - `lesson_content_drafts` giữ content/revision/provider state riêng cho từng outline
-  Lesson; regenerate một Lesson không ghi đè Lesson khác.
+  Lesson; một revision `status = 'ready'` là checkpoint hoàn tất authoritative cho Lesson đó,
+  và job-level failure không xóa hoặc invalidate checkpoint này. Regenerate một Lesson không ghi
+  đè Lesson khác.
 - Objective, Lesson order và source relation cần edit/query độc lập phải là row/column có
   constraint; không nhét toàn bộ Course outline vào một JSON blob.
 
@@ -236,7 +238,13 @@ create type public.enrollment_status as enum (
 
 create type public.exercise_type as enum (
   'fix_the_bug',
-  'predict_output'
+  'predict_output',
+  'multiple_choice',
+  'true_false',
+  'short_answer',
+  'ordering',
+  'matching',
+  'scenario'
 );
 
 create type public.difficulty_level as enum (
@@ -502,8 +510,9 @@ check (exercise_order > 0)
 Quy tắc:
 
 - Chỉ exercise `is_published = true` mới xuất hiện cho Guest/Learner.
-- `fix_the_bug` và `predict_output` đều có thể dùng `code_snippet`.
-- Không thêm loại `coding` hoặc `fill_blank` trong MVP vì requirements hiện chỉ chốt hai loại bài tập.
+- Chỉ `fix_the_bug` và `predict_output` dùng `code_snippet`; modality không-code lưu NULL.
+- `exercise_options.metadata` chứa answer pool công khai cho matching nhưng không chứa mapping đúng.
+- `exercise_solutions.solution` dùng schema riêng theo `exercise_type`.
 
 ---
 
@@ -686,7 +695,7 @@ Lưu bài tập do AI tạo trước khi xuất bản.
 
 Quy tắc:
 
-- `content` chứa code, options, solution và explanation do AI đề xuất.
+- `content` là discriminated JSONB theo `type`; chỉ chứa field phù hợp với modality, solution và explanation do AI đề xuất.
 - Learner không được đọc bảng này.
 - `approved` chưa đồng nghĩa đã xuất hiện trong course.
 - Khi publish, server tạo `exercises`, `exercise_options`, `exercise_solutions`, sau đó cập nhật `published_exercise_id`, `published_at` và status `published` trong cùng transaction.
@@ -1049,7 +1058,7 @@ Không publish exercise nếu:
 
 PostgreSQL lưu JSONB nhưng TypeScript/Zod phải validate cấu trúc.
 
-## 12.1 predict_output answer
+## 12.1 Choice/coding answer
 
 ```ts
 const predictOutputAnswerSchema = z.object({
@@ -1057,15 +1066,19 @@ const predictOutputAnswerSchema = z.object({
 });
 ```
 
-## 12.2 fix_the_bug answer — MVP
+## 12.2 Subject-agnostic answers
 
 ```ts
-const fixTheBugAnswerSchema = z.object({
-  selectedOptionId: z.number().int().positive(),
+const shortAnswerSchema = z.object({ answerText: z.string().trim().min(1).max(1000) });
+const orderingAnswerSchema = z.object({ orderedOptionIds: z.array(z.number().int().positive()).min(2) });
+const matchingAnswerSchema = z.object({
+  matches: z.array(z.object({ optionId: z.number().int().positive(), answer: z.string().trim().min(1).max(500) })).min(2),
 });
 ```
 
-MVP chỉ dùng lựa chọn syntax. `selectedSyntax` hoặc payload drag-and-drop thuộc P1 và không được thêm nếu chưa cập nhật requirements, API contract, database schema rules và test.
+`multiple_choice`, `true_false`, `scenario`, `predict_output` và `fix_the_bug` dùng
+`selectedOptionId`. Short answer, ordering và matching dùng payload riêng ở trên. Mọi chấm điểm
+diễn ra trong security-definer RPC; client không đọc `exercise_solutions`.
 
 ## 12.3 solution
 

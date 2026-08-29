@@ -11,13 +11,107 @@
 
 ## Active Task
 
-`TASK-090` is verified for the targeted Gemini 3.7 provider response boundary. A proven contiguous
-one-based stage-one section order is normalized to the unchanged zero-based internal contract while
-all Feature 005 orchestration, timeout, call-budget, persistence, and downstream contracts remain intact.
+`TASK-108` is verified: safe KaTeX rendering now covers inline/display mathematics in learner
+Lesson Markdown and rendered previews for editable Admin Lesson sections. Focused/full tests, lint,
+typecheck, build, audit, diff, secret, and review gates pass without changing stored content or
+publication contracts. Browser screenshot verification was unavailable because no browser was
+connected.
 
-`TASK-089` is verified for Feature 005 frontend Phase C: Continue refreshes persisted Course truth,
-generates missing Lessons sequentially through the Phase B endpoint with an isolated 300-second timeout,
-stops on failure, and resumes explicitly from the first missing Lesson without Phase D or backend changes.
+`TASK-107` is in progress: prerequisite progression now uses first introduction rather than last
+reuse, and semantic retry guidance is actionable. Regression tests are written but were not run at
+the user's request, so the change remains unverified. The user explicitly requested committing and
+pushing this state.
+
+`TASK-106` is verified: successful Exercise completion provides a clear Lesson return action, and
+completed Exercises restore the current learner's latest successful persisted answer in read-only
+review across refresh. All gates pass; grading, solution security, completion semantics, and schema
+remain unchanged. Commit: none.
+
+`TASK-099` is verified locally: Previous and Next come from one persisted curriculum order, while
+Exercise completion comes from user-owned correct submissions and survives return/reload/new session
+without cross-user leakage. Full local gates and review pass; progress semantics and schema are
+unchanged, and no commit occurred.
+
+`TASK-098` is verified locally: the Lesson → Exercise listing now uses the existing dark semantic
+surface/foreground tokens instead of a light-only card utility plus inherited dark text. Chromium,
+installed Chrome, and installed Edge computed-style regressions pass at 1920×1080 and 1366×768;
+Firefox is unavailable. Full local gates and review pass; no commit occurred.
+
+`TASK-097` is done and released to `production-test-2` in
+`4a4fa6c3eb9fe23e028f14b1a3ded37b209bb510`. The programming-only Lesson Exercise model is replaced by a strict
+subject-agnostic discriminated contract across generation, moderation, learner rendering, and
+server-side evaluation while existing coding Exercises remain compatible. The provider owns `type`;
+application request metadata owns `difficulty`. Provider prompt/schema and request types are aligned;
+parser/validator and persistence boundaries match the intended ownership. Targeted tests (52/52),
+the full Vitest suite (1,211 passed, 1 skipped), lint, typecheck, build, diff, and secret checks pass.
+
+`TASK-096` is done and included in `production-test-2` commit
+`4a4fa6c3eb9fe23e028f14b1a3ded37b209bb510`: successful Course/content/review mutations reconcile with uncached,
+latest-response server truth, completed transient Course-import creation state resets without losing
+failed input, and the public landing uses the existing server-resolved Supabase session. Focused/full
+tests, Playwright auth/workflow smoke, accessibility, lint, typecheck, build, diff and secret checks
+pass; no auth semantic, RBAC, AI, database, publication, visual-system, or application deployment change.
+
+`TASK-095` is verified locally: UI/UX Pro Max drives a visual-only redesign of the public landing,
+subject-neutral brand mark, authenticated navigation, and Course catalog/detail surfaces. Product
+behavior and data contracts stay unchanged; browser screenshots and all local gates pass.
+
+`TASK-094` is verified locally: production platform branding, landing/auth copy, catalog metadata,
+and Course presentation are course-agnostic while persisted Python Course/Lesson content remains
+intact. Focused/full tests, lint, typecheck, build, automated Chromium/SSR smoke, regression search,
+diff check, and review pass; no database, AI pipeline, deploy, push, or commit occurred.
+
+`TASK-093` is verified locally: the active Exercise provider explicitly requests a non-streaming
+JSON response with `stream: false` and `Accept: application/json`, while preserving the existing
+Authorization, Content-Type, model, schema, prompt, parser, validation, persistence, routing, and
+TASK-092 diagnostics. Focused tests, lint, typecheck, diff check, and review pass; no live call or commit.
+
+`TASK-092` is verified locally: safe metadata-only diagnostics now distinguish provider transport,
+HTTP, envelope, parser field, semantic, and persistence failures in the active one-Lesson Exercise
+generation path. Prompt/schema/model/router/frontend/database contracts remain unchanged; 43 focused
+mock tests, lint, typecheck, diff check, and review pass without a real provider call or commit.
+
+`TASK-091` is verified locally: one bounded semantic repair retry handles HTTP-successful but
+application-invalid responses from synthesis/blueprint, sections, and initial quality review while
+preserving schemas, prior-stage results, provider/network behavior, correction/re-review, and
+TASK-090 checkpointing. Required focused tests, lint, typecheck, build, diff check, and review pass;
+no commit is authorized before this report.
+
+`TASK-090` is verified locally: persisted ready Lesson drafts are durable retry checkpoints, the
+the approved outline and completed Lessons across a failed job, resume generation at the first
+missing Lesson in outline order, and make all-complete retries perform zero model calls. Focused
+tests, lint, typecheck, diff check, and review pass. The function-only migration is not applied;
+the existing uncommitted TASK-089 changes are preserved and no commit is authorized.
+
+`TASK-089` is in progress: active AI provider response abort timers are raised from 45 seconds to
+180 seconds, with metadata-only Course-outline response/parse diagnostics and temporary safe
+diagnostics for all five pedagogical Lesson stages. Focused tests, focused lint, and typecheck pass
+with provider calls mocked; the change remains uncommitted by user request.
+
+`TASK-088` is verified: the hard-coded pedagogical Gemini model is removed, and Course outline plus
+Lesson generation use the configured server-only 9Router endpoint and route model. Router-selected
+upstream model reporting, focused/full tests, lint, typecheck, and build pass.
+
+`TASK-087` is verified: stabilize Gemini 3.7 Lesson generation after job 24 failed at 59.914 seconds
+by removing unsupported sampling parameters, lowering documented reasoning effort, eliminating
+redundant queued Lesson workers, and aligning the Admin timeout with the server scheduling window.
+Full local gates pass.
+
+`TASK-086` is verified: the complete pedagogical Lesson model lock migrated from
+`gemini-3.6-flash` to the official GA `gemini-3.7-flash` identifier without changing endpoint,
+call budgets, pacing, persistence, citations, or public API behavior. Full local gates pass.
+
+`TASK-085` is verified: pedagogical provider requests are serialized to prevent Gemini quota bursts,
+and confirmed upstream HTTP 429 responses map to the recoverable rate-limit API contract. Full local
+gates pass without database mutation, push, or deployment.
+
+`TASK-084` is verified: Gemini one-based blueprint section order is normalized to the unchanged
+internal zero-based contract, repairing the deterministic `AI_RESPONSE_INVALID` behind job 25's
+Lesson-generation 502. Full local gates pass without database mutation, push, or deployment.
+
+`TASK-083` is verified for only T026–T036 of pedagogical Lesson generation: active Continue and
+Lesson-wide regeneration integration, bounded three-pipeline scheduling, deadline/partial-failure retry,
+and compatibility verification without migrations or external contract changes.
 
 `TASK-082` is verified for only T017–T025 of pedagogical Lesson generation: independent semantic
 Quality Review, one targeted correction, independent re-review, and exact three/five-call budgets.
@@ -78,9 +172,10 @@ Supabase Auth Redirect URLs wildcard and a fresh confirmation email.
 
 | Task ID | Title | Status | Phase | Evidence |
 |---|---|---|---|---|
-| `TASK-090` | Gemini 3.7 Provider Response Boundary | VERIFIED | Feature 005 targeted hotfix | `reports/TASK-090-implementation.md`, `reports/TASK-090-review.md`, `reports/TASK-090-test.md` |
-| `TASK-089` | Per-Lesson Generation Phase C | VERIFIED | Feature 005 Phase C | `reports/TASK-089-implementation.md`, `reports/TASK-089-review.md`, `reports/TASK-089-test.md` |
-| `TASK-088` | Per-Lesson Generation Phase B | VERIFIED | Feature 005 Phase B | `reports/TASK-088-implementation.md`, `reports/TASK-088-review.md`, `reports/TASK-088-test.md` |
+| `TASK-087` | Stabilize Gemini 3.7 Lesson Generation Latency | VERIFIED | Content operations hotfix | `reports/TASK-087-implementation.md`, `reports/TASK-087-review.md`, `reports/TASK-087-test.md` |
+| `TASK-086` | Migrate Pedagogical Lessons to Gemini 3.7 Flash | VERIFIED | Content operations hotfix | `reports/TASK-086-implementation.md`, `reports/TASK-086-review.md`, `reports/TASK-086-test.md` |
+| `TASK-085` | Handle Gemini Lesson Generation Quota | VERIFIED | Content operations hotfix | `reports/TASK-085-implementation.md`, `reports/TASK-085-review.md`, `reports/TASK-085-test.md` |
+| `TASK-084` | Repair Live Pedagogical Lesson Generation | VERIFIED | Content operations hotfix | `reports/TASK-084-implementation.md`, `reports/TASK-084-review.md`, `reports/TASK-084-test.md` |
 | `TASK-083` | Pedagogical Lesson Generation Phase D | VERIFIED | Feature 003 Phase D | `reports/TASK-083-implementation.md`, `reports/TASK-083-review.md`, `reports/TASK-083-test.md` |
 | `TASK-082` | Pedagogical Lesson Generation Phase C | VERIFIED | Feature 003 Phase C | `reports/TASK-082-implementation.md`, `reports/TASK-082-review.md`, `reports/TASK-082-test.md` |
 | `TASK-080` | Pedagogical Lesson Generation Phase A | VERIFIED | Feature 003 Phase A | `reports/TASK-080-implementation.md`, `reports/TASK-080-review.md`, `reports/TASK-080-test.md` |

@@ -1,10 +1,11 @@
 import type { Metadata } from "next";
 
+import { createProductTitle } from "@/config/product";
 import { LoginForm } from "@/features/auth/components/login-form";
 
 export const metadata: Metadata = {
-  title: "Đăng nhập | Python Learning",
-  description: "Đăng nhập để tiếp tục lộ trình học Python của bạn.",
+  title: createProductTitle("Đăng nhập"),
+  description: "Đăng nhập để tiếp tục lộ trình học của bạn.",
 };
 
 interface LoginPageProps {

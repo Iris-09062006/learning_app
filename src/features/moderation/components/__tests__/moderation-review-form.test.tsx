@@ -13,6 +13,7 @@ function json(data: unknown, ok = true, status = 200): Response {
 }
 
 const content: GeneratedExerciseContent = {
+  type: "predict_output",
   title: "Bài tập gốc",
   description: "Mô tả gốc",
   codeSnippet: "let x = 1;",
@@ -163,6 +164,7 @@ describe("ModerationReviewForm", () => {
         exerciseType: "fix_the_bug",
         difficulty: "medium",
         content: {
+          type: "fix_the_bug",
           title: "Tiêu đề mới",
           description: "Mô tả mới",
           codeSnippet: "const x = 2;",

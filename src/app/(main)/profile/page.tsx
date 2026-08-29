@@ -2,10 +2,11 @@ import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 
 import { PageContainer } from "@/components/layout/page-container";
+import { createProductTitle } from "@/config/product";
 import { ProfileView } from "@/features/profile/components/profile-view";
 import { getOwnProfile, ProfileServiceError } from "@/features/profile/services/profile-service";
 
-export const metadata: Metadata = { title: "Hồ sơ | Python Learning Platform" };
+export const metadata: Metadata = { title: createProductTitle("Hồ sơ") };
 export const dynamic = "force-dynamic";
 
 export default async function ProfilePage() {

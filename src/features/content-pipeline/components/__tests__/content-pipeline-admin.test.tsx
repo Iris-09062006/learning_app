@@ -5,8 +5,8 @@ import type { CourseImportDraft, ResearchCandidate } from "../../types";
 import {
   ContentPipelineAdmin,
   decodePipelineCheckpoint,
+  LESSON_GENERATION_REQUEST_TIMEOUT_MS,
   mergeResearchCandidates,
-  PER_LESSON_GENERATION_REQUEST_TIMEOUT_MS,
   requestPipelineApi,
 } from "../content-pipeline-admin";
 
@@ -114,20 +114,6 @@ function multiImportItem(status: CourseImportDraft["status"] = "outline_review")
   };
 }
 
-function sequentialImport(completedIds: number[], status: CourseImportDraft["status"] = "generating_content") {
-  const base = importItem("outline_review");
-  const lessons = [
-    { id: 73, lessonOrder: 3, title: "Lesson 3" },
-    { id: 71, lessonOrder: 1, title: "Lesson 1" },
-    { id: 74, lessonOrder: 4, title: "Lesson 4" },
-    { id: 72, lessonOrder: 2, title: "Lesson 2" },
-  ].map(({ id, lessonOrder, title }) => ({
-    ...base.lessons[0], id, clientKey: `lesson-${id}`, lessonOrder, title,
-    contentDraft: completedIds.includes(id) ? { ...contentDraft, id: id + 100, outlineLessonId: id, title } : null,
-  }));
-  return { ...base, status, approvedOutlineRevision: 1, lessons };
-}
-
 function json(data: unknown, status = 200) {
   return new Response(JSON.stringify(data), { status, headers: { "Content-Type": "application/json" } });
 }
@@ -151,6 +137,10 @@ function researchCandidate(index: number, overrides: Partial<ResearchCandidate> 
 describe("content pipeline Admin", () => {
   beforeEach(() => sessionStorage.clear());
   afterEach(() => { vi.useRealTimers(); vi.restoreAllMocks(); sessionStorage.clear(); });
+
+  it("allows the Lesson request to outlive the server scheduling window", () => {
+    expect(LESSON_GENERATION_REQUEST_TIMEOUT_MS).toBe(300_000);
+  });
 
   it("does not expose JSON parser errors for an HTML gateway timeout", async () => {
     vi.spyOn(globalThis, "fetch").mockResolvedValue(new Response("<html>timeout</html>", { status: 504 }));
@@ -403,69 +393,42 @@ describe("content pipeline Admin", () => {
     expect(initializedBody).toMatchObject({ sources: [{ sourceDocumentId: 21 }] });
   });
 
-  it("generates missing Lessons in server order with one request in flight and persisted progress", async () => {
-    const completed = new Set<number>([71]);
-    const posts: number[] = [];
-    const events: string[] = [];
-    let inFlight = 0;
-    let maxInFlight = 0;
+  it("generates Lesson contents only after Continue", async () => {
+    let continued = false;
     vi.spyOn(globalThis, "fetch").mockImplementation(async (input) => {
       const url = String(input);
-      if (url === "/api/admin/course-drafts") {
-        events.push("GET");
-        const status = completed.size === 4 ? "content_review" : "generating_content";
-        return json({ success: true, data: { items: [sequentialImport([...completed], status)] } });
-      }
-      const match = url.match(/^\/api\/admin\/course-drafts\/61\/lessons\/(\d+)\/generate$/u);
-      if (match) {
-        const lessonId = Number(match[1]);
-        events.push(`POST:${lessonId}`); posts.push(lessonId);
-        inFlight += 1; maxInFlight = Math.max(maxInFlight, inFlight);
-        await Promise.resolve();
-        completed.add(lessonId); inFlight -= 1;
-        return json({ success: true, data: { outcome: "generated", outlineLessonId: lessonId } }, 201);
-      }
+      if (url === "/api/admin/course-drafts") return json({ success: true, data: { items: [importItem(continued ? "content_review" : "outline_review")] } });
+      if (url === "/api/admin/content-targets") return json({ success: true, data: { items: [] } });
+      if (url === "/api/admin/course-drafts/61/lessons/generate") { continued = true; return json({ success: true, data: { status: "content_review" } }, 201); }
       throw new Error(`Unexpected request: ${url}`);
     });
-
     render(<ContentPipelineAdmin />);
-    expect(await screen.findByText("Tiến độ tạo bài học: 1/4")).toBeInTheDocument();
-    expect(posts).toEqual([]);
-    events.length = 0;
-    fireEvent.click(screen.getByRole("button", { name: "Tiếp tục tạo Lesson contents" }));
-
+    fireEvent.click(await screen.findByRole("button", { name: "Continue: sinh Lesson contents" }));
     expect(await screen.findByText("Nội dung Lesson đã sẵn sàng để review.")).toBeInTheDocument();
-    expect(posts).toEqual([72, 73, 74]);
-    expect(maxInFlight).toBe(1);
-    expect(events).toEqual(["GET", "POST:72", "GET", "POST:73", "GET", "POST:74", "GET", "GET"]);
-    expect(screen.getByText("Tiến độ tạo bài học: 4/4")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Publish Course" })).toBeInTheDocument();
-    expect(events.some((event) => event === "POST:generate")).toBe(false);
   });
 
-  it("stops on failure, preserves server progress, and retries from the first missing Lesson", async () => {
-    const completed = new Set<number>();
-    const posts: number[] = [];
-    const events: string[] = [];
-    let failedOnce = false;
+  it("refreshes a failed Lesson-generation job and retries the failed step", async () => {
+    let generationAttempts = 0;
+    const failedImport = {
+      ...importItem("failed"),
+      errorCode: "LESSON_GENERATION_FAILED",
+      approvedOutlineRevision: 1,
+      lessons: importItem("outline_review").lessons,
+    };
     vi.spyOn(globalThis, "fetch").mockImplementation(async (input) => {
       const url = String(input);
       if (url === "/api/admin/course-drafts") {
-        events.push("GET");
-        const status = failedOnce && completed.size < 4 ? "failed" : completed.size === 4 ? "content_review" : "outline_review";
-        return json({ success: true, data: { items: [{ ...sequentialImport([...completed], status),
-          approvedOutlineRevision: 1, errorCode: status === "failed" ? "LESSON_GENERATION_FAILED" : null }] } });
+        const item = generationAttempts === 0
+          ? importItem("outline_review")
+          : generationAttempts === 1 ? failedImport : importItem("content_review");
+        return json({ success: true, data: { items: [item] } });
       }
-      const match = url.match(/^\/api\/admin\/course-drafts\/61\/lessons\/(\d+)\/generate$/u);
-      if (match) {
-        const lessonId = Number(match[1]);
-        events.push(`POST:${lessonId}`); posts.push(lessonId);
-        if (lessonId === 73 && !failedOnce) {
-          failedOnce = true;
-          return json({ success: false, error: { message: "Provider temporarily unavailable." } }, 502);
-        }
-        completed.add(lessonId);
-        return json({ success: true, data: { outcome: "generated", outlineLessonId: lessonId } }, 201);
+      if (url === "/api/admin/course-drafts/61/lessons/generate") {
+        generationAttempts += 1;
+        return generationAttempts === 1
+          ? json({ success: false, error: { message: "Unable to generate all Lesson contents." } }, 502)
+          : json({ success: true, data: { status: "content_review" } }, 201);
       }
       throw new Error(`Unexpected request: ${url}`);
     });
@@ -473,62 +436,11 @@ describe("content pipeline Admin", () => {
     render(<ContentPipelineAdmin />);
     fireEvent.click(await screen.findByRole("button", { name: "Continue: sinh Lesson contents" }));
     expect(await screen.findByRole("button", { name: "Thử lại bước bị lỗi" })).toBeInTheDocument();
-    expect(posts).toEqual([71, 72, 73]);
-    expect(screen.getByText("Tiến độ tạo bài học: 2/4")).toBeInTheDocument();
     expect(screen.getByRole("alert")).toHaveTextContent("Dịch vụ tạm thời quá tải hoặc hết thời gian chờ");
 
-    events.length = 0;
     fireEvent.click(screen.getByRole("button", { name: "Thử lại bước bị lỗi" }));
     expect(await screen.findByText("Nội dung Lesson đã sẵn sàng để review.")).toBeInTheDocument();
-    expect(posts).toEqual([71, 72, 73, 73, 74]);
-    expect(events).toEqual(["GET", "POST:73", "GET", "POST:74", "GET", "GET"]);
-    expect(screen.getByText("Tiến độ tạo bài học: 4/4")).toBeInTheDocument();
-  });
-
-  it("guards duplicate clicks and applies 300 seconds only to one-Lesson generation", async () => {
-    expect(PER_LESSON_GENERATION_REQUEST_TIMEOUT_MS).toBe(300_000);
-    let resolveGeneration: ((response: Response) => void) | undefined;
-    const generation = new Promise<Response>((resolve) => { resolveGeneration = resolve; });
-    let completed = false;
-    let postCalls = 0;
-    vi.spyOn(globalThis, "fetch").mockImplementation(async (input, init) => {
-      const url = String(input);
-      if (url === "/api/admin/course-drafts") {
-        expect(init?.signal).toBeUndefined();
-        const item = sequentialImport(completed ? [71] : [], completed ? "content_review" : "outline_review");
-        return json({ success: true, data: { items: [{ ...item, lessons: item.lessons.filter((lesson) => lesson.id === 71) }] } });
-      }
-      if (url === "/api/admin/course-drafts/61/lessons/71/generate") {
-        postCalls += 1;
-        expect(init?.signal).toBeInstanceOf(AbortSignal);
-        return generation;
-      }
-      throw new Error(`Unexpected request: ${url}`);
-    });
-
-    render(<ContentPipelineAdmin />);
-    const button = await screen.findByRole("button", { name: "Continue: sinh Lesson contents" });
-    fireEvent.click(button); fireEvent.click(button);
-    await waitFor(() => expect(postCalls).toBe(1));
-    completed = true;
-    resolveGeneration?.(json({ success: true, data: { outcome: "generated" } }, 201));
-    expect(await screen.findByText("Nội dung Lesson đã sẵn sàng để review.")).toBeInTheDocument();
-  });
-
-  it("does not auto-start after reload and performs zero POSTs when server truth is complete", async () => {
-    let posts = 0;
-    vi.spyOn(globalThis, "fetch").mockImplementation(async (input) => {
-      const url = String(input);
-      if (url === "/api/admin/course-drafts") {
-        return json({ success: true, data: { items: [sequentialImport([71, 72, 73, 74], "content_review")] } });
-      }
-      if (url.includes("/lessons/")) { posts += 1; throw new Error("Generation must not start."); }
-      throw new Error(`Unexpected request: ${url}`);
-    });
-    render(<ContentPipelineAdmin />);
-    expect(await screen.findByText("Tiến độ tạo bài học: 4/4")).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Publish Course" })).toBeInTheDocument();
-    expect(posts).toBe(0);
+    expect(generationAttempts).toBe(2);
   });
 
   it("starts a new local workflow without removing persisted Course imports", async () => {
@@ -702,6 +614,161 @@ describe("content pipeline Admin", () => {
     expect(JSON.stringify(savedBody)).not.toContain("sourceChunkIndexes");
   });
 
+  it("reconciles a renamed Course from uncached server truth without a browser reload", async () => {
+    let serverTitle = "Python nền tảng";
+    const fetchSpy = vi.spyOn(globalThis, "fetch").mockImplementation(async (input, init) => {
+      const url = String(input);
+      if (url === "/api/admin/course-drafts") {
+        return json({ success: true, data: { items: [{ ...importItem(), title: serverTitle }] } });
+      }
+      if (url === "/api/admin/course-drafts/61/outline" && init?.method === "PATCH") {
+        serverTitle = (JSON.parse(String(init.body)) as { title: string }).title;
+        return json({ success: true, data: { jobId: 61, outlineRevision: 2 } });
+      }
+      throw new Error(`Unexpected request: ${url}`);
+    });
+
+    render(<ContentPipelineAdmin />);
+    const title = await screen.findByRole("textbox", { name: "Course title" });
+    fireEvent.change(title, { target: { value: "Tên Course mới" } });
+    fireEvent.click(screen.getByRole("button", { name: "Lưu outline" }));
+
+    expect(await screen.findByText("Đã lưu outline revision mới.")).toBeInTheDocument();
+    expect(screen.getByRole("textbox", { name: "Course title" })).toHaveValue("Tên Course mới");
+    expect(screen.getByRole("button", { name: /Tên Course mới/ })).toBeInTheDocument();
+    expect(fetchSpy.mock.calls.filter(([input]) => String(input) === "/api/admin/course-drafts"))
+      .toEqual(expect.arrayContaining([
+        ["/api/admin/course-drafts", { cache: "no-store" }],
+      ]));
+  });
+
+  it("preserves edited Course metadata when saving fails", async () => {
+    vi.spyOn(globalThis, "fetch").mockImplementation(async (input, init) => {
+      const url = String(input);
+      if (url === "/api/admin/course-drafts") {
+        return json({ success: true, data: { items: [importItem()] } });
+      }
+      if (url === "/api/admin/course-drafts/61/outline" && init?.method === "PATCH") {
+        return json({ success: false, error: { message: "Không thể lưu tên Course." } }, 500);
+      }
+      throw new Error(`Unexpected request: ${url}`);
+    });
+
+    render(<ContentPipelineAdmin />);
+    const title = await screen.findByRole("textbox", { name: "Course title" });
+    fireEvent.change(title, { target: { value: "Tên cần thử lại" } });
+    fireEvent.click(screen.getByRole("button", { name: "Lưu outline" }));
+
+    expect(await screen.findByRole("alert")).toHaveTextContent("Không thể lưu tên Course.");
+    expect(title).toHaveValue("Tên cần thử lại");
+    expect(screen.getByRole("button", { name: "Lưu outline" })).toBeEnabled();
+  });
+
+  it("reloads canonical Lesson content immediately after a successful save", async () => {
+    let lessonTitle = "Biến Python";
+    vi.spyOn(globalThis, "fetch").mockImplementation(async (input, init) => {
+      const url = String(input);
+      if (url === "/api/admin/course-drafts") {
+        const item = importItem("content_review");
+        item.lessons[0] = {
+          ...item.lessons[0],
+          contentDraft: item.lessons[0].contentDraft
+            ? { ...item.lessons[0].contentDraft, title: lessonTitle }
+            : null,
+        };
+        return json({ success: true, data: { items: [item] } });
+      }
+      if (url === "/api/admin/lesson-drafts/81" && init?.method === "PATCH") {
+        lessonTitle = `${(JSON.parse(String(init.body)) as { title: string }).title.trim()} (server)`;
+        return json({ success: true, data: { status: "content_review" } });
+      }
+      throw new Error(`Unexpected request: ${url}`);
+    });
+
+    render(<ContentPipelineAdmin />);
+    fireEvent.click((await screen.findAllByRole("button", { name: /Biến Python/ }))[0]);
+    const title = screen.getByRole("textbox", { name: "Tiêu đề" });
+    fireEvent.change(title, { target: { value: "Biến và kiểu dữ liệu" } });
+    fireEvent.click(screen.getByRole("button", { name: "Lưu Lesson content" }));
+
+    expect(await screen.findByText("Đã lưu Lesson content revision mới.")).toBeInTheDocument();
+    expect(screen.getByRole("textbox", { name: "Tiêu đề" }))
+      .toHaveValue("Biến và kiểu dữ liệu (server)");
+  });
+
+  it("keeps section Markdown editable and shows a rendered math preview", async () => {
+    const item = importItem("content_review");
+    const draft = item.lessons[0].contentDraft;
+    if (!draft) throw new Error("Expected a content draft fixture.");
+    draft.sections[0].bodyMarkdown = "Định thức $|A| \\neq 0$.\n\n$$\\begin{cases}x+y=1 \\\\ x-y=0\\end{cases}$$";
+
+    vi.spyOn(globalThis, "fetch").mockImplementation(async (input) => {
+      const url = String(input);
+      if (url === "/api/admin/course-drafts") return json({ success: true, data: { items: [item] } });
+      if (url === "/api/admin/content-targets") return json({ success: true, data: { items: [] } });
+      throw new Error(`Unexpected request: ${url}`);
+    });
+
+    const { container } = render(<ContentPipelineAdmin />);
+    fireEvent.click((await screen.findAllByRole("button", { name: /Biến Python/ }))[0]);
+
+    expect(screen.getByRole("textbox", { name: "Nội dung phần 1" })).toHaveValue(draft.sections[0].bodyMarkdown);
+    expect(await screen.findByText("Bản xem trước")).toBeInTheDocument();
+    expect(container.querySelectorAll('[data-math-inline="true"]')).toHaveLength(1);
+    expect(container.querySelectorAll('[data-math-display="true"]')).toHaveLength(1);
+    expect(container.querySelector(".katex-display")).not.toBeNull();
+  });
+
+  it("resets completed multi-source creation state and keeps the new import selected", async () => {
+    let generated = false;
+    sessionStorage.setItem("learningapp.course-outline-generation", JSON.stringify({
+      version: 2,
+      topic: "TypeScript nâng cao",
+      selectedCandidateKeys: [],
+      candidates: [],
+      researchCursor: null,
+      researchHasMore: false,
+      initializationKey: "33333333-3333-4333-8333-333333333333",
+      jobId: 61,
+      pendingAction: null,
+      attempts: [{
+        clientKey: "source-1",
+        idempotencyKey: "22222222-2222-4222-8222-222222222222",
+        kind: "manual_url",
+        label: "TypeScript handbook",
+        url: "https://example.com/typescript",
+        sourceDocumentId: 9,
+        status: "extracted",
+        attached: true,
+      }],
+    }));
+    vi.spyOn(globalThis, "fetch").mockImplementation(async (input, init) => {
+      const url = String(input);
+      if (url === "/api/admin/course-drafts") {
+        return json({ success: true, data: { items: [{
+          ...importItem(generated ? "outline_review" : "processing"),
+          title: generated ? "TypeScript nâng cao" : "Course import đang chuẩn bị",
+        }] } });
+      }
+      if (url === "/api/admin/course-drafts/61/outline" && init?.method === "POST") {
+        generated = true;
+        return json({ success: true, data: { jobId: 61, outlineRevision: 1 } }, 201);
+      }
+      throw new Error(`Unexpected request: ${url}`);
+    });
+
+    render(<ContentPipelineAdmin />);
+    expect(await screen.findByDisplayValue("TypeScript nâng cao")).toBeInTheDocument();
+    expect(screen.getByText("TypeScript handbook")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Tạo outline từ evidence đã review" }));
+
+    expect(await screen.findByText("Course outline mới đã sẵn sàng để review. Workflow tạo mới đã được đặt lại.")).toBeInTheDocument();
+    expect(screen.getByLabelText("Chủ đề Course")).toHaveValue("");
+    expect(screen.queryByText("TypeScript handbook")).not.toBeInTheDocument();
+    expect(screen.getByRole("textbox", { name: "Course title" })).toHaveValue("TypeScript nâng cao");
+    expect(sessionStorage.getItem("learningapp.course-outline-generation")).toBeNull();
+  });
+
   it("shows Admin citation provenance and disables Continue for stale evidence", async () => {
     const stale = { ...multiImportItem("outline_review"), outlineStale: true };
     vi.spyOn(globalThis, "fetch").mockResolvedValue(json({ success: true, data: { items: [stale] } }));
@@ -735,7 +802,7 @@ describe("content pipeline Admin", () => {
     expect(courseCard).not.toBeNull();
     expect(courseCard!).toHaveClass("rounded-xl", "border-border", "bg-surface", "shadow-sm");
 
-    expect(screen.getByRole("button", { name: "Continue: sinh Lesson contents" })).toHaveClass("bg-primary", "text-on-primary", "rounded-lg");
+    expect(screen.getByRole("button", { name: "Continue: sinh Lesson contents" })).toHaveClass("bg-primary", "text-on-primary", "rounded-xl");
     expect(screen.getByText("outline_review · outline r1")).toHaveClass("bg-primary-soft", "text-primary");
 
     for (const field of [
@@ -743,7 +810,7 @@ describe("content pipeline Admin", () => {
       screen.getByLabelText("Description"),
       screen.getByLabelText("Course learning objectives (mỗi dòng một mục tiêu)"),
     ]) {
-      expect(field).toHaveClass("border-border", "bg-surface", "rounded-lg");
+      expect(field).toHaveClass("border-border", "bg-surface", "rounded-xl");
     }
 
     vi.restoreAllMocks();
@@ -756,7 +823,7 @@ describe("content pipeline Admin", () => {
     const second = render(<ContentPipelineAdmin />);
     containers.push(second.container);
 
-    expect(await screen.findByRole("button", { name: "Publish Course" })).toHaveClass("bg-primary", "text-on-primary", "rounded-lg");
+    expect(await screen.findByRole("button", { name: "Publish Course" })).toHaveClass("bg-primary", "text-on-primary", "rounded-xl");
 
     for (const container of containers) {
       for (const element of Array.from(container.querySelectorAll<HTMLElement>("*"))) {

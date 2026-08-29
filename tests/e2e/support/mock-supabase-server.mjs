@@ -1,7 +1,7 @@
 import { createServer } from "node:http";
 
 const host = "127.0.0.1";
-const port = 54321;
+const port = Number(process.env.E2E_SUPABASE_PORT ?? 54321);
 const createdAt = "2026-01-01T00:00:00.000Z";
 
 const seededUsers = [
@@ -14,13 +14,20 @@ const seededUsers = [
   },
   {
     id: "00000000-0000-4000-8000-000000000002",
+    email: "learner2@example.com",
+    password: "Password123!",
+    username: "E2E Learner Two",
+    role: "learner",
+  },
+  {
+    id: "00000000-0000-4000-8000-000000000003",
     email: "moderator@example.com",
     password: "Password123!",
     username: "E2E Moderator",
     role: "moderator",
   },
   {
-    id: "00000000-0000-4000-8000-000000000003",
+    id: "00000000-0000-4000-8000-000000000004",
     email: "admin@example.com",
     password: "Password123!",
     username: "E2E Admin",
@@ -80,6 +87,7 @@ function resetState() {
     publishedExercises: [],
     publishedExerciseOptions: [],
     publishedExerciseSolutions: [],
+    layoutLessons: [],
     nextSubmissionId: 1,
     nextExplanationId: 1,
     nextGeneratedExerciseId: 3001,
@@ -99,7 +107,7 @@ function createAccessToken(user) {
     aud: "authenticated",
     exp: now + 3600,
     iat: now,
-    iss: "http://127.0.0.1:54321/auth/v1",
+    iss: `http://${host}:${port}/auth/v1`,
     role: "authenticated",
     sub: user.id,
     email: user.email,
@@ -174,6 +182,15 @@ function tableRows(table) {
         language: "python",
         is_published: true,
       },
+      {
+        id: 2,
+        slug: "nhap-mon-ky-thuat-phan-mem",
+        title: "Nhập môn Kỹ thuật Phần mềm",
+        description: "Hiểu quy trình, yêu cầu và thiết kế phần mềm từ các nguồn học tập đã chọn.",
+        level: "beginner",
+        language: "python",
+        is_published: true,
+      },
     ],
     chapters: [
       {
@@ -185,6 +202,15 @@ function tableRows(table) {
         is_published: true,
         lessons: [{ count: 2 }],
       },
+      {
+        id: 12,
+        course_id: 2,
+        title: "Tổng quan Kỹ thuật Phần mềm",
+        description: "Các khái niệm nền tảng và lộ trình học.",
+        chapter_order: 1,
+        is_published: true,
+        lessons: [{ count: 0 }],
+      },
     ],
     lessons: [
       {
@@ -195,7 +221,16 @@ function tableRows(table) {
         lesson_order: 1,
         estimated_minutes: 8,
         is_published: true,
-        chapters: { course_id: 1, is_published: true },
+        chapters: {
+          course_id: 1,
+          is_published: true,
+          courses: {
+            id: 1,
+            title: "Python cÄƒn báº£n",
+            is_published: true,
+            archived_at: null,
+          },
+        },
       },
       {
         id: 102,
@@ -205,7 +240,16 @@ function tableRows(table) {
         lesson_order: 2,
         estimated_minutes: 10,
         is_published: true,
-        chapters: { course_id: 1, is_published: true },
+        chapters: {
+          course_id: 1,
+          is_published: true,
+          courses: {
+            id: 1,
+            title: "Python cÄƒn báº£n",
+            is_published: true,
+            archived_at: null,
+          },
+        },
       },
     ],
     exercises: [
@@ -258,6 +302,7 @@ function tableRows(table) {
   if (table === "exercises") return [...staticTables.exercises, ...state.publishedExercises];
   if (table === "exercise_options") return [...staticTables.exercise_options, ...state.publishedExerciseOptions];
   if (table === "exercise_solutions") return [...staticTables.exercise_solutions, ...state.publishedExerciseSolutions];
+  if (table === "lessons") return [...staticTables.lessons, ...state.layoutLessons];
   return staticTables[table] ?? [];
 }
 
@@ -392,8 +437,13 @@ async function handleRpc(request, response, name) {
       });
       state.progress.push(
         { user_id: user.id, lesson_id: 101, status: "unlocked", started_at: null, last_accessed_at: null },
-        { user_id: user.id, lesson_id: 102, status: "locked", started_at: null, last_accessed_at: null },
+        { user_id: user.id, lesson_id: 102, status: state.layoutLessons.length > 0 ? "unlocked" : "locked", started_at: null, last_accessed_at: null },
       );
+      if (state.layoutLessons.length > 0) {
+        state.progress.push(
+          { user_id: user.id, lesson_id: 103, status: "unlocked", started_at: null, last_accessed_at: null },
+        );
+      }
     }
     return sendJson(response, 200, {
       enrollment_id: state.enrollments.find((item) => item.user_id === user.id)?.id,
@@ -601,6 +651,28 @@ const server = createServer(async (request, response) => {
     }
     if (url.pathname === "/__e2e/reset" && request.method === "POST") {
       resetState();
+      return sendJson(response, 200, { ok: true });
+    }
+    if (url.pathname === "/__e2e/adjacency-layout" && request.method === "POST") {
+      state.layoutLessons = [{
+        id: 103,
+        chapter_id: 11,
+        title: "Thực hành chuỗi và định dạng dữ liệu trong ứng dụng",
+        content: "Bài học cuối dùng để xác minh bố cục điều hướng liền kề.",
+        lesson_order: 3,
+        estimated_minutes: 12,
+        is_published: true,
+        chapters: {
+          course_id: 1,
+          is_published: true,
+          courses: {
+            id: 1,
+            title: "Python căn bản",
+            is_published: true,
+            archived_at: null,
+          },
+        },
+      }];
       return sendJson(response, 200, { ok: true });
     }
     if (url.pathname === "/v1/chat/completions" && request.method === "POST") {

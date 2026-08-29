@@ -374,23 +374,80 @@ export interface CreateGeneratedExercisePayload {
   model: string | null;
 }
 
+function getSupabaseProjectHost(): string | null {
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  if (!url) return null;
+
+  try {
+    return new URL(url).host;
+  } catch {
+    return null;
+  }
+}
+
+function getSupabaseHttpStatus(error: unknown): number | string | null {
+  if (!error || typeof error !== "object") return null;
+
+  for (const key of ["status", "statusCode", "httpStatus", "httpStatusCode"] as const) {
+    const value = Reflect.get(error, key);
+    if (typeof value === "number" || typeof value === "string") return value;
+  }
+
+  return null;
+}
+
 export async function createGeneratedExerciseRecord(
   payload: CreateGeneratedExercisePayload
 ): Promise<GeneratedExerciseRecord> {
   const supabase = await createServerSupabaseClient();
+  const rpcFunction = "create_generated_exercise_draft";
+  const rpcArguments = {
+    p_lesson_id: payload.lesson_id,
+    p_exercise_type: payload.exercise_type,
+    p_difficulty: payload.difficulty,
+    p_content: payload.content as unknown as Database["public"]["Functions"]["create_generated_exercise_draft"]["Args"]["p_content"],
+    p_provider: payload.provider,
+    p_model: payload.model,
+  };
+  const diagnosticContext = {
+    stage: "exercise_persistence",
+    supabaseProjectHost: getSupabaseProjectHost(),
+    rpcName: rpcFunction,
+    exerciseType: payload.exercise_type,
+    difficulty: payload.difficulty,
+    rpcArgumentPresence: {
+      p_lesson_id: Object.hasOwn(rpcArguments, "p_lesson_id") ? "yes" : "no",
+      p_exercise_type: Object.hasOwn(rpcArguments, "p_exercise_type") ? "yes" : "no",
+      p_difficulty: Object.hasOwn(rpcArguments, "p_difficulty") ? "yes" : "no",
+      p_content: Object.hasOwn(rpcArguments, "p_content") ? "yes" : "no",
+      p_provider: Object.hasOwn(rpcArguments, "p_provider") ? "yes" : "no",
+      p_model: Object.hasOwn(rpcArguments, "p_model") ? "yes" : "no",
+    },
+  };
+  console.info("[exercise-generation-diagnostic]", {
+    ...diagnosticContext,
+    event: "exercise_persistence_started",
+  });
   const { data, error } = await supabase
-    .rpc("create_generated_exercise_draft", {
-      p_lesson_id: payload.lesson_id,
-      p_exercise_type: payload.exercise_type,
-      p_difficulty: payload.difficulty,
-      p_content: payload.content as unknown as Database["public"]["Functions"]["create_generated_exercise_draft"]["Args"]["p_content"],
-      p_provider: payload.provider,
-      p_model: payload.model,
-    });
+    .rpc(rpcFunction, rpcArguments);
 
   if (error || !data) {
+    console.error("[exercise-generation-diagnostic]", {
+      ...diagnosticContext,
+      event: "exercise_persistence_failure",
+      dbErrorCode: error?.code ?? null,
+      dbErrorMessage: error?.message ?? null,
+      dbErrorDetails: error?.details ?? null,
+      dbErrorHint: error?.hint ?? null,
+      httpStatus: getSupabaseHttpStatus(error),
+    });
     throw new Error("DATABASE_ERROR");
   }
+
+  console.info("[exercise-generation-diagnostic]", {
+    ...diagnosticContext,
+    event: "exercise_persistence_success",
+  });
 
   return data as unknown as GeneratedExerciseRecord;
 }

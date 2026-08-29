@@ -2,68 +2,66 @@
 
 ## Outcome
 
-The Gemini 3.7 HTTP-200 stage-one failure was reproduced and repaired at the provider response
-boundary. A contiguous one-based provider `blueprint.sections[].order` sequence is now accepted as
-semantically equivalent and normalized to the unchanged internal zero-based `LessonBlueprint`.
-Zero-based output remains valid; mixed, duplicated, gapped, or otherwise non-contiguous ordering
-still fails closed.
+Lesson generation now treats each persisted `lesson_content_drafts.status = 'ready'` revision as a
+durable checkpoint for its approved outline Lesson. Bulk generation reloads the approved revision
+and its Lesson drafts from database state, skips ready Lessons with zero provider calls, and runs
+missing Lessons sequentially in outline order. Each final reviewed Lesson persistence call is
+awaited before the next Lesson begins.
 
-## Exact failure path
+Retry preparation now preserves an existing `approved_outline_revision` rather than overwriting it
+with a different current revision. Repository loading selects that approved revision and selects
+the latest ready content revision for each Lesson. Job failure continues to update only
+`course_import_jobs`; it does not delete or invalidate ready Lesson drafts.
 
-`POST /api/admin/course-drafts/{jobId}/lessons/{lessonId}/generate` calls
-`generateCourseLessonContent()` -> `generateOneCourseLesson()` ->
-`generateReviewedPedagogicalLesson()` -> `generatePedagogicalLessonSections()` ->
-`NineRouterLessonDraftProvider.synthesizeEvidenceAndBlueprint()` -> `fetch()` ->
-`parseProviderResponse()` -> `choices[0].message.content` -> `parseSynthesisBlueprint()`.
+An all-complete failed retry performs zero provider calls and uses the new
+`reconcile_course_lesson_generation` RPC to restore `content_review` without inserting a duplicate
+Lesson revision. Targeted single-Lesson regeneration retains its existing preparation semantics.
 
-Before the fix, `parseSynthesisBlueprint()` required `section.order === index`. A valid Gemini
-sequence `1, 2, ...` reached the section validator and threw `AI_RESPONSE_INVALID`; the pedagogical
-wrapper then reached `generateCourseLessonContent()`, which failed the job without persistence and
-mapped the error to public `AI_PROVIDER_ERROR` / HTTP 502. Calls 2-5 were never started.
+## Behavior before the fix
 
-## Expected synthesis contract
+- `generateOneCourseLesson()` already awaited Lesson persistence immediately after the final review
+  passed; invalid or rejected candidates were not persisted.
+- `generateCourseLessonContents()` already filtered out non-null `contentDraft` values, so it did
+  not unconditionally generate every Lesson. The predicate did not explicitly require `status =
+  'ready'`.
+- `prepare_course_lesson_generation` did not delete Lesson drafts, but it always replaced
+  `approved_outline_revision` with `current_outline_revision`.
+- Repository loading always selected `current_outline_revision`. If it differed from the previously
+  approved revision, the approved Lesson IDs and their ready drafts disappeared from retry truth,
+  making retry appear to start from Lesson 1.
+- `fail_course_import_job` changed only job status/error state and did not erase Lesson drafts.
 
-- Root: exactly required object fields `synthesis` and `blueprint`.
-- `synthesis.items`: required array with at least one item.
-- Item: exactly required `itemKey`, `kind`, `statement`, `evidenceRefs`; key is non-empty, at most
-  80 characters and unique; kind is one of concept, definition, prerequisite, procedure,
-  comparison, example, misconception, best_practice, relationship; statement is non-empty;
-  evidence refs are non-empty unique integers owned by the request-local evidence map.
-- `synthesis.coverageGaps`: required array, allowed empty.
-- Gap: exactly required `gapKey`, `description`, `affectedObjectiveIndexes`, `relatedEvidenceRefs`;
-  key is non-empty, at most 80 characters and unique; description is non-empty; affected objective
-  indexes are non-empty unique valid zero-based indexes; related evidence refs may be empty but must
-  be unique, integral, and request-owned.
-- `blueprint.progressionRationale`: required non-empty string.
-- `blueprint.sections`: required array of 1-12 sections.
-- Section: exactly required `sectionKey`, `order`, `purpose`, `heading`, `teachingObjective`,
-  `synthesisItemKeys`, `evidenceRefs`, `expectedElements`; section key is non-empty, at most 80
-  characters and unique; provider order is a wholly contiguous zero-based or one-based sequence and
-  is normalized to zero-based; purpose is one of the 13 repository `SECTION_PURPOSES`; heading is
-  non-empty and at most 150 characters; teaching objective is non-empty; synthesis keys and expected
-  elements are non-empty unique strings of at most 240 characters; synthesis keys must exist;
-  evidence refs must be non-empty, unique, request-owned, and supported by the named synthesis
-  items. Prerequisite synthesis must precede dependent content except introduction/objectives.
-- Every schema object rejects additional properties. Markdown JSON fences are stripped only at the
-  outer content boundary; arbitrary malformed JSON is not repaired.
+## Authoritative state
 
-## Migration history
+The authoritative per-Lesson completion state is a `lesson_content_drafts` row belonging to the
+Lesson in `approved_outline_revision` with `status = 'ready'`. Overall `course_import_jobs.status`
+is not used as proof that an individual Lesson is complete.
 
-- `1cc29ee8`: changed the locked pedagogical model and matching test fixtures from
-  `gemini-3.6-flash` to `gemini-3.7-flash`; it added no envelope/parser/schema compatibility logic.
-- `935067b`: replaced pedagogical temperatures with `reasoning_effort: "low"`, asserted no
-  temperature and exact 3/5-call payloads; scheduler serialization, client timeout, reports, and UI
-  changes are unrelated to this boundary. Its commit diff did not add order normalization.
-- The missing compatibility behavior existed separately in `18d452b`: accept fully contiguous
-  one-based order and normalize it to zero-based. The target Feature 005 tree omitted that behavior
-  while already retaining the approved Gemini 3.7 request settings.
+## Database change
 
-## Files changed
+Migration `031_lesson_generation_retry_checkpointing.sql` replaces the existing prepare
+RPC behavior to preserve the approved revision and adds an Admin-only all-complete reconciliation
+RPC. It adds no table, column, enum, prompt data, or checkpoint table. The migration was created
+locally and was not applied to any database.
 
-- `src/features/content-pipeline/providers/lesson-draft-provider.ts`
-- `src/features/content-pipeline/providers/lesson-draft-provider.test.ts`
-- TASK-090 state and reports
+## Files changed for TASK-090
 
-No validator requirement was weakened. `StructuredLessonDraft`, public API, database, citations,
-regeneration, publication, Exercises, learner progress, provider timeout, client timeout,
-orchestration, retry count, and call budget are unchanged.
+- `src/features/content-pipeline/services/content-pipeline-service.ts`
+- `src/features/content-pipeline/services/content-pipeline-service.test.ts`
+- `src/features/content-pipeline/repositories/content-pipeline-repository.ts`
+- `src/features/content-pipeline/repositories/content-pipeline-repository.test.ts`
+- `src/features/content-pipeline/repositories/pdf-to-course-migration.test.ts`
+- `supabase/migrations/031_lesson_generation_retry_checkpointing.sql`
+- `docs/ai-course-current-flow.md`
+- `docs/database.md`
+- Task state and TASK-090 report files
+
+The working tree also contains pre-existing uncommitted TASK-089 provider/diagnostic changes in
+overlapping service/repository files. Those changes were preserved.
+
+## Limits
+
+- No real AI call, remote database mutation, migration application, build, deployment, push, or
+  commit was performed.
+- Concurrent duplicate generate requests were not redesigned; this task covers failure/retry
+  checkpoint correctness for the existing request workflow.
