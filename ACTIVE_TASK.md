@@ -1,15 +1,23 @@
 # Active Task Queue
 
-- **Active task:** `TASK-106` — Exercise Completion Return Flow and Review Mode
-- **Status:** `VERIFIED`
+- **Active task:** `TASK-107` â€” Stabilize Prerequisite Progression Validation
+- **Status:** `IN_PROGRESS`
 - **Owner / Reviewer:** Codex
 - **Deferred design task:** `TASK-047` (`DRAFT`)
-- **Previous blocked task:** `TASK-044` — external Supabase Redirect URL verification
+- **Previous blocked task:** `TASK-044` â€” external Supabase Redirect URL verification
 
 ## Current objective
 
+TASK-107 makes prerequisite progression depend on each prerequisite item's first blueprint
+occurrence, so recap/summary reuse does not cause a false violation, while genuinely reversed
+dependencies remain invalid. The bounded retry receives an actionable repair constraint. Source
+changes and regression tests are written, but automated gates were not run at the user's request;
+the task remains unverified. The user explicitly requested committing and pushing this state.
+
+## Previous verified objective
+
 TASK-106 separates incomplete Exercise attempts from persisted read-only review. Correct completion
-must show a clear return-to-Lesson CTA; `Xem lại` must restore the current learner's latest successful
+must show a clear return-to-Lesson CTA; `Xem láº¡i` must restore the current learner's latest successful
 answer across refresh without exposing solutions or another learner's state. Existing grading,
 completion semantics, generation, auth/RLS, and schema remain unchanged; no deploy, push, or commit
 occurred. All supported answer-shape tests, persistence/user-isolation Playwright, full unit suite,
@@ -35,7 +43,7 @@ final review pass. No migration, AI call, deploy, push, or commit occurred.
 
 TASK-098 makes `/moderation/lessons` use the existing TASK-095 dark semantic surface and foreground
 tokens. Computed-style regressions pass in Chromium, installed Chrome, and installed Edge at
-1920×1080 and 1366×768 with title contrast 16.96:1 and no horizontal overflow. Firefox is not
+1920Ã—1080 and 1366Ã—768 with title contrast 16.96:1 and no horizontal overflow. Firefox is not
 installed. Lint, typecheck, the full Vitest suite, build, diff check, and final review pass; no
 Exercise behavior, provider, database, auth, Supabase, deploy, push, or commit changed.
 
@@ -149,11 +157,11 @@ retryable job was not mutated, and no public/database contract, push, or deploym
 
 ## Previous verified objective
 
-TASK-083 implements and verifies only T026–T036 of feature `003-pedagogical-lesson-generation`: the verified pedagogical runner is active for Continue and Lesson-wide regeneration, Course generation uses bounded three-pipeline scheduling with a 240-second deadline and partial-success retry semantics, and persistence plus downstream compatibility pass without migrations or external contract changes.
+TASK-083 implements and verifies only T026â€“T036 of feature `003-pedagogical-lesson-generation`: the verified pedagogical runner is active for Continue and Lesson-wide regeneration, Course generation uses bounded three-pipeline scheduling with a 240-second deadline and partial-success retry semantics, and persistence plus downstream compatibility pass without migrations or external contract changes.
 
 ## Previous verified objective
 
-TASK-082 implements and verifies only T017–T025 of feature `003-pedagogical-lesson-generation`: independent
+TASK-082 implements and verifies only T017â€“T025 of feature `003-pedagogical-lesson-generation`: independent
 semantic Quality Review, exactly one targeted correction, one independent re-review, and the
 bounded three/five-call transient runner. Focused tests, lint, typecheck, diff review, and
 protected-scope checks pass. Phase D integration, persistence, scheduling, migrations, push,
@@ -161,7 +169,7 @@ and deploy remain out of scope.
 
 ## Previous verified objective
 
-TASK-081 implements and verifies only T009–T016 of feature `003-pedagogical-lesson-generation`: one locked-model
+TASK-081 implements and verifies only T009â€“T016 of feature `003-pedagogical-lesson-generation`: one locked-model
 all-section request driven by the validated blueprint, purpose-aware instructions, deterministic
 blueprint/citation validation, and transient normalization to the unchanged `StructuredLessonDraft`.
 Quality Review, correction, Continue integration, persistence, migrations, push, and deploy remain
@@ -170,9 +178,9 @@ zero-migration/feature-002 checks pass.
 
 ## Previous verified objective
 
-TASK-080 implements and verifies only T001–T008 of feature `003-pedagogical-lesson-generation`: immutable
+TASK-080 implements and verifies only T001â€“T008 of feature `003-pedagogical-lesson-generation`: immutable
 approved-Lesson evidence identity, transient synthesis/blueprint contracts, strict structural
-validation, and one combined provider request locked to `gemini-3.6-flash`. Phase B–D, final
+validation, and one combined provider request locked to `gemini-3.6-flash`. Phase Bâ€“D, final
 Lesson prose, quality review, Continue integration, persistence, migrations, push, and deploy are
 out of scope.
 
@@ -191,7 +199,7 @@ No production job was retried and no deployment or push was performed.
 
 ## Previous verified objective
 
-TASK-078 implements only T036–T047 from `specs/002-tavily-web-ingestion/tasks.md`: contract
+TASK-078 implements only T036â€“T047 from `specs/002-tavily-web-ingestion/tasks.md`: contract
 validation, one explicitly gated real Tavily Basic Extract smoke, full feature/browser regression,
 security/secret and migration readiness checks, deployment/rollback documentation, and the final
 GO/NO-GO assessment. Deployment, push, remote migration application, production-data mutation,
@@ -204,22 +212,22 @@ normalization, deterministic snapshot, and chunk checks. All Phase D gates pass.
 still requires `TAVILY_API_KEY` before a separately authorized deployment; no push, deployment, or
 remote mutation was performed. Evidence is recorded in `reports/TASK-078-*.md`.
 
-TASK-077 is verified. T026–T035 from `specs/002-tavily-web-ingestion/tasks.md` harden immutable
+TASK-077 is verified. T026â€“T035 from `specs/002-tavily-web-ingestion/tasks.md` harden immutable
 stored-evidence generation, provider-outage isolation, file/PDF independence, URL security,
 untrusted-content framing, privacy, and inactive legacy direct-fetch classification.
 
-Phase D is closed and verified under TASK-078: T001–T047 are complete, including T039 and T047.
+Phase D is closed and verified under TASK-078: T001â€“T047 are complete, including T039 and T047.
 Implementation verdict is VERIFIED. Deployment readiness is CONDITIONAL GO pending the server-only
 Vercel `TAVILY_API_KEY`, redeploy, and production smoke; configuration, deployment, push, and
 remote Supabase mutation remain separate and out of scope.
 
-TASK-076 is verified. T010–T025 from `specs/002-tavily-web-ingestion/tasks.md` switch confirmed
+TASK-076 is verified. T010â€“T025 from `specs/002-tavily-web-ingestion/tasks.md` switch confirmed
 discovered/manual URL acquisition to the verified provider-backed extraction boundary while
 preserving immutable snapshots, existing
 materialization/chunking, atomic Course-import ownership, partial settlement, and retry/idempotency.
 Phase C/D, migrations, deployment, push, and remote Supabase operations remain out of scope.
 
-TASK-075 is verified. T001–T009 from `specs/002-tavily-web-ingestion/tasks.md` add the
+TASK-075 is verified. T001â€“T009 from `specs/002-tavily-web-ingestion/tasks.md` add the
 vendor-neutral extraction contract, server-only Tavily Basic Extract adapter, deterministic
 normalization/eligibility, and provider-neutral error mapping. The Phase A gate, focused
 URL/Search/PDF regressions, lint, typecheck, full unit suite, and keyless build pass. Active URL
@@ -239,16 +247,16 @@ TASK-072 is verified locally: a resolved Course import now starts the next Admin
 cleanly while published source evidence remains in the database. Phase 5 task `TASK-071` remains
 verified locally. No deployment or push was performed.
 
-Phase 1 T001–T031 is verified. Migration, PostgreSQL concurrency/invariant checks, focused and
+Phase 1 T001â€“T031 is verified. Migration, PostgreSQL concurrency/invariant checks, focused and
 full tests, legacy PDF browser E2E, lint, typecheck, and build pass. Evidence is recorded in
 `reports/TASK-067-implementation.md`, `reports/TASK-067-test.md`, and
 `reports/TASK-067-review.md`.
 
-Phase 2 T032–T049 is verified. Source-qualified provider/DTO contracts, deterministic job-wide
+Phase 2 T032â€“T049 is verified. Source-qualified provider/DTO contracts, deterministic job-wide
 generation, Admin provenance/editor compatibility, and both new plus legacy browser gates pass.
-Phase 3 T050–T073 is verified. Phase 4 T074–T091 is verified: stateless research, Brave search,
+Phase 3 T050â€“T073 is verified. Phase 4 T074â€“T091 is verified: stateless research, Brave search,
 deterministic candidate review/ranking, selected-only Phase 3 handoff, accessibility, and all
-required browser regressions pass. Phase 5 T092–T103 is verified: production-like migration,
+required browser regressions pass. Phase 5 T092â€“T103 is verified: production-like migration,
 RLS/RPC, API/OpenAPI, observability, security, full regression/E2E/accessibility, documentation,
 and rollout/rollback readiness gates pass. Evidence is in `reports/TASK-071-*.md`.
 
@@ -274,7 +282,7 @@ using the sole source chunk after the retry and citation-normalization deploymen
 TASK-064 is verified in production. Sources 23 and 24 each persisted 2,392 extracted characters,
 confirming the Vercel Node 22/native Linux PDF packaging fix before the separate outline failure.
 
-TASK-063 is verified. Learners can use “Tiếp theo” to start the immediately following published
+TASK-063 is verified. Learners can use â€œTiáº¿p theoâ€ to start the immediately following published
 Lesson without waiting for completion, while exercise-based completion remains truthful. Migration
 029 is applied and verified on hosted Supabase as version `20260811153651`.
 
@@ -307,3 +315,4 @@ TASK-055 is verified locally. PDF-to-Course batch generation, persistent review
 resolution, per-Lesson exercise generation, authorization hardening, focused/full
 unit tests, E2E, lint, typecheck, build, and diff review pass. Migration `023` is
 intentionally not applied to shared Supabase, and no deployment was performed.
+
