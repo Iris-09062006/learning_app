@@ -57,6 +57,7 @@ export async function getLessonById(lessonId: number): Promise<LessonResponse> {
     estimatedMinutes: lesson.estimatedMinutes,
     status: lesson.status,
     exercises: lesson.exercises,
+    previousLesson: lesson.previousLesson,
     nextLesson: lesson.nextLesson,
   };
 }

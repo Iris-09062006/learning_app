@@ -977,6 +977,10 @@ interface LessonDetail {
   estimatedMinutes: number | null;
   status: ProgressStatus;
   exercises: ExerciseSummary[];
+  previousLesson: {
+    id: number;
+    title: string;
+  } | null;
   nextLesson: {
     id: number;
     title: string;
@@ -990,8 +994,14 @@ interface ExerciseSummary {
   difficulty: DifficultyLevel;
   order: number;
   isRequired: boolean;
+  isCompleted: boolean;
 }
 ```
+
+`previousLesson` và `nextLesson` được phân giải cùng nhau theo thứ tự curriculum persisted
+`(chapters.chapter_order, lessons.lesson_order)`, không theo ID. `isCompleted` chỉ là `true` khi user
+hiện tại đã có ít nhất một `submissions.is_correct = true` cho Exercise; RLS và filter `user_id`
+không cho phép trạng thái của learner khác xuất hiện trong response.
 
 Nếu locked:
 
@@ -1233,6 +1243,24 @@ interface SubmissionSummary {
 ```
 
 Chỉ trả submission của user hiện tại.
+
+Review mode uses the existing persisted submission contract and route intent:
+
+```text
+/exercises/:exerciseId              attempt mode when no successful submission exists
+/exercises/:exerciseId?mode=review  read-only review intent
+```
+
+- `Xem lại` resolves the current learner's highest `attemptNumber` where `isCorrect = true`.
+- Persisted completion takes precedence over the route hint: refreshing a just-completed attempt
+  remains read-only rather than reopening an editable form.
+- The server restores only that owned submission's `answer`; refresh repeats the same server read.
+- Review controls are read-only and cannot create a new submission.
+- Static feedback may be returned only after the server has established ownership of a successful
+  submission. The learner response never includes `correctAnswer`, solution identifiers, or the
+  `exercise_solutions` row.
+- If the current learner has no successful submission, no review answer is returned and another
+  learner's submission is never used as a fallback.
 
 ---
 

@@ -95,7 +95,9 @@ describe("ExerciseView (fix_the_bug)", () => {
     });
 
     expect(await screen.findByText("Bạn đã làm rất tốt!")).toBeInTheDocument();
-    expect(screen.getByText("Chính xác!")).toBeInTheDocument();
+    expect(screen.getByText("Hoàn thành")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /Nộp/u })).not.toBeInTheDocument();
+    expect(screen.getAllByRole("link", { name: "Quay lại bài học" })).toHaveLength(2);
     expect(refreshMock).toHaveBeenCalled();
   });
 
@@ -160,6 +162,29 @@ describe("ExerciseView (fix_the_bug)", () => {
     });
 
     expect(await screen.findByText("Đúng rồi!")).toBeInTheDocument();
+  });
+
+  it("restores the persisted coding choice and makes review read-only", () => {
+    render(
+      <ExerciseView
+        exercise={fixTheBugExercise}
+        reviewSubmission={{
+          id: 700,
+          exerciseId: 201,
+          answer: { selectedOptionId: 1 },
+          isCorrect: true,
+          attemptNumber: 2,
+          submittedAt: "2026-08-29T00:00:00.000Z",
+          feedback: "Đáp án đã được lưu.",
+        }}
+      />,
+    );
+
+    expect(screen.getByTestId("fix-the-bug-drag-drop")).toHaveAttribute("data-readonly", "true");
+    expect(screen.getByText("return a + b;")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Gỡ bỏ" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /Nộp/u })).not.toBeInTheDocument();
+    expect(screen.getByText("Đáp án đã được lưu.")).toBeInTheDocument();
   });
 it("uses Stitch design tokens and no legacy palette classes", () => {
     const { container } = render(<ExerciseView exercise={fixTheBugExercise} />);

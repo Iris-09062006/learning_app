@@ -125,6 +125,7 @@ test.describe("T022 Lesson functional regression", () => {
     await page.goto("/lessons/101");
     await page.getByRole("button", { name: "Bắt đầu bài học" }).click();
     await expect(page.getByRole("article", { name: "Bài học" })).toBeVisible();
+    await expect(page.getByRole("link", { name: /Bài trước/ })).toHaveCount(0);
 
     // Markdown content renders through the real lesson route.
     await expect(page.getByText(/Biến giúp lưu trữ giá trị/)).toBeVisible();
@@ -160,12 +161,12 @@ test.describe("T022 Lesson functional regression", () => {
     await expect(page).toHaveURL(/\/exercises\/1001$/);
     await page.getByRole("button", { name: "5" }).click();
     await page.getByRole("button", { name: "Nộp bài" }).click();
-    await expect(page.getByRole("status")).toContainText("Chính xác!");
+    await expect(page.getByRole("status")).toContainText("Hoàn thành");
 
     // Back on the completed lesson, the next-lesson card is data-driven.
     await page.goto("/lessons/101");
     await expect(page.getByRole("button", { name: /Ôn lại nội dung/ })).toBeVisible();
-    const nextNav = page.getByRole("navigation", { name: "Bài tiếp theo" });
+    const nextNav = page.getByRole("navigation", { name: "Điều hướng bài học liền kề" });
     await expect(nextNav).toBeVisible();
     await expect(nextNav.getByText("Kiểu số và chuỗi")).toBeVisible();
 
@@ -185,7 +186,8 @@ test.describe("T022 Lesson functional regression", () => {
     });
   });
 
-  test("does not fabricate a next or previous lesson when none exists", async ({ page }) => {
+  test("keeps Previous and preserves the existing final-Lesson behavior", async ({ page }) => {
+    await page.setViewportSize({ width: 375, height: 667 });
     await loginAs(page);
     await enrollInSeedCourse(page);
 
@@ -195,7 +197,10 @@ test.describe("T022 Lesson functional regression", () => {
     await expect(page).toHaveURL(/\/exercises\/1001$/);
     await page.getByRole("button", { name: "5" }).click();
     await page.getByRole("button", { name: "Nộp bài" }).click();
-    await expect(page.getByRole("status")).toContainText("Chính xác!");
+    const completedState = page.getByTestId("exercise-completed-state");
+    await expect(completedState).toContainText("Hoàn thành");
+    await expect(completedState.getByRole("link", { name: "Quay lại bài học" })).toHaveAttribute("href", "/lessons/101");
+    await expect(page.getByRole("button", { name: /Nộp/u })).toHaveCount(0);
 
     // Lesson 102 is the last lesson in the seed course.
     await page.goto("/lessons/102");
@@ -203,11 +208,102 @@ test.describe("T022 Lesson functional regression", () => {
     await page.getByRole("button", { name: "Bắt đầu bài học" }).click();
     await expect(page.getByRole("article", { name: "Bài học" })).toBeVisible();
 
-    // No next-lesson nav, no fabricated previous lesson.
-    await expect(page.getByRole("navigation", { name: "Bài tiếp theo" })).toHaveCount(0);
+    // The final Lesson has no Next action, while Previous resolves from the same curriculum order.
     await expect(page.getByRole("button", { name: /Tiếp theo/ })).toHaveCount(0);
-    await expect(page.getByRole("navigation", { name: /Bài trước/ })).toHaveCount(0);
-    await expect(page.getByText(/Bài trước/)).toHaveCount(0);
+    const previousLink = page.getByRole("link", { name: /Bài trước/ });
+    await expect(previousLink).toHaveAttribute("href", "/lessons/101");
+    const portraitBox = await previousLink.boundingBox();
+    expect(portraitBox?.height).toBeGreaterThanOrEqual(44);
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+
+    await page.setViewportSize({ width: 667, height: 375 });
+    await expect(previousLink).toBeVisible();
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+  });
+
+  test("persists correct Exercise completion across return, reload, session, and learner isolation", async ({ page, browser }) => {
+    await loginAs(page);
+    await enrollInSeedCourse(page);
+    await page.goto("/lessons/101");
+    await page.getByRole("button", { name: "Bắt đầu bài học" }).click();
+
+    const exerciseCard = page.getByTestId("lesson-exercise-1001");
+    await expect(exerciseCard).toHaveAttribute("data-completed", "false");
+    await exerciseCard.getByRole("link", { name: /Làm bài/ }).click();
+    await page.getByRole("button", { name: "5" }).click();
+    await page.getByRole("button", { name: "Nộp bài" }).click();
+    const persistedCompletedState = page.getByTestId("exercise-completed-state");
+    await expect(persistedCompletedState).toContainText("Hoàn thành");
+    await expect(persistedCompletedState.getByRole("link", { name: "Quay lại bài học" })).toHaveAttribute("href", "/lessons/101");
+    await expect(page.getByRole("button", { name: /Nộp/u })).toHaveCount(0);
+
+    await page.reload();
+    await expect(page).toHaveURL(/\/exercises\/1001$/u);
+    await expect(page.getByTestId("exercise-completed-state")).toContainText("Hoàn thành");
+    await expect(page.getByRole("button", { name: "5" })).toHaveAttribute("aria-pressed", "true");
+    await expect(page.getByRole("button", { name: "5" })).toBeDisabled();
+    await expect(page.getByRole("button", { name: /Nộp/u })).toHaveCount(0);
+
+    await page.getByTestId("exercise-completed-state").getByRole("link", { name: "Quay lại bài học" }).click();
+    await expect(page).toHaveURL(/\/lessons\/101$/u);
+    await expect(page.getByTestId("lesson-exercise-1001")).toHaveAttribute("data-completed", "true");
+    const reviewLink = page.getByRole("link", { name: /Xem lại/ });
+    await expect(reviewLink).toHaveAttribute("href", "/exercises/1001?mode=review");
+    await expect(page.getByRole("complementary", { name: "Thông tin bài học" })).toContainText("1/1 hoàn thành");
+
+    await page.reload();
+    await expect(page.getByTestId("lesson-exercise-1001")).toHaveAttribute("data-completed", "true");
+
+    await reviewLink.click();
+    await expect(page).toHaveURL(/\/exercises\/1001\?mode=review$/u);
+    const persistedChoice = page.getByRole("button", { name: "5" });
+    await expect(persistedChoice).toHaveAttribute("aria-pressed", "true");
+    await expect(persistedChoice).toBeDisabled();
+    await expect(page.getByTestId("exercise-completed-state")).toContainText("Hoàn thành");
+    await expect(page.getByTestId("exercise-completed-state")).toContainText("2 cộng 3 bằng 5, nên chương trình in ra 5.");
+    await expect(page.getByRole("button", { name: /Nộp/u })).toHaveCount(0);
+
+    await page.reload();
+    await expect(page).toHaveURL(/\/exercises\/1001\?mode=review$/u);
+    await expect(page.getByRole("button", { name: "5" })).toHaveAttribute("aria-pressed", "true");
+    await expect(page.getByRole("button", { name: "5" })).toBeDisabled();
+
+    const sameLearnerContext = await browser.newContext();
+    const sameLearnerPage = await sameLearnerContext.newPage();
+    await loginAs(sameLearnerPage);
+    await sameLearnerPage.goto("/lessons/101");
+    await expect(sameLearnerPage.getByTestId("lesson-exercise-1001")).toHaveAttribute("data-completed", "true");
+    await sameLearnerContext.close();
+
+    const otherLearnerContext = await browser.newContext();
+    const otherLearnerPage = await otherLearnerContext.newPage();
+    await loginAs(otherLearnerPage, "learner2");
+    await enrollInSeedCourse(otherLearnerPage);
+    await otherLearnerPage.goto("/lessons/101");
+    await otherLearnerPage.getByRole("button", { name: "Bắt đầu bài học" }).click();
+    await expect(otherLearnerPage.getByTestId("lesson-exercise-1001")).toHaveAttribute("data-completed", "false");
+    await expect(otherLearnerPage.getByRole("link", { name: /Làm bài/ })).toBeVisible();
+    await otherLearnerPage.goto("/exercises/1001?mode=review");
+    await expect(otherLearnerPage.getByRole("button", { name: "5" })).toHaveAttribute("aria-pressed", "false");
+    await expect(otherLearnerPage.getByRole("button", { name: "Nộp bài" })).toBeVisible();
+    await expect(otherLearnerPage.getByTestId("exercise-completed-state")).toHaveCount(0);
+    await otherLearnerContext.close();
+  });
+
+  test("does not mark an incorrect-only Exercise attempt completed", async ({ page }) => {
+    await loginAs(page);
+    await enrollInSeedCourse(page);
+    await page.goto("/lessons/101");
+    await page.getByRole("button", { name: "Bắt đầu bài học" }).click();
+    await page.getByRole("link", { name: /Làm bài/ }).click();
+    await page.getByRole("button", { name: "4" }).click();
+    await page.getByRole("button", { name: "Nộp bài" }).click();
+    await expect(page.getByRole("status")).toContainText("Chưa chính xác");
+
+    await page.getByRole("link", { name: "Quay lại bài học" }).click();
+    await expect(page.getByTestId("lesson-exercise-1001")).toHaveAttribute("data-completed", "false");
+    await page.reload();
+    await expect(page.getByTestId("lesson-exercise-1001")).toHaveAttribute("data-completed", "false");
   });
 
   test("keeps unauthorized and not-enrolled access unchanged", async ({ page }) => {

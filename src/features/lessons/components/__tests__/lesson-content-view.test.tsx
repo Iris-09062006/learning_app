@@ -40,6 +40,7 @@ const mockLesson: LessonResponse = {
       difficulty: "easy",
       order: 1,
       isPublished: true,
+      isCompleted: false,
     },
     {
       id: 102,
@@ -48,8 +49,10 @@ const mockLesson: LessonResponse = {
       difficulty: "medium",
       order: 2,
       isPublished: true,
+      isCompleted: false,
     },
   ],
+  previousLesson: null,
   nextLesson: null,
 };
 
@@ -163,7 +166,7 @@ describe("LessonContentView", () => {
       />,
     );
 
-    const nav = screen.getByRole("navigation", { name: "Bài tiếp theo" });
+    const nav = screen.getByRole("navigation", { name: "Điều hướng bài học liền kề" });
     expect(nav).toHaveTextContent("Hàm Python");
     fireEvent.click(screen.getByRole("button", { name: /Tiếp theo/ }));
 
@@ -194,7 +197,7 @@ describe("LessonContentView", () => {
 
   it("hides the next-lesson link when there is no next lesson", () => {
     render(<LessonContentView lesson={{ ...mockLesson, status: "inProgress", nextLesson: null }} />);
-    expect(screen.queryByRole("navigation", { name: "Bài tiếp theo" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("navigation", { name: "Điều hướng bài học liền kề" })).not.toBeInTheDocument();
   });
 
   it("keeps data-driven status chips on the approved semantic token families", () => {
@@ -224,16 +227,23 @@ describe("LessonContentView", () => {
       />,
     );
 
-    const nav = screen.getByRole("navigation", { name: "Bài tiếp theo" });
+    const nav = screen.getByRole("navigation", { name: "Điều hướng bài học liền kề" });
     expect(nav).toHaveTextContent("Bài tiếp theo");
     expect(nav).toHaveTextContent("Hàm Python");
-    expect(nav.className).toContain("rounded-xl");
-    expect(nav.className).toContain("border-border");
-    expect(nav.className).toContain("bg-surface");
+    expect(nav.className).toContain("grid");
+    expect(nav).toHaveAttribute("data-layout", "single-column");
+    expect(nav.className).toContain("grid-cols-1");
+    expect(nav.className).not.toContain("sm:grid-cols-2");
+    expect(nav.children).toHaveLength(1);
+
+    const nextCard = screen.getByTestId("lesson-next-card");
+    expect(nextCard.className).toContain("rounded-xl");
+    expect(nextCard.className).toContain("border-border");
+    expect(nextCard.className).toContain("bg-surface");
 
     // Stitch left accent bar (primary) carries the next-lesson affordance.
     const accentBar = Array.from(nav.querySelectorAll("span")).find((span) =>
-      span.className.includes("bg-primary") && span.className.includes("left-0"),
+      span.className.includes("bg-primary") && span.className.includes("right-0"),
     );
     expect(accentBar).toBeDefined();
 
@@ -253,7 +263,7 @@ describe("LessonContentView", () => {
     expect(aside).toHaveTextContent("Thời lượng");
     expect(aside).toHaveTextContent("15 phút");
     expect(aside).toHaveTextContent("Bài tập");
-    expect(aside).toHaveTextContent("2");
+    expect(aside).toHaveTextContent("0/2 hoàn thành");
 
     const card = aside.querySelector(":scope > div:first-child") as HTMLElement;
     expect(card.className).toContain("rounded-xl");
@@ -274,6 +284,73 @@ describe("LessonContentView", () => {
     expect(screen.queryByRole("navigation", { name: /Bài trước/ })).not.toBeInTheDocument();
     expect(screen.queryByRole("link", { name: /Bài trước/ })).not.toBeInTheDocument();
     expect(screen.queryByText(/Bài trước/)).not.toBeInTheDocument();
+  });
+
+  it("renders exact previous and next actions together for a middle lesson", () => {
+    render(
+      <LessonContentView
+        lesson={{
+          ...mockLesson,
+          status: "inProgress",
+          previousLesson: { id: 9, title: "Nhập môn" },
+          nextLesson: { id: 11, title: "Hàm Python" },
+        }}
+      />,
+    );
+
+    const nav = screen.getByRole("navigation", { name: "Điều hướng bài học liền kề" });
+    expect(nav).toHaveAttribute("data-layout", "two-columns");
+    expect(nav.className).toContain("sm:grid-cols-2");
+    expect(nav.children).toHaveLength(2);
+    expect(nav).toHaveTextContent("Nhập môn");
+    expect(nav).toHaveTextContent("Hàm Python");
+    const previousLink = screen.getByRole("link", { name: /Bài trước/ });
+    expect(previousLink).toHaveAttribute("href", "/lessons/9");
+    expect(previousLink.className).toContain("min-h-11");
+    expect(screen.getByRole("button", { name: /Tiếp theo/ }).className).toContain("min-h-11");
+  });
+
+  it("keeps only Previous available on the final lesson", () => {
+    render(
+      <LessonContentView
+        lesson={{
+          ...mockLesson,
+          status: "inProgress",
+          previousLesson: { id: 9, title: "Bài áp chót" },
+          nextLesson: null,
+        }}
+      />,
+    );
+
+    expect(screen.getByRole("link", { name: /Bài trước/ })).toHaveAttribute("href", "/lessons/9");
+    expect(screen.queryByRole("button", { name: /Tiếp theo/ })).not.toBeInTheDocument();
+    const nav = screen.getByRole("navigation", { name: "Điều hướng bài học liền kề" });
+    expect(nav).toHaveAttribute("data-layout", "single-column");
+    expect(nav.className).toContain("grid-cols-1");
+    expect(nav.className).not.toContain("sm:grid-cols-2");
+    expect(nav.children).toHaveLength(1);
+  });
+
+  it("distinguishes persisted completed exercises without removing access", () => {
+    render(
+      <LessonContentView
+        lesson={{
+          ...mockLesson,
+          status: "inProgress",
+          exercises: [
+            { ...mockLesson.exercises[0], isCompleted: true },
+            mockLesson.exercises[1],
+          ],
+        }}
+      />,
+    );
+
+    const completedCard = screen.getByTestId("lesson-exercise-101");
+    expect(completedCard).toHaveAttribute("data-completed", "true");
+    expect(completedCard).toHaveTextContent("Hoàn thành");
+    expect(screen.getByRole("link", { name: /Xem lại/ })).toHaveAttribute("href", "/exercises/101?mode=review");
+    expect(screen.getByRole("link", { name: /Làm bài/ })).toHaveAttribute("href", "/exercises/102");
+    expect(screen.getByRole("complementary", { name: "Thông tin bài học" })).toHaveTextContent("1/2 hoàn thành");
   });
 
   it("hardens the responsive grid so ultra-long content cannot stretch the page", () => {

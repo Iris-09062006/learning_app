@@ -1,5 +1,6 @@
 import {
   fetchExerciseForSubmission,
+  fetchLatestCorrectSubmission,
   fetchExerciseSolutionAdmin,
   submitExerciseRpc,
 } from "@/features/exercises/repositories/exercise-repository";
@@ -8,7 +9,24 @@ import type {
   SubmitExerciseRequest,
   SubmitExerciseResponse,
   LessonProgress,
+  ExerciseReviewSubmission,
 } from "@/features/exercises/types";
+
+export async function getExerciseReviewSubmission(
+  exerciseId: number,
+): Promise<ExerciseReviewSubmission | null> {
+  const submission = await fetchLatestCorrectSubmission(exerciseId);
+  if (!submission || !submission.isCorrect) return null;
+
+  // Only read privileged feedback after the authenticated/RLS-scoped submission proves ownership.
+  const solutionData = await fetchExerciseSolutionAdmin(exerciseId);
+
+  return {
+    ...submission,
+    isCorrect: true,
+    feedback: solutionData?.explanation ?? "",
+  };
+}
 
 export async function submitExercise(
   exerciseId: number,

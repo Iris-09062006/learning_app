@@ -2,15 +2,16 @@ import AxeBuilder from "@axe-core/playwright";
 import { expect, type Locator, type Page } from "@playwright/test";
 
 export const E2E_PASSWORD = "Password123!";
+const E2E_SUPABASE_URL = process.env.E2E_SUPABASE_URL ?? "http://127.0.0.1:54321";
 
 export async function resetE2eData(page: Page) {
-  const response = await page.request.post("http://127.0.0.1:54321/__e2e/reset");
+  const response = await page.request.post(`${E2E_SUPABASE_URL}/__e2e/reset`);
   expect(response.ok()).toBe(true);
 }
 
 export async function loginAs(
   page: Page,
-  role: "learner" | "moderator" | "admin" = "learner",
+  role: "learner" | "learner2" | "moderator" | "admin" = "learner",
 ) {
   await page.goto("/login");
   await page.getByLabel("Email").fill(`${role}@example.com`);

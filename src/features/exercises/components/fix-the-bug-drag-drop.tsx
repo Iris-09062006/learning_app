@@ -8,12 +8,14 @@ interface FixTheBugDragDropProps {
   options: ExerciseOption[];
   value: number | null;
   onChange: (optionId: number | null) => void;
+  readOnly?: boolean;
 }
 
 export const FixTheBugDragDrop: React.FC<FixTheBugDragDropProps> = ({
   options,
   value,
   onChange,
+  readOnly = false,
 }) => {
   const [isDragging, setIsDragging] = useState(false);
   const [isDragOver, setIsDragOver] = useState(false);
@@ -41,11 +43,13 @@ export const FixTheBugDragDrop: React.FC<FixTheBugDragDropProps> = ({
   }
 
   function selectOption(option: ExerciseOption): void {
+    if (readOnly) return;
     onChange(option.id);
     announce(`Đã chọn mảnh code “${option.content}” vào vị trí trống.`);
   }
 
   function clearOption(): void {
+    if (readOnly) return;
     if (selectedOption) {
       announce(`Đã gỡ bỏ mảnh code “${selectedOption.content}”. Vị trí trống.`);
     }
@@ -61,6 +65,10 @@ export const FixTheBugDragDrop: React.FC<FixTheBugDragDropProps> = ({
     event: React.DragEvent<HTMLButtonElement>,
     option: ExerciseOption
   ): void {
+    if (readOnly) {
+      event.preventDefault();
+      return;
+    }
     event.dataTransfer.setData("text/plain", String(option.id));
     event.dataTransfer.effectAllowed = "move";
     setIsDragging(true);
@@ -68,6 +76,7 @@ export const FixTheBugDragDrop: React.FC<FixTheBugDragDropProps> = ({
   }
 
   function handleDragOver(event: React.DragEvent<HTMLDivElement>): void {
+    if (readOnly) return;
     event.preventDefault();
     event.dataTransfer.dropEffect = "move";
     setIsDragOver(true);
@@ -80,6 +89,7 @@ export const FixTheBugDragDrop: React.FC<FixTheBugDragDropProps> = ({
   }
 
   function handleDrop(event: React.DragEvent<HTMLDivElement>): void {
+    if (readOnly) return;
     event.preventDefault();
     setIsDragOver(false);
     setIsDragging(false);
@@ -102,7 +112,7 @@ export const FixTheBugDragDrop: React.FC<FixTheBugDragDropProps> = ({
   }
 
   return (
-    <div data-testid="fix-the-bug-drag-drop" className="space-y-4">
+    <div data-testid="fix-the-bug-drag-drop" data-readonly={readOnly} className="space-y-4">
       {/* Drop zone */}
       <div
         data-testid="drop-zone"
@@ -117,7 +127,7 @@ export const FixTheBugDragDrop: React.FC<FixTheBugDragDropProps> = ({
         ].join(" ")}
       >
         <p className="text-xs font-semibold uppercase tracking-wide text-text-muted">
-          Vị trí trống — kéo mảnh code vào đây
+          {readOnly ? "Đáp án đã nộp" : "Vị trí trống — kéo mảnh code vào đây"}
         </p>
 
         {selectedOption ? (
@@ -125,18 +135,19 @@ export const FixTheBugDragDrop: React.FC<FixTheBugDragDropProps> = ({
             <code className="block min-w-0 flex-1 overflow-x-auto rounded-lg bg-code-background px-4 py-3 font-mono text-sm leading-6 text-code-text">
               {selectedOption.content}
             </code>
-            <button
+            {!readOnly ? <button
               type="button"
               onClick={clearOption}
               className="shrink-0 cursor-pointer rounded-lg border border-border bg-surface px-3 py-1.5 text-xs font-medium text-text-secondary transition-colors duration-200 hover:border-danger hover:bg-danger-soft hover:text-danger focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
             >
               Gỡ bỏ
-            </button>
+            </button> : null}
           </div>
         ) : (
-          <button
-            type="button"
-            onClick={focusOptions}
+            <button
+              type="button"
+              onClick={focusOptions}
+              disabled={readOnly}
             className="mt-3 w-full cursor-pointer rounded-lg border border-border bg-surface-subtle px-4 py-4 text-left text-sm text-text-muted transition-colors duration-200 hover:border-primary hover:bg-primary-soft focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
           >
             Chọn mảnh code ở bên dưới để điền vào vị trí này
@@ -167,12 +178,13 @@ export const FixTheBugDragDrop: React.FC<FixTheBugDragDropProps> = ({
               <button
                 key={option.id}
                 type="button"
-                draggable
+                draggable={!readOnly}
+                disabled={readOnly}
                 onClick={() => selectOption(option)}
                 onDragStart={(event) => handleDragStart(event, option)}
                 onDragEnd={handleDragEnd}
                 aria-label={`Mảnh code: ${option.content}`}
-                className="min-w-0 cursor-pointer rounded-xl border border-border bg-surface p-4 text-left shadow-sm transition-all duration-200 hover:border-primary hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background active:cursor-grabbing"
+                className={`min-w-0 rounded-xl border border-border bg-surface p-4 text-left shadow-sm transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background ${readOnly ? "cursor-default" : "cursor-pointer hover:border-primary hover:shadow-md active:cursor-grabbing"}`}
               >
                 <code className="block max-w-full overflow-x-auto font-mono text-sm leading-6 text-code-text">
                   {option.content}

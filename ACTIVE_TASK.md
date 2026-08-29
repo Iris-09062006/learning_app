@@ -1,12 +1,37 @@
 # Active Task Queue
 
-- **Active task:** `TASK-098` — Lesson Exercise Card Cross-Browser Contrast
-- **Status:** `VERIFIED` — local only; commit explicitly deferred
+- **Active task:** `TASK-106` — Exercise Completion Return Flow and Review Mode
+- **Status:** `VERIFIED`
 - **Owner / Reviewer:** Codex
 - **Deferred design task:** `TASK-047` (`DRAFT`)
 - **Previous blocked task:** `TASK-044` — external Supabase Redirect URL verification
 
 ## Current objective
+
+TASK-106 separates incomplete Exercise attempts from persisted read-only review. Correct completion
+must show a clear return-to-Lesson CTA; `Xem lại` must restore the current learner's latest successful
+answer across refresh without exposing solutions or another learner's state. Existing grading,
+completion semantics, generation, auth/RLS, and schema remain unchanged; no deploy, push, or commit
+occurred. All supported answer-shape tests, persistence/user-isolation Playwright, full unit suite,
+lint, typecheck, build, diff, secret, and final review gates pass.
+
+## Previous verified objective
+
+TASK-100 fixes the layout-only regression where a Next-only Lesson navigation card is forced into a
+narrow second grid column by an empty placeholder. Single adjacent cards use the full row; the
+two-card state remains balanced. Resolver, URLs, completion, progress, and database behavior are
+unchanged. Nine first/middle/last screenshots at 375px, 1366px, and 1920px plus all required gates
+pass. Review verdict is `PASS`; no deploy, push, or commit occurred.
+
+## Previous verified objective
+
+TASK-099 adds bidirectional Lesson navigation from the existing persisted curriculum order and shows
+per-learner Exercise completion from correct persisted submissions. Correct completion survives
+return, reload, and a new session without leaking to a second learner; incorrect-only attempts stay
+incomplete. Focused/full tests, 8 Chromium Playwright flows, lint, typecheck, build, diff, secret, and
+final review pass. No migration, AI call, deploy, push, or commit occurred.
+
+## Previous verified objective
 
 TASK-098 makes `/moderation/lessons` use the existing TASK-095 dark semantic surface and foreground
 tokens. Computed-style regressions pass in Chromium, installed Chrome, and installed Edge at

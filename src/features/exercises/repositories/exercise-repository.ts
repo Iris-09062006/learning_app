@@ -256,7 +256,7 @@ export async function fetchLearnerSubmissions(
 
   const { data: submissions, error } = await supabase
     .from("submissions")
-    .select("id, is_correct, submitted_at")
+    .select("id, exercise_id, answer, is_correct, attempt_number, submitted_at")
     .eq("exercise_id", exerciseId)
     .eq("user_id", user.id)
     .order("submitted_at", { ascending: false });
@@ -267,8 +267,53 @@ export async function fetchLearnerSubmissions(
 
   return submissions.map((submission) => ({
     id: submission.id,
+    exerciseId: submission.exercise_id,
+    answer: submission.answer && typeof submission.answer === "object" && !Array.isArray(submission.answer)
+      ? submission.answer as Record<string, unknown>
+      : {},
     isCorrect: submission.is_correct,
+    attemptNumber: submission.attempt_number,
     submittedAt: submission.submitted_at,
   }));
+}
+
+export async function fetchLatestCorrectSubmission(
+  exerciseId: number,
+): Promise<SubmissionSummary | null> {
+  const supabase = await createServerSupabaseClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) {
+    throw new Error("UNAUTHENTICATED");
+  }
+
+  const { data: submission, error } = await supabase
+    .from("submissions")
+    .select("id, exercise_id, answer, is_correct, attempt_number, submitted_at")
+    .eq("exercise_id", exerciseId)
+    .eq("user_id", user.id)
+    .eq("is_correct", true)
+    .order("attempt_number", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  if (error) {
+    throw new Error(`Failed to fetch completed submission: ${error.message}`);
+  }
+
+  if (!submission) return null;
+
+  return {
+    id: submission.id,
+    exerciseId: submission.exercise_id,
+    answer: submission.answer && typeof submission.answer === "object" && !Array.isArray(submission.answer)
+      ? submission.answer as Record<string, unknown>
+      : {},
+    isCorrect: submission.is_correct,
+    attemptNumber: submission.attempt_number,
+    submittedAt: submission.submitted_at,
+  };
 }
 

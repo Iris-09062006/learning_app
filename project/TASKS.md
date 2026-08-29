@@ -11,6 +11,16 @@
 
 ## Active Task
 
+`TASK-106` is verified: successful Exercise completion provides a clear Lesson return action, and
+completed Exercises restore the current learner's latest successful persisted answer in read-only
+review across refresh. All gates pass; grading, solution security, completion semantics, and schema
+remain unchanged. Commit: none.
+
+`TASK-099` is verified locally: Previous and Next come from one persisted curriculum order, while
+Exercise completion comes from user-owned correct submissions and survives return/reload/new session
+without cross-user leakage. Full local gates and review pass; progress semantics and schema are
+unchanged, and no commit occurred.
+
 `TASK-098` is verified locally: the Lesson → Exercise listing now uses the existing dark semantic
 surface/foreground tokens instead of a light-only card utility plus inherited dark text. Chromium,
 installed Chrome, and installed Edge computed-style regressions pass at 1920×1080 and 1366×768;

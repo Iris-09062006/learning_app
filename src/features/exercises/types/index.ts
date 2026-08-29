@@ -99,11 +99,16 @@ export interface SubmitExerciseResponse {
 
 export interface SubmissionSummary {
   id: number;
-  exerciseId?: number;
-  answer?: Record<string, unknown>;
+  exerciseId: number;
+  answer: Record<string, unknown>;
   isCorrect: boolean;
-  attemptNumber?: number;
+  attemptNumber: number;
   submittedAt: string;
+}
+
+export interface ExerciseReviewSubmission extends SubmissionSummary {
+  isCorrect: true;
+  feedback: string;
 }
 
 export interface GetLearnerSubmissionsResponse {

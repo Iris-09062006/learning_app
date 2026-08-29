@@ -1,9 +1,10 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { submitExercise } from "../exercise-service";
+import { getExerciseReviewSubmission, submitExercise } from "../exercise-service";
 import * as repository from "../../repositories/exercise-repository";
 
 vi.mock("../../repositories/exercise-repository", () => ({
   fetchExerciseForSubmission: vi.fn(),
+  fetchLatestCorrectSubmission: vi.fn(),
   fetchExerciseSolutionAdmin: vi.fn(),
   submitExerciseRpc: vi.fn(),
 }));
@@ -131,6 +132,40 @@ describe("exercise-service", () => {
       });
       await submitExercise(7, { answer });
       expect(repository.submitExerciseRpc).toHaveBeenCalledWith(7, expected);
+    });
+  });
+
+  describe("getExerciseReviewSubmission", () => {
+    it("returns the latest learner-owned correct answer with static feedback", async () => {
+      vi.mocked(repository.fetchLatestCorrectSubmission).mockResolvedValue({
+        id: 18,
+        exerciseId: 7,
+        answer: { selectedOptionId: 22 },
+        isCorrect: true,
+        attemptNumber: 4,
+        submittedAt: "2026-08-29T01:00:00.000Z",
+      });
+      vi.mocked(repository.fetchExerciseSolutionAdmin).mockResolvedValue({
+        solution: { correctOptionId: 22 },
+        explanation: "Persisted feedback",
+      });
+
+      await expect(getExerciseReviewSubmission(7)).resolves.toEqual({
+        id: 18,
+        exerciseId: 7,
+        answer: { selectedOptionId: 22 },
+        isCorrect: true,
+        attemptNumber: 4,
+        submittedAt: "2026-08-29T01:00:00.000Z",
+        feedback: "Persisted feedback",
+      });
+    });
+
+    it("does not read privileged solution data without an owned successful submission", async () => {
+      vi.mocked(repository.fetchLatestCorrectSubmission).mockResolvedValue(null);
+
+      await expect(getExerciseReviewSubmission(7)).resolves.toBeNull();
+      expect(repository.fetchExerciseSolutionAdmin).not.toHaveBeenCalled();
     });
   });
 });
