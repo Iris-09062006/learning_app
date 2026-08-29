@@ -3,6 +3,7 @@ import { Be_Vietnam_Pro, JetBrains_Mono } from "next/font/google";
 
 import { PRODUCT_DESCRIPTION, PRODUCT_NAME } from "@/config/product";
 
+import "katex/dist/katex.min.css";
 import "./globals.css";
 
 const beVietnamPro = Be_Vietnam_Pro({

@@ -1,12 +1,20 @@
 # Active Task Queue
 
-- **Active task:** `TASK-107` — Stabilize Prerequisite Progression Validation
-- **Status:** `IN_PROGRESS`
+- **Active task:** `TASK-108` — Render Mathematical Notation in Lesson Content
+- **Status:** `VERIFIED`
 - **Owner / Reviewer:** Codex
 - **Deferred design task:** `TASK-047` (`DRAFT`)
 - **Previous blocked task:** `TASK-044` — external Supabase Redirect URL verification
 
 ## Current objective
+
+TASK-108 safely renders inline/display LaTeX in learner Lesson Markdown and adds a rendered preview
+below each editable Admin Course-import section. Cases, matrices, invalid input, code literals, and
+untrusted link commands have regression coverage. Focused/full tests, lint, typecheck, build,
+dependency audit, diff, secret, and final review gates pass. Browser screenshot verification was
+unavailable because no browser was connected; no persistence/publication contract changed.
+
+## Previous in-progress objective
 
 TASK-107 makes prerequisite progression depend on each prerequisite item's first blueprint
 occurrence, so recap/summary reuse does not cause a false violation, while genuinely reversed

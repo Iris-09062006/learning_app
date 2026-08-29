@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { StatePanel } from "@/components/ui/state-panel";
 import { Textarea } from "@/components/ui/textarea";
+import { LessonMarkdown } from "@/features/lessons/components/lesson-markdown";
 
 import type {
   CourseImportDraft,
@@ -870,6 +871,12 @@ function ContentEditor({ content, onChange, onSave, onRegenerate, busy }: {
         <legend className="px-1 text-sm font-medium text-text-primary">Phần {index + 1}</legend>
         <Input aria-label={`Tiêu đề phần ${index + 1}`} className="mb-2" value={section.heading} onChange={(e) => updateSection(index, "heading", e.target.value)} />
         <Textarea aria-label={`Nội dung phần ${index + 1}`} className="min-h-36" value={section.bodyMarkdown} onChange={(e) => updateSection(index, "bodyMarkdown", e.target.value)} />
+        <div className="mt-3 min-w-0 rounded-lg border border-border bg-surface-subtle p-4" aria-labelledby={`section-preview-${index}`}>
+          <p id={`section-preview-${index}`} className="mb-3 text-xs font-semibold uppercase tracking-wider text-text-muted">Bản xem trước</p>
+          {section.bodyMarkdown.trim()
+            ? <LessonMarkdown content={section.bodyMarkdown} />
+            : <p className="text-sm text-text-muted">Chưa có nội dung để xem trước.</p>}
+        </div>
         <p className="mt-2 text-xs text-text-muted">Nguồn chunk: {section.citationChunkIndexes.join(", ")}</p>
         <ul className="mt-2 space-y-1 break-words text-xs text-text-secondary">{content.citations
           .filter((citation) => citation.sectionIndex === index)

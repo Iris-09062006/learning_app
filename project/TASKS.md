@@ -11,6 +11,12 @@
 
 ## Active Task
 
+`TASK-108` is verified: safe KaTeX rendering now covers inline/display mathematics in learner
+Lesson Markdown and rendered previews for editable Admin Lesson sections. Focused/full tests, lint,
+typecheck, build, audit, diff, secret, and review gates pass without changing stored content or
+publication contracts. Browser screenshot verification was unavailable because no browser was
+connected.
+
 `TASK-107` is in progress: prerequisite progression now uses first introduction rather than last
 reuse, and semantic retry guidance is actionable. Regression tests are written but were not run at
 the user's request, so the change remains unverified. The user explicitly requested committing and

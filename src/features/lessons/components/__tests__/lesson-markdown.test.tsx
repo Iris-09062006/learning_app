@@ -185,4 +185,46 @@ describe("LessonMarkdown", () => {
 
     expect(screen.getByRole("link", { name: "chương mục" })).toHaveAttribute("href", "#gioi-thieu");
   });
+
+  it("typesets inline mathematics in prose and nested emphasis", () => {
+    const { container } = renderMarkdown(
+      "Với $A \\in M_n(\\mathbb{R})$ và **$|A| \\neq 0$**, ma trận $A$ khả nghịch.",
+    );
+
+    expect(container.querySelectorAll('[data-math-inline="true"]')).toHaveLength(3);
+    expect(container.querySelector("strong [data-math-inline=\"true\"]")).not.toBeNull();
+    expect(container.querySelector("annotation")?.textContent).toBe("A \\in M_n(\\mathbb{R})");
+    expect(container.textContent).not.toContain("$A");
+  });
+
+  it("typesets display cases and matrices with internal horizontal overflow", () => {
+    const { container } = renderMarkdown([
+      "$$\\begin{cases} x-y-2z=-3 \\\\ 2x-y+z=1 \\end{cases}$$",
+      "",
+      "\\[",
+      "\\Delta = \\begin{vmatrix}1 & -1 & -2 \\\\ 2 & -1 & 1 \\\\ 1 & 1 & 1\\end{vmatrix}",
+      "\\]",
+    ].join("\n"));
+
+    const displayMath = container.querySelectorAll('[data-math-display="true"]');
+    expect(displayMath).toHaveLength(2);
+    expect(displayMath[0]).toHaveClass("max-w-full", "overflow-x-auto", "overflow-y-hidden");
+    expect(displayMath[0].querySelector(".katex-display")).not.toBeNull();
+    expect(displayMath[1].querySelector("annotation")?.textContent).toContain("\\begin{vmatrix}");
+  });
+
+  it("keeps invalid math visible and does not render delimiters inside code", () => {
+    const { container } = renderMarkdown("Sai: $\\frac{1$ và `giữ $x$ nguyên văn`.");
+
+    expect(container.querySelector(".katex-error")).toHaveTextContent("\\frac{1");
+    expect(screen.getByText("giữ $x$ nguyên văn")).toBeInTheDocument();
+    expect(container.querySelectorAll('[data-math-inline="true"]')).toHaveLength(1);
+  });
+
+  it("does not trust links embedded in untrusted math source", () => {
+    const { container } = renderMarkdown("$\\href{javascript:alert(1)}{unsafe}$");
+
+    expect(container.querySelector("a")).toBeNull();
+    expect(container).toHaveTextContent("unsafe");
+  });
 });

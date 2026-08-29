@@ -1,3 +1,4 @@
+import katex from "katex";
 import type { ReactNode } from "react";
 
 interface LessonMarkdownProps {
@@ -8,11 +9,68 @@ interface MarkdownBlock {
   content: string;
   language?: string;
   level?: number;
-  type: "blockquote" | "code" | "heading" | "ordered-list" | "paragraph" | "rule" | "unordered-list";
+  type: "blockquote" | "code" | "heading" | "math" | "ordered-list" | "paragraph" | "rule" | "unordered-list";
+}
+
+interface MathExpressionProps {
+  displayMode: boolean;
+  expression: string;
+}
+
+function MathExpression({ displayMode, expression }: MathExpressionProps) {
+  const html = katex.renderToString(expression.trim(), {
+    displayMode,
+    output: "htmlAndMathml",
+    throwOnError: false,
+    trust: false,
+  });
+
+  if (displayMode) {
+    return (
+      <span className="block max-w-full overflow-x-auto overflow-y-hidden py-2 text-center" data-math-display="true">
+        <span className="inline-block min-w-max" dangerouslySetInnerHTML={{ __html: html }} />
+      </span>
+    );
+  }
+
+  return (
+    <span
+      className="inline-block max-w-full align-middle"
+      data-math-inline="true"
+      dangerouslySetInnerHTML={{ __html: html }}
+    />
+  );
+}
+
+function readDisplayMath(lines: string[], startIndex: number): { content: string; nextIndex: number } | null {
+  const trimmed = lines[startIndex].trim();
+  const closingDelimiter = trimmed.startsWith("$$") ? "$$" : trimmed.startsWith("\\[") ? "\\]" : null;
+  if (!closingDelimiter) return null;
+
+  const openingRemainder = trimmed.slice(2);
+  const sameLineEnd = openingRemainder.lastIndexOf(closingDelimiter);
+  if (sameLineEnd >= 0) {
+    return { content: openingRemainder.slice(0, sameLineEnd), nextIndex: startIndex + 1 };
+  }
+
+  const expression = openingRemainder ? [openingRemainder] : [];
+  let index = startIndex + 1;
+  while (index < lines.length) {
+    const endIndex = lines[index].lastIndexOf(closingDelimiter);
+    if (endIndex >= 0) {
+      expression.push(lines[index].slice(0, endIndex));
+      return { content: expression.join("\n"), nextIndex: index + 1 };
+    }
+    expression.push(lines[index]);
+    index += 1;
+  }
+
+  return null;
 }
 
 function isBlockStart(line: string): boolean {
   return (
+    /^\s*(\$\$|\\\[)/.test(line) ||
     /^```/.test(line) ||
     /^#{1,6}\s+/.test(line) ||
     /^>\s?/.test(line) ||
@@ -31,6 +89,13 @@ function parseBlocks(content: string): MarkdownBlock[] {
     const line = lines[index];
     if (!line.trim()) {
       index += 1;
+      continue;
+    }
+
+    const displayMath = readDisplayMath(lines, index);
+    if (displayMath) {
+      blocks.push({ type: "math", content: displayMath.content });
+      index = displayMath.nextIndex;
       continue;
     }
 
@@ -108,7 +173,7 @@ function safeHref(href: string): string | null {
 }
 
 function renderInline(content: string, keyPrefix: string): ReactNode[] {
-  const tokenPattern = /(`[^`\n]+`|\*\*[^*\n]+\*\*|\*[^*\n]+\*|\[[^\]\n]+\]\([^\s)]+\)|\n)/g;
+  const tokenPattern = /(`[^`\n]+`|\\\([^\n]*?\\\)|(?<!\\)\$(?!\$)(?:\\.|[^$\\\n])+(?<!\\)\$|\*\*[^*\n]+\*\*|\*[^*\n]+\*|\[[^\]\n]+\]\([^\s)]+\)|\n)/g;
   const nodes: ReactNode[] = [];
   let cursor = 0;
   let match: RegExpExecArray | null;
@@ -127,10 +192,14 @@ function renderInline(content: string, keyPrefix: string): ReactNode[] {
           {token.slice(1, -1)}
         </code>,
       );
+    } else if (token.startsWith("\\(")) {
+      nodes.push(<MathExpression key={key} expression={token.slice(2, -2)} displayMode={false} />);
+    } else if (token.startsWith("$")) {
+      nodes.push(<MathExpression key={key} expression={token.slice(1, -1)} displayMode={false} />);
     } else if (token.startsWith("**")) {
-      nodes.push(<strong key={key} className="font-semibold text-text-primary">{token.slice(2, -2)}</strong>);
+      nodes.push(<strong key={key} className="font-semibold text-text-primary">{renderInline(token.slice(2, -2), `${key}-strong`)}</strong>);
     } else if (token.startsWith("*")) {
-      nodes.push(<em key={key}>{token.slice(1, -1)}</em>);
+      nodes.push(<em key={key}>{renderInline(token.slice(1, -1), `${key}-em`)}</em>);
     } else {
       const link = token.match(/^\[([^\]]+)\]\(([^)]+)\)$/);
       const href = link ? safeHref(link[2]) : null;
@@ -173,6 +242,9 @@ export function LessonMarkdown({ content }: LessonMarkdownProps) {
               <pre className="overflow-x-auto p-5 font-mono text-sm leading-7 text-code-text"><code>{block.content}</code></pre>
             </div>
           );
+        }
+        if (block.type === "math") {
+          return <MathExpression key={key} expression={block.content} displayMode />;
         }
         if (block.type === "blockquote") {
           return <blockquote key={key} className="rounded-r-xl border-l-4 border-primary bg-primary-soft px-5 py-4 text-text-primary">{renderInline(block.content, key)}</blockquote>;

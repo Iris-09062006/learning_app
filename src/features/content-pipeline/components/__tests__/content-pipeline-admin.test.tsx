@@ -696,6 +696,29 @@ describe("content pipeline Admin", () => {
       .toHaveValue("Biến và kiểu dữ liệu (server)");
   });
 
+  it("keeps section Markdown editable and shows a rendered math preview", async () => {
+    const item = importItem("content_review");
+    const draft = item.lessons[0].contentDraft;
+    if (!draft) throw new Error("Expected a content draft fixture.");
+    draft.sections[0].bodyMarkdown = "Định thức $|A| \\neq 0$.\n\n$$\\begin{cases}x+y=1 \\\\ x-y=0\\end{cases}$$";
+
+    vi.spyOn(globalThis, "fetch").mockImplementation(async (input) => {
+      const url = String(input);
+      if (url === "/api/admin/course-drafts") return json({ success: true, data: { items: [item] } });
+      if (url === "/api/admin/content-targets") return json({ success: true, data: { items: [] } });
+      throw new Error(`Unexpected request: ${url}`);
+    });
+
+    const { container } = render(<ContentPipelineAdmin />);
+    fireEvent.click((await screen.findAllByRole("button", { name: /Biến Python/ }))[0]);
+
+    expect(screen.getByRole("textbox", { name: "Nội dung phần 1" })).toHaveValue(draft.sections[0].bodyMarkdown);
+    expect(await screen.findByText("Bản xem trước")).toBeInTheDocument();
+    expect(container.querySelectorAll('[data-math-inline="true"]')).toHaveLength(1);
+    expect(container.querySelectorAll('[data-math-display="true"]')).toHaveLength(1);
+    expect(container.querySelector(".katex-display")).not.toBeNull();
+  });
+
   it("resets completed multi-source creation state and keeps the new import selected", async () => {
     let generated = false;
     sessionStorage.setItem("learningapp.course-outline-generation", JSON.stringify({
