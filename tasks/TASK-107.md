@@ -1,4 +1,4 @@
-# TASK-107 â€” Stabilize Prerequisite Progression Validation
+# TASK-107 — Stabilize Prerequisite Progression Validation
 
 - **Status:** `IN_PROGRESS`
 - **Owner / Reviewer:** Codex
@@ -36,4 +36,3 @@ appears before a prerequisite and giving the bounded repair retry an actionable 
 Implementation and static diff review are complete. Automated gates were not run at the user's
 request, so this task remains `IN_PROGRESS` and is not eligible for `VERIFIED`. The user explicitly
 requested committing and pushing the unverified state.
-

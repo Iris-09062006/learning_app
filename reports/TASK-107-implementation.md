@@ -15,4 +15,3 @@ contract was changed.
 ## Status
 
 Implementation complete; automated verification intentionally not run per user request.
-
