@@ -1,4 +1,6 @@
 import { createServerSupabaseClient } from "@/lib/supabase/server";
+import { createClient } from "@supabase/supabase-js";
+import type { Database } from "@/generated/database.types";
 import {
   CurrentUser,
   ForgotPasswordResponse,
@@ -60,6 +62,24 @@ function getAuthRedirectOrigin(): string {
   }
 
   return parsedUrl.origin;
+}
+
+function createPasswordRecoveryRequestClient() {
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+
+  if (!url || !anonKey) {
+    throw new Error("Public Supabase environment variables are not configured.");
+  }
+
+  return createClient<Database>(url, anonKey, {
+    auth: {
+      autoRefreshToken: false,
+      detectSessionInUrl: false,
+      flowType: "implicit",
+      persistSession: false,
+    },
+  });
 }
 
 async function fetchProfileForUser(
@@ -246,7 +266,7 @@ export class AuthService {
       stage: "create_supabase_client",
       supabase_reset_call_attempted: "no",
     });
-    const supabase = await createServerSupabaseClient();
+    const supabase = createPasswordRecoveryRequestClient();
 
     const resolvedSiteOrigin = getAuthRedirectOrigin();
     const resolvedResetPasswordPath = "/reset-password";

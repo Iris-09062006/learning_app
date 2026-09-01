@@ -13,7 +13,7 @@ import {
   CardHeader,
 } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { createBrowserSupabaseClient } from "@/lib/supabase/client";
+import { createPasswordRecoverySupabaseClient } from "@/lib/supabase/client";
 
 const MIN_PASSWORD_LENGTH = 8;
 
@@ -38,7 +38,7 @@ export function ResetPasswordForm() {
     }
     checkedSession.current = true;
 
-    const supabase = createBrowserSupabaseClient();
+    const supabase = createPasswordRecoverySupabaseClient();
     supabase.auth
       .getSession()
       .then(({ data }) => {
@@ -70,7 +70,7 @@ export function ResetPasswordForm() {
     setIsSubmitting(true);
 
     try {
-      const supabase = createBrowserSupabaseClient();
+      const supabase = createPasswordRecoverySupabaseClient();
       const { error } = await supabase.auth.updateUser({ password });
 
       if (error) {
@@ -78,6 +78,7 @@ export function ResetPasswordForm() {
         return;
       }
 
+      await supabase.auth.signOut({ scope: "local" }).catch(() => undefined);
       setIsSubmitted(true);
     } catch {
       setFormError("Không thể kết nối tới máy chủ. Vui lòng thử lại.");

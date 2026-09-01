@@ -2,6 +2,14 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { AuthService } from "./auth.service";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 
+const supabaseJsMocks = vi.hoisted(() => ({
+  createClient: vi.fn(),
+}));
+
+vi.mock("@supabase/supabase-js", () => ({
+  createClient: supabaseJsMocks.createClient,
+}));
+
 // Mock Supabase server client factory
 vi.mock("@/lib/supabase/server", () => ({
   createServerSupabaseClient: vi.fn(),
@@ -305,9 +313,7 @@ describe("AuthService Unit Tests", () => {
         }),
       },
     };
-    vi.mocked(createServerSupabaseClient).mockResolvedValueOnce(
-      asServerSupabaseClient(mockSupabase),
-    );
+    supabaseJsMocks.createClient.mockReturnValueOnce(mockSupabase);
 
     const result = await service.forgotPassword({
       email: "test@example.com",
@@ -340,9 +346,7 @@ describe("AuthService Unit Tests", () => {
         }),
       },
     };
-    vi.mocked(createServerSupabaseClient).mockResolvedValueOnce(
-      asServerSupabaseClient(mockSupabase),
-    );
+    supabaseJsMocks.createClient.mockReturnValueOnce(mockSupabase);
 
     await expect(
       service.forgotPassword({ email: "test@example.com" }, diagnostic),
