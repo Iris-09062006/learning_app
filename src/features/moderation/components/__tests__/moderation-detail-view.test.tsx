@@ -148,8 +148,29 @@ describe("ModerationDetailView", () => {
     mockDetail(fixture);
     render(<ModerationDetailView id={15} />);
     expect(await screen.findByText("A team discovers new customer evidence midway through delivery.")).toBeInTheDocument();
-    expect(screen.getByText("Discuss and adapt", { selector: "li" })).toBeInTheDocument();
+    expect(screen.getAllByText("Discuss and adapt").some((node) => node.closest("li"))).toBe(true);
     expect(screen.queryByLabelText("Code của bài tập")).not.toBeInTheDocument();
+  });
+
+  it("typesets LaTeX in the generated exercise review preview", async () => {
+    const fixture = queueItem(16);
+    fixture.title = String.raw`Ma trận $A$`;
+    fixture.description = String.raw`Cho $A = \begin{pmatrix}1 & 0 \\ 0 & 1\end{pmatrix}$.`;
+    fixture.content = {
+      type: "multiple_choice",
+      title: fixture.title,
+      description: fixture.description,
+      options: [String.raw`$A=I_2$`, String.raw`$A\ne I_2$`],
+      correctAnswer: String.raw`$A=I_2$`,
+      explanation: String.raw`Các phần tử thỏa $a_{ij}=\delta_{ij}$.`,
+    };
+    mockDetail(fixture);
+
+    const { container } = render(<ModerationDetailView id={16} />);
+    await screen.findByText("Nội dung theo định dạng");
+
+    expect(container.querySelectorAll(".katex").length).toBeGreaterThanOrEqual(6);
+    expect(container.querySelector(".katex-error")).toBeNull();
   });
 
   it("publishes an approved item and shows the success state while re-fetching", async () => {

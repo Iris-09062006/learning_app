@@ -451,6 +451,9 @@ describe("ai provider", () => {
       });
       expect(request.messages[0].content).toContain("Choose the Exercise format based on what the learner is supposed to understand or do.");
       expect(request.messages[0].content).toContain("Do not generate a programming/code Exercise unless the Lesson itself requires programming or code reasoning.");
+      expect(request.messages[0].content).toContain("valid KaTeX-compatible LaTeX");
+      expect(request.messages[0].content).toContain("Wrap inline math in $...$ and display math in $$...$$");
+      expect(request.messages[0].content).toContain("Keep codeSnippet as literal source code without LaTeX delimiters.");
       expect(request.messages[0].content).toContain("không bọc danh sách, khái niệm");
       expect(request.messages[1].content).toContain("Tóm tắt bài học: Biến JavaScript");
       expect(fetchSpy).toHaveBeenCalledWith(

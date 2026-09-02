@@ -8,6 +8,7 @@ import { ModerationReviewForm } from "./moderation-review-form";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { StatePanel } from "@/components/ui/state-panel";
+import { LessonMarkdown, MathText } from "@/features/lessons/components/lesson-markdown";
 
 interface ModerationDetailViewProps {
   id: number;
@@ -50,25 +51,25 @@ function ExerciseDraftPreview({ content }: { content: GeneratedExerciseContent }
   return (
     <section aria-labelledby="exercise-preview-heading" className="mt-4 rounded-xl border border-border bg-surface-subtle p-4">
       <h2 id="exercise-preview-heading" className="text-sm font-semibold text-text-primary">Nội dung theo định dạng</h2>
-      {content.type === "scenario" && <p className="mt-3 whitespace-pre-wrap rounded-lg border border-border bg-surface p-4 text-sm leading-relaxed text-text-primary">{content.scenario}</p>}
+      {content.type === "scenario" && <div className="mt-3 rounded-lg border border-border bg-surface p-4 text-text-primary"><LessonMarkdown content={content.scenario} compact tone="inherit" /></div>}
       {(content.type === "predict_output" || content.type === "fix_the_bug") && (
         <pre aria-label="Code của bài tập" tabIndex={0} className="mt-3 max-w-full overflow-x-auto rounded-lg bg-code-background p-4 font-mono text-sm text-code-text focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring"><code>{content.codeSnippet}</code></pre>
       )}
       {choiceOptions.length > 0 && (
         <ol className="mt-3 space-y-2">
-          {choiceOptions.map((option) => <li key={option} className="rounded-lg border border-border bg-surface px-3 py-2 text-sm text-text-primary">{option}</li>)}
+          {choiceOptions.map((option) => <li key={option} className="rounded-lg border border-border bg-surface px-3 py-2 text-sm text-text-primary"><MathText content={option} /></li>)}
         </ol>
       )}
       {content.type === "true_false" && <p className="mt-3 text-sm text-text-secondary">Đáp án mong đợi: <strong>{content.correctAnswer ? "Đúng" : "Sai"}</strong></p>}
-      {content.type === "short_answer" && <p className="mt-3 whitespace-pre-wrap text-sm text-text-secondary">Đáp án mong đợi: <strong>{content.expectedAnswer}</strong></p>}
+      {content.type === "short_answer" && <p className="mt-3 text-sm text-text-secondary">Đáp án mong đợi: <strong><MathText content={content.expectedAnswer} /></strong></p>}
       {content.type === "ordering" && (
-        <ol className="mt-3 list-decimal space-y-2 pl-5 text-sm text-text-primary">{content.correctOrder.map((item) => <li key={item}>{item}</li>)}</ol>
+        <ol className="mt-3 list-decimal space-y-2 pl-5 text-sm text-text-primary">{content.correctOrder.map((item) => <li key={item}><MathText content={item} /></li>)}</ol>
       )}
       {content.type === "matching" && (
-        <dl className="mt-3 grid gap-2 text-sm sm:grid-cols-2">{content.pairs.map((pair) => <div key={pair.prompt} className="rounded-lg border border-border bg-surface p-3"><dt className="font-medium text-text-primary">{pair.prompt}</dt><dd className="mt-1 text-text-secondary">{pair.answer}</dd></div>)}</dl>
+        <dl className="mt-3 grid gap-2 text-sm sm:grid-cols-2">{content.pairs.map((pair) => <div key={pair.prompt} className="rounded-lg border border-border bg-surface p-3"><dt className="font-medium text-text-primary"><MathText content={pair.prompt} /></dt><dd className="mt-1 text-text-secondary"><MathText content={pair.answer} /></dd></div>)}</dl>
       )}
-      {"correctAnswer" in content && typeof content.correctAnswer === "string" && <p className="mt-3 text-sm text-text-secondary">Đáp án đúng: <strong>{content.correctAnswer}</strong></p>}
-      <p className="mt-3 whitespace-pre-wrap text-sm leading-relaxed text-text-secondary"><strong>Giải thích:</strong> {content.explanation}</p>
+      {"correctAnswer" in content && typeof content.correctAnswer === "string" && <p className="mt-3 text-sm text-text-secondary">Đáp án đúng: <strong><MathText content={content.correctAnswer} /></strong></p>}
+      <div className="mt-3 text-sm text-text-secondary"><strong>Giải thích:</strong><LessonMarkdown content={content.explanation} compact /></div>
     </section>
   );
 }
@@ -220,7 +221,7 @@ export function ModerationDetailView({ id }: ModerationDetailViewProps) {
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div className="min-w-0">
             <h1 className="break-words text-2xl font-bold text-text-primary">
-              {item.title}
+              <MathText content={item.title} />
             </h1>
             <p className="mt-1 break-words text-sm text-text-muted">
               ID: #{item.id} | Bài học: {item.lessonTitle ?? `#${item.lessonId}`}
@@ -232,9 +233,9 @@ export function ModerationDetailView({ id }: ModerationDetailViewProps) {
           </Badge>
         </div>
 
-        <p className="mt-4 break-words text-sm leading-relaxed text-text-secondary">
-          {item.description}
-        </p>
+        <div className="mt-4 text-text-secondary">
+          <LessonMarkdown content={item.description} compact />
+        </div>
 
         <div className="mt-4 grid min-w-0 grid-cols-1 gap-4 border-y border-border py-4 text-sm sm:grid-cols-2 lg:grid-cols-4">
           <div>

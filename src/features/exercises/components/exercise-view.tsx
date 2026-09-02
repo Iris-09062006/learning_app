@@ -6,10 +6,10 @@ import { useRouter } from "next/navigation";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Select } from "@/components/ui/select";
 import { AiExplanationView } from "@/features/ai/components/ai-explanation-view";
 import { FixTheBugDragDrop } from "@/features/exercises/components/fix-the-bug-drag-drop";
 import type { ExerciseReviewSubmission, GetExerciseResponse, SubmitExerciseRequest, SubmitExerciseResponse } from "@/features/exercises/types";
+import { LessonMarkdown, MathText } from "@/features/lessons/components/lesson-markdown";
 
 interface ExerciseViewProps {
   exercise: GetExerciseResponse;
@@ -129,8 +129,8 @@ export const ExerciseView: React.FC<ExerciseViewProps> = ({ exercise, reviewSubm
             <span className="text-xs text-text-muted">{typeLabel(exercise.type)} &bull; {exercise.difficulty}</span>
           </div>
         </div>
-        <h1 className="mt-3 break-words text-xl font-bold text-text-primary">{exercise.title}</h1>
-        {exercise.description && <p className="mt-2 whitespace-pre-wrap break-words text-sm leading-relaxed text-text-secondary">{exercise.description}</p>}
+        <h1 className="mt-3 break-words text-xl font-bold text-text-primary"><MathText content={exercise.title} /></h1>
+        {exercise.description && <div className="mt-2"><LessonMarkdown content={exercise.description} compact /></div>}
         {(exercise.type === "predict_output" || exercise.type === "fix_the_bug") && exercise.codeSnippet && (
           <pre className="mt-4 max-w-full overflow-x-auto rounded-xl bg-code-background p-5 font-mono text-sm leading-7 text-code-text"><code>{exercise.codeSnippet}</code></pre>
         )}
@@ -147,7 +147,7 @@ export const ExerciseView: React.FC<ExerciseViewProps> = ({ exercise, reviewSubm
             {options.map((option) => {
               const isSelected = selectedOptionId === option.id;
               return <button key={option.id} type="button" disabled={isCompleted} onClick={() => setSelectedOptionId(option.id)} aria-pressed={isSelected} className={["flex min-h-11 w-full items-center justify-between rounded-xl border p-4 text-left transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background", isCompleted ? "cursor-default" : "cursor-pointer", isSelected ? "border-primary bg-primary-soft shadow-sm" : isCompleted ? "border-border bg-surface" : "border-border bg-surface hover:border-primary hover:bg-primary-soft"].join(" ")}>
-                <span className="min-w-0 break-words text-sm text-text-primary">{option.content}</span>
+                <span className="min-w-0 break-words text-sm text-text-primary"><MathText content={option.content} /></span>
                 <span aria-hidden="true" className={["ml-3 inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full border-2", isSelected ? "border-primary bg-primary" : "border-outline-variant"].join(" ")}>{isSelected && <span className="h-2 w-2 rounded-full bg-on-primary" />}</span>
               </button>;
             })}
@@ -157,16 +157,37 @@ export const ExerciseView: React.FC<ExerciseViewProps> = ({ exercise, reviewSubm
         ) : exercise.type === "ordering" ? (
           <ol className="mt-4 space-y-3">
             {orderedOptions.map((option, index) => <li key={option.id} className="flex items-center gap-3 rounded-xl border border-border bg-surface p-3">
-              <span className="w-6 shrink-0 text-center text-sm font-semibold text-text-muted">{index + 1}</span><span className="min-w-0 flex-1 break-words text-sm text-text-primary">{option.content}</span>
+              <span className="w-6 shrink-0 text-center text-sm font-semibold text-text-muted">{index + 1}</span><span className="min-w-0 flex-1 break-words text-sm text-text-primary"><MathText content={option.content} /></span>
               <Button type="button" size="sm" variant="outline" aria-label={`Đưa ${option.content} lên`} disabled={isCompleted || index === 0} onClick={() => moveOrderingItem(index, -1)}>↑</Button>
               <Button type="button" size="sm" variant="outline" aria-label={`Đưa ${option.content} xuống`} disabled={isCompleted || index === orderedOptions.length - 1} onClick={() => moveOrderingItem(index, 1)}>↓</Button>
             </li>)}
           </ol>
         ) : (
           <div className="mt-4 space-y-4">
-            {options.map((option) => <Select key={option.id} id={`match-${option.id}`} label={option.content} value={matches[option.id] ?? ""} disabled={isCompleted} className={isCompleted ? "cursor-default disabled:opacity-100" : undefined} onChange={(event) => setMatches((current) => ({ ...current, [option.id]: event.target.value }))}>
-              <option value="">Chọn vế phù hợp</option>{matchingAnswers.map((answer) => <option key={answer} value={answer}>{answer}</option>)}
-            </Select>)}
+            {options.map((option) => (
+              <fieldset key={option.id} className="rounded-xl border border-border bg-surface p-4">
+                <legend className="px-1 text-sm font-medium text-text-primary"><MathText content={option.content} /></legend>
+                <div className="mt-2 grid gap-2 sm:grid-cols-2">
+                  {matchingAnswers.map((answer) => {
+                    const isSelected = matches[option.id] === answer;
+                    return (
+                      <label key={answer} className={`flex min-h-11 items-center gap-3 rounded-lg border px-3 py-2 text-sm transition-colors ${isSelected ? "border-primary bg-primary-soft text-text-primary" : "border-border text-text-secondary"} ${isCompleted ? "cursor-default" : "cursor-pointer hover:border-primary"}`}>
+                        <input
+                          type="radio"
+                          name={`match-${option.id}`}
+                          value={answer}
+                          checked={isSelected}
+                          disabled={isCompleted}
+                          className="size-4 shrink-0 accent-primary"
+                          onChange={() => setMatches((current) => ({ ...current, [option.id]: answer }))}
+                        />
+                        <span className="min-w-0 break-words"><MathText content={answer} /></span>
+                      </label>
+                    );
+                  })}
+                </div>
+              </fieldset>
+            ))}
           </div>
         )}
 
@@ -180,12 +201,12 @@ export const ExerciseView: React.FC<ExerciseViewProps> = ({ exercise, reviewSubm
               </svg>
               Hoàn thành
             </p>
-            {(reviewSubmission?.feedback || result?.feedback) ? <p className="mt-2 whitespace-pre-wrap break-words text-text-primary">{reviewSubmission?.feedback ?? result?.feedback}</p> : null}
+            {(reviewSubmission?.feedback || result?.feedback) ? <div className="mt-2 text-text-primary"><LessonMarkdown content={reviewSubmission?.feedback ?? result?.feedback ?? ""} compact tone="inherit" /></div> : null}
             <Link href={`/lessons/${exercise.lessonId}`} prefetch={false} className="mt-5 inline-flex min-h-11 items-center justify-center rounded-xl bg-primary px-4 py-2 text-sm font-bold text-on-primary transition hover:bg-primary-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background">
               <span aria-hidden="true" className="mr-2">←</span> Quay lại bài học
             </Link>
           </div> : result ? <div role="status" className="w-full rounded-xl border border-danger bg-danger-soft p-5 text-sm text-danger shadow-sm">
-            <p className="font-semibold">Chưa chính xác</p><p className="mt-1 whitespace-pre-wrap break-words">{result.feedback}</p><AiExplanationView submissionId={result.submissionId} />
+            <p className="font-semibold">Chưa chính xác</p><div className="mt-1"><LessonMarkdown content={result.feedback} compact tone="inherit" /></div><AiExplanationView submissionId={result.submissionId} />
           </div> : null}
         </div>
       </div>

@@ -354,6 +354,8 @@ The only common root fields allowed are "type", "title", "description", and "exp
 Return only the fields required by the selected type: multiple_choice adds "options" and "correctAnswer"; true_false adds "correctAnswer"; short_answer adds "expectedAnswer"; ordering adds "items" and "correctOrder"; matching adds "pairs"; scenario adds "scenario", "options", and "correctAnswer"; predict_output and fix_the_bug add "codeSnippet", "options", and "correctAnswer".
 No aliases. No additional root fields.
 
+When mathematical notation appears in any non-code text field, write it as valid KaTeX-compatible LaTeX. Wrap inline math in $...$ and display math in $$...$$. Escape every LaTeX backslash correctly for JSON, for example "$A = \\begin{pmatrix}1 & 0 \\\\ 0 & 1\\end{pmatrix}$". Use LaTeX for matrices, fractions, roots, powers, subscripts, equations, inequalities, sets, vectors, and mathematical symbols instead of raw pseudo-notation. Keep codeSnippet as literal source code without LaTeX delimiters.
+
 Choose the Exercise format based on what the learner is supposed to understand or do.
 
 Do not generate a programming/code Exercise unless the Lesson itself requires programming or code reasoning.

@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { ExerciseView } from "@/features/exercises/components/exercise-view";
@@ -29,6 +29,30 @@ function review(answer: Record<string, unknown>): ExerciseReviewSubmission {
 afterEach(() => vi.restoreAllMocks());
 
 describe("ExerciseView subject-agnostic modalities", () => {
+  it("typesets generated LaTeX in the question, choices, and persisted feedback", () => {
+    const mathExercise: GetExerciseResponse = {
+      ...base,
+      title: String.raw`Nhận biết ma trận $A$`,
+      description: String.raw`Cho $A = \begin{pmatrix}2 & 5 \\ 0 & 4\end{pmatrix}$. Chọn dạng đúng của $A$.`,
+      options: [
+        { id: 11, content: String.raw`Ma trận tam giác trên: $a_{ij}=0$ khi $i>j$`, order: 1 },
+        { id: 12, content: String.raw`Ma trận đơn vị $I_2$`, order: 2 },
+      ],
+    };
+
+    const { container } = render(
+      <ExerciseView
+        exercise={mathExercise}
+        reviewSubmission={{ ...review({ selectedOptionId: 11 }), feedback: String.raw`Vì $a_{21}=0$, $A$ là ma trận tam giác trên.` }}
+      />,
+    );
+
+    expect(container.querySelectorAll(".katex").length).toBeGreaterThanOrEqual(5);
+    expect(container.querySelector(".katex-mathml annotation")).toHaveTextContent("A");
+    expect(container.querySelector(".katex-error")).toBeNull();
+    expect(screen.getByText(/Ma trận tam giác trên:/u).closest("button")).toBeDisabled();
+  });
+
   it("renders a conceptual Exercise without a code block", () => {
     const { container } = render(<ExerciseView exercise={base} />);
     expect(screen.getByText("Trắc nghiệm • medium")).toBeInTheDocument();
@@ -64,8 +88,9 @@ describe("ExerciseView subject-agnostic modalities", () => {
       { id: 31, content: "Individuals", order: 1, metadata: { answerOptions: ["Interactions", "Documentation"] } },
       { id: 32, content: "Working software", order: 2, metadata: { answerOptions: ["Interactions", "Documentation"] } },
     ] }} />);
-    expect(screen.getByLabelText("Individuals")).toHaveDisplayValue("Chọn vế phù hợp");
-    expect(screen.getByLabelText("Working software")).toBeInTheDocument();
+    const individuals = screen.getByRole("group", { name: "Individuals" });
+    expect(within(individuals).getByRole("radio", { name: "Interactions" })).not.toBeChecked();
+    expect(screen.getByRole("group", { name: "Working software" })).toBeInTheDocument();
   });
 
   it.each(["multiple_choice", "true_false", "scenario", "predict_output"] as const)(
@@ -116,8 +141,10 @@ describe("ExerciseView subject-agnostic modalities", () => {
       { optionId: 32, answer: "Documentation" },
     ] })} />);
 
-    expect(screen.getByLabelText("Individuals")).toHaveDisplayValue("Interactions");
-    expect(screen.getByLabelText("Individuals")).toBeDisabled();
-    expect(screen.getByLabelText("Working software")).toHaveDisplayValue("Documentation");
+    const individuals = screen.getByRole("group", { name: "Individuals" });
+    const workingSoftware = screen.getByRole("group", { name: "Working software" });
+    expect(within(individuals).getByRole("radio", { name: "Interactions" })).toBeChecked();
+    expect(within(individuals).getAllByRole("radio").every((radio) => radio.hasAttribute("disabled"))).toBe(true);
+    expect(within(workingSoftware).getByRole("radio", { name: "Documentation" })).toBeChecked();
   });
 });

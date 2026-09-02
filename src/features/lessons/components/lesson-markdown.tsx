@@ -3,6 +3,8 @@ import type { ReactNode } from "react";
 
 interface LessonMarkdownProps {
   content: string;
+  compact?: boolean;
+  tone?: "inherit" | "secondary";
 }
 
 interface MarkdownBlock {
@@ -222,11 +224,18 @@ function renderInline(content: string, keyPrefix: string): ReactNode[] {
   return nodes;
 }
 
-export function LessonMarkdown({ content }: LessonMarkdownProps) {
+export function MathText({ content }: LessonMarkdownProps) {
+  return <span>{renderInline(content, "math-text")}</span>;
+}
+
+export function LessonMarkdown({ content, compact = false, tone = "secondary" }: LessonMarkdownProps) {
   const blocks = parseBlocks(content);
 
   return (
-    <div data-testid="lesson-markdown" className="break-words space-y-4 text-base leading-6 text-text-secondary">
+    <div
+      data-testid="lesson-markdown"
+      className={`break-words ${compact ? "space-y-2 text-sm leading-relaxed" : "space-y-4 text-base leading-6"} ${tone === "secondary" ? "text-text-secondary" : ""}`}
+    >
       {blocks.map((block, index) => {
         const key = `block-${index}`;
         if (block.type === "heading") {
@@ -258,7 +267,7 @@ export function LessonMarkdown({ content }: LessonMarkdownProps) {
           );
         }
         if (block.type === "rule") return <hr key={key} className="border-border" />;
-        return <p key={key}>{renderInline(block.content, key)}</p>;
+        return <p key={key} className="break-words">{renderInline(block.content, key)}</p>;
       })}
     </div>
   );
