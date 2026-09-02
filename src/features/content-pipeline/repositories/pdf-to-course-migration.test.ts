@@ -10,6 +10,10 @@ const checkpointSql = readFileSync(join(
   process.cwd(),
   "supabase/migrations/031_lesson_generation_retry_checkpointing.sql"
 ), "utf8");
+const queueRemovalSql = readFileSync(join(
+  process.cwd(),
+  "supabase/migrations/034_remove_course_import_from_queue.sql",
+), "utf8");
 
 describe("PDF-to-Course migration", () => {
   it("creates normalized import, outline, Lesson content, review, and publication records", () => {
@@ -59,6 +63,37 @@ describe("PDF-to-Course migration", () => {
     expect(sql).toContain("after insert on public.source_documents");
     expect(sql).toContain("status = 'published', published_course_id = v_course.id");
     expect(sql).toContain("v_next := 'rejected'");
+  });
+});
+
+describe("Course import queue removal migration", () => {
+  it("authorizes active Admins and serializes removal against the job row", () => {
+    expect(queueRemovalSql).toContain("profile.is_active");
+    expect(queueRemovalSql).toContain("profile.role = 'admin'");
+    expect(queueRemovalSql).toContain("where id = p_job_id");
+    expect(queueRemovalSql).toContain("for update");
+    expect(queueRemovalSql).toContain("security definer");
+    expect(queueRemovalSql).toContain("set search_path = ''");
+  });
+
+  it("hard-deletes unfinished imports and their exclusively owned sources", () => {
+    expect(queueRemovalSql).toContain("v_job.status in ('published', 'rejected')");
+    expect(queueRemovalSql).toContain("v_job.published_course_id is not null");
+    expect(queueRemovalSql).toContain("from public.course_import_publications");
+    expect(queueRemovalSql).toContain("delete from public.course_import_jobs");
+    expect(queueRemovalSql).toContain("delete from public.source_documents");
+    expect(queueRemovalSql).toContain("storageObjects");
+    expect(queueRemovalSql).toContain("'course_import.removed_from_queue'");
+    expect(queueRemovalSql).not.toMatch(/delete\s+from\s+public\.(courses|chapters|lessons)/i);
+  });
+
+  it("revokes public execution and grants only authenticated execution", () => {
+    expect(queueRemovalSql).toContain(
+      "revoke all on function public.remove_course_import_from_queue(bigint) from public, anon",
+    );
+    expect(queueRemovalSql).toContain(
+      "grant execute on function public.remove_course_import_from_queue(bigint) to authenticated",
+    );
   });
 });
 

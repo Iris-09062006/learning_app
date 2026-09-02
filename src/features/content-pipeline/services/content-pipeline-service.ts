@@ -57,6 +57,7 @@ import {
   reviewLessonDraft,
   reviewCourseDraftBatch,
   reviewCourseImport,
+  removeCourseImportFromQueue,
   reviseCourseLessonContent,
   reviseLessonDraft,
   updateSourceStatus,
@@ -1735,6 +1736,13 @@ export async function submitCourseImportReview(jobIdValue: unknown, body: unknow
 export async function getCourseDraftQueue() {
   await requireAdmin();
   return listCourseImports();
+}
+
+export async function removeCourseDraftFromQueue(jobIdValue: unknown) {
+  await requireAdmin();
+  const result = await removeCourseImportFromQueue(asPositiveId(jobIdValue, "jobId"));
+  await Promise.allSettled(result.storagePaths.map((path) => removeSourceObject(path)));
+  return { jobId: result.jobId, deleted: true as const, sourceCount: result.sourceCount };
 }
 
 export async function submitCourseDraftReview(sourceDocumentIdValue: unknown, body: unknown) {

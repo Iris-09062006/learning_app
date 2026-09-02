@@ -11,6 +11,13 @@
 
 ## Active Task
 
+`TASK-109` is verified: every Course-import queue item has a confirmed, active-Admin-only removal
+action. Removal permanently deletes the unresolved import and its owned source material while
+preserving an audit record and protecting all official curriculum. Focused/full tests, lint,
+typecheck, build, diff, secret, and final review gates pass. Migration `034` was applied through
+Supabase MCP as `20260902034802 remove_course_import_from_queue`. Implementation commit: `1556cb6`;
+task-report commit: `35cddc5`.
+
 `TASK-108` is verified: safe KaTeX rendering now covers inline/display mathematics in learner
 Lesson Markdown and rendered previews for editable Admin Lesson sections. Focused/full tests, lint,
 typecheck, build, audit, diff, secret, and review gates pass without changing stored content or

@@ -1132,6 +1132,7 @@ export type Database = {
         Returns: Json
       }
       review_course_import_job: { Args: { p_job_id: number; p_decision: string; p_comment?: string }; Returns: Json }
+      remove_course_import_from_queue: { Args: { p_job_id: number }; Returns: Json }
       publish_course_import_job: { Args: { p_job_id: number; p_course_slug: string }; Returns: Json }
       create_content_curriculum: {
         Args: {

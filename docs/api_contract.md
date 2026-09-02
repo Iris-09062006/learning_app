@@ -63,6 +63,10 @@ queue khi server chưa resolve thành công.
   chứa full Lesson content hoặc exercise.
 - `GET /api/admin/course-drafts` mặc định chỉ trả actionable items ở outline/content
   review hoặc retryable `failed`; published/rejected không quay lại pending queue sau reload.
+- `DELETE /api/admin/course-drafts/:jobId` xóa vĩnh viễn một unresolved import cùng các source độc
+  quyền của import đó. Database xóa job/draft/chunk/review trong một transaction, giữ audit event,
+  và server dọn private storage objects sau commit. Published/rejected jobs bị state guard từ chối;
+  endpoint không xóa official Course/Chapter/Lesson.
 - `PATCH /api/admin/course-drafts/:jobId/outline` sửa Course metadata, add,
   remove hoặc reorder Lesson outline. Server validate toàn outline sau mutation.
 - `POST /api/admin/course-drafts/:jobId/outline/regenerate` regenerate outline
@@ -1947,6 +1951,7 @@ Mọi route dưới đây yêu cầu active Admin, trả envelope chuẩn và
 | `POST` | `/api/admin/content-sources/:id/extract` | — | extraction summary |
 | `POST` | `/api/admin/content-sources/:id/course-outline` | — | `201 CourseOutlineDraft` |
 | `GET` | `/api/admin/course-drafts` | unresolved filter | `{ items: CourseDraft[] }` |
+| `DELETE` | `/api/admin/course-drafts/:id` | — | `{ jobId, deleted: true, sourceCount }` |
 | `PATCH` | `/api/admin/course-drafts/:id/outline` | outline mutation | new outline revision |
 | `POST` | `/api/admin/course-drafts/:id/outline/regenerate` | — | new outline revision |
 | `POST` | `/api/admin/course-drafts/:id/lessons/generate` | — | per-Lesson generation states |

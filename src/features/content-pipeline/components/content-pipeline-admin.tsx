@@ -165,6 +165,7 @@ export function ContentPipelineAdmin() {
   const [published, setPublished] = useState<ReviewCourseDraftBatchResult | null>(null);
   const [reviewComment, setReviewComment] = useState("");
   const [busy, setBusy] = useState(false);
+  const [removingJobId, setRemovingJobId] = useState<number | null>(null);
   const [message, setMessage] = useState("Đang tải dữ liệu...");
   const [error, setError] = useState<string | null>(null);
 
@@ -649,6 +650,29 @@ export function ContentPipelineAdmin() {
     finally { setBusy(false); }
   }
 
+  async function removeQueueItem(item: CourseImportDraft) {
+    const confirmed = window.confirm(
+      `Xóa vĩnh viễn “${item.title}” và toàn bộ nguồn import của mục này? Hành động không thể hoàn tác.`,
+    );
+    if (!confirmed) return;
+
+    setRemovingJobId(item.jobId); setError(null); setPublished(null);
+    try {
+      await requestPipelineApi<{ jobId: number; deleted: true; sourceCount: number }>(
+        `/api/admin/course-drafts/${item.jobId}`,
+        { method: "DELETE" },
+      );
+      clearResolvedSourceWorkflow(item.jobId);
+      if (selectedJobId === item.jobId) setSelectedOutlineLessonId(null);
+      await refresh();
+      setMessage(`Đã xóa “${item.title}” cùng toàn bộ nguồn import khỏi hàng chờ.`);
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : "Không thể xóa Course import khỏi hàng chờ.");
+    } finally {
+      setRemovingJobId(null);
+    }
+  }
+
   const canEditOutline = selectedImport?.status === "outline_review";
   const canReviewContent = selectedImport && ["content_review", "ready_to_publish"].includes(selectedImport.status);
 
@@ -754,12 +778,17 @@ export function ContentPipelineAdmin() {
     <section className="grid min-w-0 gap-6 lg:grid-cols-[minmax(16rem,0.75fr)_minmax(0,2fr)]" aria-labelledby="review-title">
       <div className="min-w-0 rounded-xl border border-border bg-surface p-4 shadow-sm">
         <h2 id="review-title" className="font-semibold text-text-primary">Course import queue</h2>
-        {imports.length === 0 ? <StatePanel variant="empty" className="mt-3 p-5 shadow-none">Hàng chờ trống.</StatePanel> : <ul className="mt-3 space-y-2">{imports.map((item) => <li key={item.jobId}>
-          <Button variant="outline" type="button" className={`h-auto min-w-0 w-full flex-col items-start py-2 ${selectedJobId === item.jobId ? "border-primary bg-primary-soft text-text-primary" : "border-border bg-surface text-text-primary"}`}
-            onClick={() => { setSelectedJobId(item.jobId); setSourceReviewJobId(item.jobId); setSelectedOutlineLessonId(null); }}>
-            <span className="block max-w-full break-words font-semibold">{item.title}</span>
-            <span className="block text-text-muted">{item.status} · {item.lessons.length} Lessons</span>
+        {imports.length === 0 ? <StatePanel variant="empty" className="mt-3 p-5 shadow-none">Hàng chờ trống.</StatePanel> : <ul className="mt-3 space-y-2">{imports.map((item) => <li className="flex min-w-0 items-stretch gap-2" key={item.jobId}>
+          <Button variant="outline" type="button" className={`h-auto min-w-0 flex-1 flex-col items-start py-2 ${selectedJobId === item.jobId ? "border-primary bg-primary-soft text-text-primary" : "border-border bg-surface text-text-primary"}`}
+            onClick={() => { setSelectedJobId(item.jobId); setSourceReviewJobId(item.jobId); setSelectedOutlineLessonId(null); }}
+            disabled={removingJobId === item.jobId}>
+            <span className="block max-w-full break-words text-left font-semibold">{item.title}</span>
+            <span className="block text-left text-text-muted">{item.status} · {item.lessons.length} Lessons</span>
           </Button>
+          <Button variant="danger" type="button" className="h-auto shrink-0 px-3"
+            aria-label={`Xóa ${item.title} khỏi hàng chờ`} onClick={() => removeQueueItem(item)}
+            disabled={busy || (removingJobId !== null && removingJobId !== item.jobId)}
+            isLoading={removingJobId === item.jobId}>Xóa</Button>
         </li>)}</ul>}
       </div>
 

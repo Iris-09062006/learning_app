@@ -471,7 +471,61 @@ describe("content pipeline Admin", () => {
     ).toHaveAttribute("data-state", "empty");
     expect(screen.getByText("Đã mở workflow mới. Các Course import đã lưu vẫn còn trong hàng chờ.")).toBeInTheDocument();
     expect(sessionStorage.getItem("learningapp.course-outline-generation")).toBeNull();
-    expect(screen.getByRole("button", { name: /Python nền tảng/ })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /^Python nền tảng failed/ })).toBeInTheDocument();
+  });
+
+  it("requires confirmation and removes only the confirmed Course import from the queue", async () => {
+    let removed = false;
+    let deleteCalls = 0;
+    vi.spyOn(window, "confirm").mockReturnValueOnce(false).mockReturnValueOnce(true);
+    vi.spyOn(globalThis, "fetch").mockImplementation(async (input, init) => {
+      const url = String(input);
+      if (url === "/api/admin/course-drafts" && (!init?.method || init.method === "GET")) {
+        return json({ success: true, data: { items: removed ? [] : [importItem("failed")] } });
+      }
+      if (url === "/api/admin/course-drafts/61" && init?.method === "DELETE") {
+        deleteCalls += 1;
+        removed = true;
+        return json({ success: true, data: { jobId: 61, deleted: true, sourceCount: 1 } });
+      }
+      throw new Error(`Unexpected request: ${url}`);
+    });
+
+    render(<ContentPipelineAdmin />);
+    const removeButton = await screen.findByRole("button", {
+      name: "Xóa Python nền tảng khỏi hàng chờ",
+    });
+    fireEvent.click(removeButton);
+    expect(deleteCalls).toBe(0);
+    expect(screen.getByRole("button", { name: "Xóa Python nền tảng khỏi hàng chờ" })).toBeInTheDocument();
+
+    fireEvent.click(removeButton);
+    expect((await screen.findByText("Hàng chờ trống.")).closest("[data-state]")).toHaveAttribute(
+      "data-state",
+      "empty",
+    );
+    expect(deleteCalls).toBe(1);
+    expect(screen.getByText(/Đã xóa “Python nền tảng” cùng toàn bộ nguồn import/)).toBeInTheDocument();
+  });
+
+  it("keeps a Course import visible and announces a removal failure", async () => {
+    vi.spyOn(window, "confirm").mockReturnValue(true);
+    vi.spyOn(globalThis, "fetch").mockImplementation(async (input, init) => {
+      const url = String(input);
+      if (url === "/api/admin/course-drafts" && (!init?.method || init.method === "GET")) {
+        return json({ success: true, data: { items: [importItem("failed")] } });
+      }
+      if (url === "/api/admin/course-drafts/61" && init?.method === "DELETE") {
+        return json({ success: false, error: { message: "Không thể xóa Course import." } }, 409);
+      }
+      throw new Error(`Unexpected request: ${url}`);
+    });
+
+    render(<ContentPipelineAdmin />);
+    fireEvent.click(await screen.findByRole("button", { name: "Xóa Python nền tảng khỏi hàng chờ" }));
+
+    expect(await screen.findByRole("alert")).toHaveTextContent("Không thể xóa Course import.");
+    expect(screen.getByRole("button", { name: "Xóa Python nền tảng khỏi hàng chờ" })).toBeInTheDocument();
   });
 
   it("publishes atomically and removes the resolved item after refresh", async () => {
@@ -635,7 +689,7 @@ describe("content pipeline Admin", () => {
 
     expect(await screen.findByText("Đã lưu outline revision mới.")).toBeInTheDocument();
     expect(screen.getByRole("textbox", { name: "Course title" })).toHaveValue("Tên Course mới");
-    expect(screen.getByRole("button", { name: /Tên Course mới/ })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /^Tên Course mới outline_review/ })).toBeInTheDocument();
     expect(fetchSpy.mock.calls.filter(([input]) => String(input) === "/api/admin/course-drafts"))
       .toEqual(expect.arrayContaining([
         ["/api/admin/course-drafts", { cache: "no-store" }],

@@ -71,6 +71,7 @@ uploaded → processing → outline_review → generating_content
          → content_review → ready_to_publish → published
          ↘ failed
 outline_review|content_review → rejected
+any unresolved queue state → hard-deleted with its exclusively owned import sources (explicit Admin removal)
 ```
 
 - Transition phải compare-and-set hoặc lock job row để retry/concurrent request không
@@ -91,6 +92,15 @@ success trả cùng published identity thay vì tạo bản sao.
 Reject chỉ chuyển job/draft sang `rejected`; không tạo hoặc xóa official curriculum.
 Pending query chỉ lấy `outline_review|content_review|ready_to_publish` (và revision state
 có thể hành động), nên resolved item biến mất bền vững sau reload.
+
+Migration `034_remove_course_import_from_queue.sql` adds the active-Admin-only
+`remove_course_import_from_queue(bigint)` RPC. It locks the job, refuses `published` and already
+`rejected` states, captures the exclusively owned private storage identities, then deletes the job
+and owned source-document rows transactionally. Cascades remove that import's drafts, chunks,
+citations, and reviews; an immutable `course_import.removed_from_queue` audit record retains the job
+identity, prior state, and deleted source IDs. The service removes the captured private storage
+objects after commit. Official Course, Chapter, Lesson, publication, learner, progress, and Exercise
+rows are not deleted.
 
 ### Exercise ownership remains separate
 

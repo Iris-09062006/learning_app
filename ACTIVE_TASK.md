@@ -1,12 +1,21 @@
 # Active Task Queue
 
-- **Active task:** `TASK-108` — Render Mathematical Notation in Lesson Content
+- **Active task:** `TASK-109` — Remove Course Imports from the Queue
 - **Status:** `VERIFIED`
 - **Owner / Reviewer:** Codex
 - **Deferred design task:** `TASK-047` (`DRAFT`)
 - **Previous blocked task:** `TASK-044` — external Supabase Redirect URL verification
 
 ## Current objective
+
+TASK-109 adds a confirmed, active-Admin-only removal action for each Course-import queue item. The
+operation permanently deletes the unresolved import, its owned database evidence, and private source
+objects while preserving an audit record. No official Course or Lesson is deleted. Focused/full
+tests, lint, typecheck, build, diff, secret, and final review gates pass. Migration `034` was applied
+through Supabase MCP as `20260902034802 remove_course_import_from_queue`. Implementation commit:
+`1556cb6`; task-report commit: `35cddc5`.
+
+## Previous verified objective
 
 TASK-108 safely renders inline/display LaTeX in learner Lesson Markdown and adds a rendered preview
 below each editable Admin Course-import section. Cases, matrices, invalid input, code literals, and

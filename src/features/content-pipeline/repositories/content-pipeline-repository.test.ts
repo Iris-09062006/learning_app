@@ -33,6 +33,7 @@ import {
   persistCourseOutlineForJob,
   persistCourseLessonContentForJob,
   removeStagedCourseImportSource,
+  removeCourseImportFromQueue,
   uploadSourceObject,
 } from "./content-pipeline-repository";
 
@@ -89,6 +90,43 @@ describe("Course outline persistence diagnostics", () => {
     expect(logged).not.toContain("9router");
     expect(logged).not.toContain("gemini-3.7-flash-tiered");
     warningMock.mockRestore();
+  });
+});
+
+describe("Course import queue removal", () => {
+  beforeEach(() => vi.clearAllMocks());
+
+  it("uses the authenticated transactional RPC and validates its terminal result", async () => {
+    const rpc = vi.fn().mockResolvedValue({ data: {
+      jobId: 61,
+      deleted: true,
+      sourceCount: 2,
+      storageObjects: [
+        { bucket: "lesson-sources", path: "admin/source-a.pdf" },
+        { bucket: "lesson-sources", path: "admin/source-b.md" },
+      ],
+    }, error: null });
+    mocks.createServerSupabaseClient.mockResolvedValue({ rpc });
+
+    await expect(removeCourseImportFromQueue(61)).resolves.toEqual({
+      jobId: 61,
+      deleted: true,
+      sourceCount: 2,
+      storagePaths: ["admin/source-a.pdf", "admin/source-b.md"],
+    });
+    expect(rpc).toHaveBeenCalledWith("remove_course_import_from_queue", { p_job_id: 61 });
+  });
+
+  it("rejects malformed RPC output", async () => {
+    const rpc = vi.fn().mockResolvedValue({ data: {
+      jobId: 62,
+      deleted: true,
+      sourceCount: 1,
+      storageObjects: [{ bucket: "lesson-sources", path: "admin/source.pdf" }],
+    }, error: null });
+    mocks.createServerSupabaseClient.mockResolvedValue({ rpc });
+
+    await expect(removeCourseImportFromQueue(61)).rejects.toThrow("DATABASE_ERROR");
   });
 });
 

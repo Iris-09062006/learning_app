@@ -992,6 +992,41 @@ export async function reviewCourseImport(jobId: number, decision: string, commen
   return data as unknown as { status: string };
 }
 
+export async function removeCourseImportFromQueue(
+  jobId: number,
+): Promise<{
+  jobId: number;
+  deleted: true;
+  sourceCount: number;
+  storagePaths: string[];
+}> {
+  const supabase = await client();
+  const { data, error } = await supabase.rpc("remove_course_import_from_queue", {
+    p_job_id: jobId,
+  });
+  if (error || !data || typeof data !== "object") throw new Error("DATABASE_ERROR");
+  const result = data as unknown as {
+    jobId?: unknown;
+    deleted?: unknown;
+    sourceCount?: unknown;
+    storageObjects?: unknown;
+  };
+  if (result.jobId !== jobId || result.deleted !== true || !Number.isSafeInteger(result.sourceCount)
+    || (result.sourceCount as number) < 1 || !Array.isArray(result.storageObjects)) {
+    throw new Error("DATABASE_ERROR");
+  }
+  const storagePaths = result.storageObjects.map((item) => {
+    if (!item || typeof item !== "object" || Array.isArray(item)) throw new Error("DATABASE_ERROR");
+    const record = item as Record<string, unknown>;
+    if (record.bucket !== "lesson-sources" || typeof record.path !== "string" || !record.path) {
+      throw new Error("DATABASE_ERROR");
+    }
+    return record.path;
+  });
+  if (storagePaths.length !== result.sourceCount) throw new Error("DATABASE_ERROR");
+  return { jobId, deleted: true, sourceCount: result.sourceCount as number, storagePaths };
+}
+
 export async function publishCourseImport(jobId: number, courseSlug: string): Promise<PublishCourseImportResult> {
   const supabase = await client();
   const { data, error } = await supabase.rpc("publish_course_import_job", {

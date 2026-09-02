@@ -25,6 +25,7 @@ const mocks = vi.hoisted(() => ({
   persistCourseLessonContentForJob: vi.fn(),
   failCourseImport: vi.fn(),
   reviewCourseImport: vi.fn(),
+  removeCourseImportFromQueue: vi.fn(),
   publishCourseImport: vi.fn(),
   reconcileCourseLessonGeneration: vi.fn(),
   reviseCourseLessonContent: vi.fn(),
@@ -74,6 +75,7 @@ vi.mock("@/features/content-pipeline/repositories/content-pipeline-repository", 
   persistCourseLessonContentForJob: mocks.persistCourseLessonContentForJob,
   failCourseImport: mocks.failCourseImport,
   reviewCourseImport: mocks.reviewCourseImport,
+  removeCourseImportFromQueue: mocks.removeCourseImportFromQueue,
   publishCourseImport: mocks.publishCourseImport,
   reconcileCourseLessonGeneration: mocks.reconcileCourseLessonGeneration,
   reviseCourseLessonContent: mocks.reviseCourseLessonContent,
@@ -258,6 +260,7 @@ import {
   updateCourseOutline,
   selectCourseImportProviderChunks,
   getCourseDraftQueue,
+  removeCourseDraftFromQueue,
   submitCourseDraftReview,
   getContentTargets,
   ingestUrlSource,
@@ -2560,6 +2563,30 @@ describe("two-stage Course imports", () => {
     expect(mocks.reviewCourseImport).toHaveBeenCalledWith(61, "needs_revision", "Revise");
     expect(mocks.webExtract).not.toHaveBeenCalled();
     expect(mocks.fetchWebPage).not.toHaveBeenCalled();
+  });
+
+  it("removes a validated Course import through the Admin-authorized repository boundary", async () => {
+    mocks.removeCourseImportFromQueue.mockResolvedValue({
+      jobId: 61,
+      deleted: true,
+      sourceCount: 2,
+      storagePaths: ["admin/source-a.pdf", "admin/source-b.md"],
+    });
+
+    await expect(removeCourseDraftFromQueue("61")).resolves.toEqual({
+      jobId: 61,
+      deleted: true,
+      sourceCount: 2,
+    });
+    expect(mocks.removeCourseImportFromQueue).toHaveBeenCalledWith(61);
+    expect(mocks.removeSourceObject).toHaveBeenCalledTimes(2);
+  });
+
+  it("rejects an invalid queue item id before calling the repository", async () => {
+    await expect(removeCourseDraftFromQueue("not-an-id")).rejects.toMatchObject({
+      code: "VALIDATION_ERROR",
+    });
+    expect(mocks.removeCourseImportFromQueue).not.toHaveBeenCalled();
   });
 
   it.each([
