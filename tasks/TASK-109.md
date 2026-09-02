@@ -59,5 +59,5 @@ the queue while protecting published curriculum.
   secret scan, and final review pass.
 - Review verdict: `PASS`; migration `034` was applied through Supabase MCP as remote migration
   `20260902034802 remove_course_import_from_queue` and its function grants/security settings were
-  verified; commit `1556cb6`; no push, application deploy, live AI request, or queue-item deletion
+  verified; main integration commit `1b18c96`; no application deploy, live AI request, or queue-item deletion
   occurred.

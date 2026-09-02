@@ -26,4 +26,4 @@ objects, then reconciles the UI from an uncached queue response. Published curri
 - Migration `034` was subsequently applied through Supabase MCP as remote migration
   `20260902034802 remove_course_import_from_queue`; no application deployment, push, or live provider
   request was performed.
-- Commit: `1556cb6` (`feat(content-pipeline): remove imports from queue`).
+- Main integration commit: `1b18c96` (`feat(content-pipeline): remove imports from queue`).

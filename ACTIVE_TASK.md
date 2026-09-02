@@ -13,7 +13,7 @@ operation permanently deletes the unresolved import, its owned database evidence
 objects while preserving an audit record. No official Course or Lesson is deleted. Focused/full
 tests, lint, typecheck, build, diff, secret, and final review gates pass. Migration `034` was applied
 through Supabase MCP as `20260902034802 remove_course_import_from_queue`. Implementation commit:
-`1556cb6`; task-report commit: `35cddc5`.
+`1b18c96`.
 
 ## Previous verified objective
 

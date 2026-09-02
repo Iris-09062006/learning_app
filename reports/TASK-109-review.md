@@ -4,7 +4,7 @@
 
 `PASS` — no Critical, High, or Medium findings remain.
 
-Commit: `1556cb6`.
+Main integration commit: `1b18c96`.
 
 ## Review evidence
 

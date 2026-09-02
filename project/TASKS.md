@@ -15,8 +15,7 @@
 action. Removal permanently deletes the unresolved import and its owned source material while
 preserving an audit record and protecting all official curriculum. Focused/full tests, lint,
 typecheck, build, diff, secret, and final review gates pass. Migration `034` was applied through
-Supabase MCP as `20260902034802 remove_course_import_from_queue`. Implementation commit: `1556cb6`;
-task-report commit: `35cddc5`.
+Supabase MCP as `20260902034802 remove_course_import_from_queue`. Main integration commit: `1b18c96`.
 
 `TASK-108` is verified: safe KaTeX rendering now covers inline/display mathematics in learner
 Lesson Markdown and rendered previews for editable Admin Lesson sections. Focused/full tests, lint,
